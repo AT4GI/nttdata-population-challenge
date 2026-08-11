@@ -1,5 +1,5 @@
-// Firebase Consoleで取得した設定値に差し替えてください。
-// このファイルだけを編集すれば、アプリ本体のコードは変更不要です。
+// Copy this file to firebase-config.js and fill it with the Firebase Web app config.
+// firebase-config.js is ignored by Git and must not be committed.
 export const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_PROJECT_ID.firebaseapp.com",

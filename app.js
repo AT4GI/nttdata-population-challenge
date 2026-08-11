@@ -8,7 +8,7 @@ import {
   update,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js";
+import { loadFirebaseConfig } from "./config-loader.js";
 
 const TARGET = 200000;
 const MUNICIPALITIES = [
@@ -90,16 +90,8 @@ let unsubscribeRoom = null;
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 els.targetLabel.textContent = formatNumber(TARGET);
-
-try {
-  assertFirebaseConfig(firebaseConfig);
-  const app = initializeApp(firebaseConfig);
-  db = getDatabase(app);
-  appReady = true;
-} catch (error) {
-  setSetupMessage(error.message);
-  disableSetup(true);
-}
+disableSetup(true);
+initializeFirebase();
 
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
@@ -107,6 +99,21 @@ els.startGameButton.addEventListener("click", startGame);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
 els.leaveRoomButton.addEventListener("click", () => window.location.reload());
+
+async function initializeFirebase() {
+  try {
+    const firebaseConfig = await loadFirebaseConfig();
+    assertFirebaseConfig(firebaseConfig);
+    const app = initializeApp(firebaseConfig);
+    db = getDatabase(app);
+    appReady = true;
+    setSetupMessage("");
+    disableSetup(false);
+  } catch (error) {
+    setSetupMessage(error.message);
+    disableSetup(true);
+  }
+}
 
 async function createRoom() {
   if (!appReady) return;

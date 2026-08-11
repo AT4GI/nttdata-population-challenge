@@ -94,15 +94,35 @@ Firebase CLIは前提にしていません。
 - `index.html`: 画面構造
 - `styles.css`: 画面デザイン
 - `app.js`: ゲーム処理とFirebase連携
-- `firebase-config.js`: Firebaseプロジェクト設定
+- `config-loader.js`: Firebase設定の実行時読み込み
+- `firebase-config.example.js`: Firebase設定ファイルのテンプレート
+- `firebase-config.js`: Firebaseプロジェクト設定（ローカル作成、Git管理対象外）
+- `firebase.json`: Firebase Hosting用の静的サイト設定
+- `.github/workflows/pages.yml`: GitHub Pages用のデプロイワークフロー
 - `README.md`: プロジェクト説明
 - `AGENTS.md`: Codex向け開発ルール
 
 ## 起動方法
 
-### 1. Firebase設定を入れる
+### 1. Firebase設定ファイルをローカルで作成する
 
-Firebase ConsoleでWebアプリを作成し、表示された設定値を `firebase-config.js` に貼り付けます。
+Firebase ConsoleでWebアプリを作成し、表示された設定値を使って `firebase-config.js` を作成します。
+
+`firebase-config.js` はGit管理対象外です。Firebase Webアプリ設定値はブラウザに配信される値ですが、このプロジェクトでは秘密情報と同じ扱いにし、リポジトリへコミットしません。
+
+PowerShell:
+
+```powershell
+Copy-Item firebase-config.example.js firebase-config.js
+```
+
+macOS/Linux:
+
+```bash
+cp firebase-config.example.js firebase-config.js
+```
+
+作成した `firebase-config.js` のプレースホルダーをFirebase Consoleの値に差し替えます。
 
 ```js
 export const firebaseConfig = {
@@ -169,6 +189,51 @@ ipconfig
 
 離れた場所にいる人と試す場合は、Firebase Hosting、GitHub Pages、Vercel、Netlifyなどに静的ファイルとして公開してください。
 
+## 公開方法
+
+このMVPは静的HTML/CSS/JavaScriptだけで動くため、静的ホスティングにそのまま公開できます。Firebase設定値はコードに直書きせず、公開環境のSecretsまたはローカルの未追跡ファイルから注入してください。
+
+### GitHub Pagesで公開する
+
+このリポジトリにはGitHub ActionsのPagesデプロイ設定を含めています。
+
+1. GitHubリポジトリの Settings > Pages で Source を `GitHub Actions` にします。
+2. Settings > Secrets and variables > Actions に次のRepository secretsを登録します。
+
+```text
+FIREBASE_API_KEY
+FIREBASE_AUTH_DOMAIN
+FIREBASE_DATABASE_URL
+FIREBASE_PROJECT_ID
+FIREBASE_STORAGE_BUCKET
+FIREBASE_MESSAGING_SENDER_ID
+FIREBASE_APP_ID
+```
+
+3. `main` ブランチへpushするか、Actionsから `Deploy GitHub Pages` を手動実行します。
+
+ワークフローはデプロイ時にだけ `firebase-config.js` を生成し、`index.html`、`styles.css`、`app.js`、`config-loader.js` と一緒にPagesへアップロードします。Secretsが不足している場合、デプロイは失敗します。
+
+### Firebase Hostingで公開する
+
+Firebase CLIを使える場合は、ローカルに `firebase-config.js` を作成した状態で以下を実行します。
+
+```bash
+firebase login
+firebase use --add
+firebase deploy --only hosting
+```
+
+`firebase.json` はこのリポジトリ直下を静的サイトとして配信し、`.git`、`.github`、`sources/`、README、AGENTSなどはデプロイ対象から除外します。`firebase-config.js` はGitには入れず、デプロイ時にだけローカルから含めます。
+
+### 2人で試すときの確認ポイント
+
+- 1人目が公開URLを開き、表示名を入れて「部屋を作る」を押す
+- 表示された部屋IDを2人目に共有する
+- 2人目が同じ公開URLで表示名と部屋IDを入れて参加する
+- ホスト側に「ゲーム開始」が表示されたら開始する
+- 両者がHIT / STANDし、BUST / JUST / 勝敗表示まで同期されることを確認する
+
 ## 今後実装したい機能
 
 - 実データの全国市区町村人口データへの差し替え
@@ -187,7 +252,7 @@ ipconfig
 
 ## 現在わかっている課題
 
-- `firebase-config.js` にFirebase設定値を入れないと部屋を作れない
+- `firebase-config.js` をローカル作成するか、GitHub Actions Secretsからデプロイ時に生成しないと部屋を作れない
 - `localhost` は自分のPC専用なので、そのままでは別の人と試せない
 - 現在のRealtime Database Rules例は検証用であり、本番利用には危険
 - 市区町村データは仮データで、人口値も正式な出典に基づくものではない
@@ -195,5 +260,4 @@ ipconfig
 - 部屋に入れる人数はアプリ側で制限しているが、セキュリティルールでは制限していない
 - ブラウザのセッション情報でプレイヤーIDを管理しているため、厳密な本人確認はない
 - 同時操作時の競合制御はMVP水準で、厳密なトランザクション処理ではない
-- 公開URLで試すためのホスティング設定はまだ含めていない
 - 自動テストは未整備
