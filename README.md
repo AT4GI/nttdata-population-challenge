@@ -97,6 +97,7 @@ Firebase CLIは前提にしていません。
 - `config-loader.js`: Firebase設定の実行時読み込み
 - `firebase-config.example.js`: Firebase設定ファイルのテンプレート
 - `firebase-config.js`: Firebaseプロジェクト設定（ローカル作成、Git管理対象外）
+- `database.rules.example.json`: Realtime Database検証用Rulesテンプレート
 - `firebase.json`: Firebase Hosting用の静的サイト設定
 - `.github/workflows/pages.yml`: GitHub Pages用のデプロイワークフロー
 - `README.md`: プロジェクト説明
@@ -142,18 +143,20 @@ export const firebaseConfig = {
 
 Firebase ConsoleでRealtime Databaseを作成します。
 
-検証用にすぐ動かす場合は、Rulesを一時的に以下のようにできます。
+検証用にすぐ動かす場合は、Rulesを一時的に以下のようにできます。このリポジトリには同じ内容のテンプレートとして `database.rules.example.json` も含めています。
 
 ```json
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "rooms": {
+      ".read": true,
+      ".write": true
+    }
   }
 }
 ```
 
-このルールは検証専用です。公開環境や長期利用では使わないでください。
+このルールは検証専用です。URLを知っている人が `rooms` 配下を読み書きできるため、公開環境や長期利用では使わないでください。
 
 ### 3. ローカルサーバーを起動する
 
@@ -187,15 +190,22 @@ WindowsでIPアドレスを確認する場合:
 ipconfig
 ```
 
-離れた場所にいる人と試す場合は、Firebase Hosting、GitHub Pages、Vercel、Netlifyなどに静的ファイルとして公開してください。
+離れた場所にいる人と試す場合は、Firebase Hosting、GitHub Pages、Vercel、Netlifyなどに静的ファイルとして公開してください。公開後は、2人とも同じ公開URLを開き、同じRealtime Databaseを参照することで対戦できます。
 
 ## 公開方法
 
 このMVPは静的HTML/CSS/JavaScriptだけで動くため、静的ホスティングにそのまま公開できます。Firebase設定値はコードに直書きせず、公開環境のSecretsまたはローカルの未追跡ファイルから注入してください。
 
+公開前に、Firebase側で次の準備が必要です。
+
+- Firebase Webアプリを作成し、Webアプリ設定値を取得する
+- Realtime Databaseを作成する
+- 検証用Rulesを設定し、`rooms` 配下を読み書きできる状態にする
+- 公開先で `firebase-config.js` が生成または配置されるようにする
+
 ### GitHub Pagesで公開する
 
-このリポジトリにはGitHub ActionsのPagesデプロイ設定を含めています。
+このリポジトリにはGitHub ActionsのPagesデプロイ設定を含めています。現在の構成では、GitHub Pagesが最もそのまま使いやすい公開方法です。
 
 1. GitHubリポジトリの Settings > Pages で Source を `GitHub Actions` にします。
 2. Settings > Secrets and variables > Actions に次のRepository secretsを登録します。
@@ -214,6 +224,8 @@ FIREBASE_APP_ID
 
 ワークフローはデプロイ時にだけ `firebase-config.js` を生成し、`index.html`、`styles.css`、`app.js`、`config-loader.js` と一緒にPagesへアップロードします。Secretsが不足している場合、デプロイは失敗します。
 
+GitHub Pagesで公開した場合も、Firebase Realtime Database RulesはFirebase Console側で設定してください。GitHub Actions SecretsにはFirebase Webアプリ設定値だけを入れ、サービスアカウント鍵や秘密鍵は入れないでください。
+
 ### Firebase Hostingで公開する
 
 Firebase CLIを使える場合は、ローカルに `firebase-config.js` を作成した状態で以下を実行します。
@@ -225,6 +237,8 @@ firebase deploy --only hosting
 ```
 
 `firebase.json` はこのリポジトリ直下を静的サイトとして配信し、`.git`、`.github`、`sources/`、README、AGENTSなどはデプロイ対象から除外します。`firebase-config.js` はGitには入れず、デプロイ時にだけローカルから含めます。
+
+Firebase Hostingで配信する場合も、検証用RulesはFirebase Consoleで設定するか、`database.rules.example.json` の内容を確認したうえでFirebase CLIから別途反映してください。検証後は必ず本番向けRulesへ置き換えてください。
 
 ### 2人で試すときの確認ポイント
 
