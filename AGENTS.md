@@ -24,12 +24,23 @@ The current app is a static HTML/CSS/JavaScript MVP that uses Firebase Realtime 
 - At minimum, run JavaScript syntax checks when `app.js` changes.
 - When possible, verify that the local page still responds through the local server.
 - After finishing work, review the changed files and summarize what changed.
+- Whenever Codex changes files and completes a task, run `git status` and `git diff` to review the changes before staging.
+- Check changed files for secrets or credentials before staging, including private Firebase credentials, API secrets, access tokens, private keys, credential files, service account information, and similar sensitive material.
+- If any changed file may contain sensitive information, do not commit or push. Report the concern to the user and wait for instructions.
+- Run the necessary tests for the change before committing.
+- If there are no issues, stage only the files changed for the completed task.
 - Use appropriate git commits for each coherent unit of work.
 - Commit messages should be specific and describe the user-visible or project-level change.
+- After committing, push the current branch to `origin`.
 - After GitHub is connected, push the current branch after completing a work unit.
 - If `git commit` or `git push` fails, do not use force operations automatically.
 - If push or commit fails, report the cause and ask before taking risky recovery steps.
 - Do not run destructive git commands such as `git reset --hard`, forced checkout, or force push unless the user explicitly approves.
+- Do not commit `.env`, private keys, credential files, Firebase private keys, service account files, secrets, API secrets, access tokens, or other credentials.
+- Do not bypass `.gitignore` with `git add -f`.
+- Do not use `git push --force` unless the user explicitly instructs it.
+- Do not rewrite existing Git history unless the user explicitly approves.
+- At task completion, briefly report the changed files, test results, commit hash, and push result.
 
 ## Suggested checks
 
