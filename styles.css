@@ -168,6 +168,36 @@ label input {
   color: var(--muted);
 }
 
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.guide-block {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbfd;
+  padding: 16px;
+}
+
+.guide-block h2 {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.guide-block ul,
+.guide-block ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+
+.guide-block li + li {
+  margin-top: 8px;
+}
+
 .game-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
@@ -306,6 +336,7 @@ label input {
   }
 
   .field-grid,
+  .guide-grid,
   .game-grid {
     grid-template-columns: 1fr;
   }

@@ -35,6 +35,26 @@
           <button id="joinRoomButton" type="button" class="secondary">部屋IDで参加</button>
         </div>
         <p id="setupMessage" class="message" role="status"></p>
+        <div class="guide-grid" aria-label="遊び方と対戦方法">
+          <section class="guide-block" aria-labelledby="rulesTitle">
+            <h2 id="rulesTitle">遊び方</h2>
+            <ul>
+              <li>2〜5人で同じ部屋に入り、ホストがゲームを開始します。</li>
+              <li>自分の番になったら、市区町村の人口を予想してHITかSTANDを選びます。</li>
+              <li>HITすると人口が加算され、TARGETを超えるとBUST、ぴったりならJUSTです。</li>
+              <li>全員がSTAND / BUST / JUSTになると、TARGETに一番近い人が勝ちです。</li>
+            </ul>
+          </section>
+          <section class="guide-block" aria-labelledby="inviteTitle">
+            <h2 id="inviteTitle">友達と対戦</h2>
+            <ol>
+              <li>1人目が表示名を入れて「部屋を作る」を押します。</li>
+              <li>表示された部屋IDを友達に共有します。</li>
+              <li>友達は同じURLを開き、表示名と部屋IDを入れて参加します。</li>
+              <li>2人以上そろったら、ホストが「ゲーム開始」を押します。</li>
+            </ol>
+          </section>
+        </div>
       </section>
 
       <section id="gameView" class="game-grid hidden" aria-live="polite">
