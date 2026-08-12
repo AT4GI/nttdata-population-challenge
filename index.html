@@ -47,6 +47,14 @@
             <p class="label">状態</p>
             <div class="state-text" id="roomState">待機中</div>
           </div>
+          <div>
+            <p class="label">現在の番</p>
+            <div class="state-text" id="turnLabel">開始前</div>
+          </div>
+          <div>
+            <p class="label">参加人数</p>
+            <div class="state-text" id="capacityLabel">1 / 5人</div>
+          </div>
           <button id="startGameButton" type="button" class="hidden">ゲーム開始</button>
         </div>
 
@@ -65,7 +73,7 @@
           <div class="candidate-box">
             <p class="label" id="candidateTitle">次の市区町村</p>
             <h2 id="candidateName">待機中</h2>
-            <p id="candidatePrefecture">2人そろったら開始できます</p>
+            <p id="candidatePrefecture">2人以上そろったら開始できます</p>
             <p class="unknown" id="candidatePopulation">人口：?????</p>
           </div>
 
@@ -76,26 +84,9 @@
           <p id="myStatus" class="message"></p>
         </section>
 
-        <section class="panel opponent-panel" aria-labelledby="opponentTitle">
-          <h2 id="opponentTitle">相手</h2>
-          <div class="opponent-stats">
-            <div>
-              <p class="label">表示名</p>
-              <strong id="opponentName">参加待ち</strong>
-            </div>
-            <div>
-              <p class="label">現在人口</p>
-              <strong id="opponentTotal">0</strong>
-            </div>
-            <div>
-              <p class="label">状態</p>
-              <strong id="opponentStatus">待機中</strong>
-            </div>
-            <div>
-              <p class="label">HIT回数</p>
-              <strong id="opponentHitCount">0</strong>
-            </div>
-          </div>
+        <section class="panel players-panel" aria-labelledby="playersTitle">
+          <h2 id="playersTitle">参加者</h2>
+          <div id="playersList" class="players-list"></div>
         </section>
 
         <section id="resultPanel" class="panel result-panel hidden" aria-labelledby="resultTitle">

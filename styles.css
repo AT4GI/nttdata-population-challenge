@@ -235,20 +235,45 @@ label input {
   font-weight: 800;
 }
 
-.opponent-panel h2,
+.players-panel h2,
 .result-panel h2 {
   margin-bottom: 16px;
 }
 
-.opponent-stats {
+.players-list {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
-.opponent-stats strong {
+.player-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbfd;
+  padding: 12px;
+}
+
+.player-row.current-turn {
+  border-color: var(--primary);
+  background: #eef6ff;
+}
+
+.player-row.me {
+  border-color: var(--accent);
+}
+
+.player-row strong,
+.player-row span {
   display: block;
-  font-size: 1.5rem;
   overflow-wrap: anywhere;
+}
+
+.player-row strong {
+  font-size: 1.15rem;
+}
+
+.player-row span {
+  color: var(--muted);
+  margin-top: 4px;
 }
 
 .result-panel {

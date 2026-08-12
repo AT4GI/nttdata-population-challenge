@@ -11,6 +11,8 @@ import {
 import { loadFirebaseConfig } from "./config-loader.js";
 
 const TARGET = 200000;
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 5;
 const MUNICIPALITIES = [
   { id: "tokyo-hachioji", name: "八王子市", prefecture: "東京都", population: 579355 },
   { id: "tokyo-mitaka", name: "三鷹市", prefecture: "東京都", population: 195391 },
@@ -63,6 +65,8 @@ const els = {
   targetLabel: document.querySelector("#targetLabel"),
   roomCode: document.querySelector("#roomCode"),
   roomState: document.querySelector("#roomState"),
+  turnLabel: document.querySelector("#turnLabel"),
+  capacityLabel: document.querySelector("#capacityLabel"),
   startGameButton: document.querySelector("#startGameButton"),
   myTotal: document.querySelector("#myTotal"),
   myHitCount: document.querySelector("#myHitCount"),
@@ -72,10 +76,7 @@ const els = {
   hitButton: document.querySelector("#hitButton"),
   standButton: document.querySelector("#standButton"),
   myStatus: document.querySelector("#myStatus"),
-  opponentName: document.querySelector("#opponentName"),
-  opponentTotal: document.querySelector("#opponentTotal"),
-  opponentStatus: document.querySelector("#opponentStatus"),
-  opponentHitCount: document.querySelector("#opponentHitCount"),
+  playersList: document.querySelector("#playersList"),
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
   resultDetail: document.querySelector("#resultDetail"),
@@ -127,6 +128,10 @@ async function createRoom() {
       roomId,
       target: TARGET,
       status: "waiting",
+      maxPlayers: MAX_PLAYERS,
+      turnIndex: null,
+      playerOrder: [],
+      startedPlayerIds: [],
       hostPlayerId: currentPlayerId,
       createdAt: serverTimestamp(),
       players: {
@@ -157,12 +162,20 @@ async function joinRoom() {
     const room = roomSnapshot.val();
     const players = room.players || {};
     const playerIds = Object.keys(players);
-    if (!players[currentPlayerId] && playerIds.length >= 2) {
-      setSetupMessage("この部屋はすでに2人そろっています。");
+    if (room.status !== "waiting" && !players[currentPlayerId]) {
+      setSetupMessage("この部屋はすでにゲーム開始済みです。");
+      return;
+    }
+    if (players[currentPlayerId] && room.status !== "waiting") {
+      enterRoom(roomId);
+      return;
+    }
+    if (!players[currentPlayerId] && playerIds.length >= MAX_PLAYERS) {
+      setSetupMessage(`この部屋はすでに${MAX_PLAYERS}人そろっています。`);
       return;
     }
 
-    const defaultName = playerIds.length === 0 ? "Player 1" : "Player 2";
+    const defaultName = `Player ${Math.min(playerIds.length + 1, MAX_PLAYERS)}`;
     await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(defaultName), "waiting"));
     enterRoom(roomId);
   });
@@ -192,8 +205,20 @@ async function startGame() {
     if (!room || room.hostPlayerId !== currentPlayerId) return;
 
     const players = room.players || {};
-    const updates = { status: "playing", startedAt: serverTimestamp() };
-    for (const playerId of Object.keys(players)) {
+    const playerOrder = getPlayerOrder({ ...room, players });
+    if (playerOrder.length < MIN_PLAYERS) {
+      els.myStatus.textContent = `${MIN_PLAYERS}人以上そろうと開始できます。`;
+      return;
+    }
+
+    const updates = {
+      status: "playing",
+      startedAt: serverTimestamp(),
+      turnIndex: 0,
+      playerOrder,
+      startedPlayerIds: playerOrder
+    };
+    for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
       updates[`players/${playerId}/candidate`] = pickCandidate(players[playerId].drawn || {});
     }
@@ -206,7 +231,7 @@ async function hit() {
   await runGameAction(async () => {
     const room = await getCurrentRoom();
     const me = getMe(room);
-    if (!room || !canPlay(me)) return;
+    if (!room || !canTakeTurn(room, currentPlayerId)) return;
 
     const candidate = me.candidate || pickCandidate(me.drawn || {});
     const nextTotal = (me.total || 0) + candidate.population;
@@ -228,8 +253,11 @@ async function hit() {
       payload.finishedAt = serverTimestamp();
     }
 
-    await update(ref(db, `rooms/${currentRoomId}/players/${currentPlayerId}`), payload);
-    await finishRoomIfNeeded();
+    const nextPlayers = { ...(room.players || {}), [currentPlayerId]: { ...me, ...payload } };
+    const updates = prefixPlayerUpdate(currentPlayerId, payload);
+    Object.assign(updates, buildRoomProgressUpdates({ ...room, players: nextPlayers }, currentPlayerId));
+
+    await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
 }
 
@@ -237,14 +265,18 @@ async function stand() {
   await runGameAction(async () => {
     const room = await getCurrentRoom();
     const me = getMe(room);
-    if (!room || !canPlay(me)) return;
+    if (!room || !canTakeTurn(room, currentPlayerId)) return;
 
-    await update(ref(db, `rooms/${currentRoomId}/players/${currentPlayerId}`), {
+    const payload = {
       status: "stand",
       candidate: null,
       finishedAt: serverTimestamp()
-    });
-    await finishRoomIfNeeded();
+    };
+    const nextPlayers = { ...(room.players || {}), [currentPlayerId]: { ...me, ...payload } };
+    const updates = prefixPlayerUpdate(currentPlayerId, payload);
+    Object.assign(updates, buildRoomProgressUpdates({ ...room, players: nextPlayers }, currentPlayerId));
+
+    await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
 }
 
@@ -252,8 +284,9 @@ async function finishRoomIfNeeded() {
   const room = await getCurrentRoom();
   if (!room || room.status === "finished") return;
 
-  const players = Object.entries(room.players || {});
-  if (players.length < 2 || !players.every(([, player]) => isFinished(player.status))) return;
+  const playerIds = getStartedPlayerIds(room);
+  const players = playerIds.map((id) => [id, room.players?.[id]]).filter(([, player]) => player);
+  if (players.length < MIN_PLAYERS || !players.every(([, player]) => isFinished(player.status))) return;
 
   await update(ref(db, `rooms/${currentRoomId}`), {
     status: "finished",
@@ -264,16 +297,19 @@ async function finishRoomIfNeeded() {
 
 function renderRoom(room) {
   const players = room.players || {};
-  const playerIds = Object.keys(players);
+  const playerIds = getDisplayPlayerIds(room);
   const me = players[currentPlayerId];
-  const opponent = playerIds.filter((id) => id !== currentPlayerId).map((id) => players[id])[0];
   const isHost = room.hostPlayerId === currentPlayerId;
+  const turnPlayerId = getCurrentTurnPlayerId(room);
+  const turnPlayer = players[turnPlayerId];
 
   els.targetLabel.textContent = formatNumber(room.target || TARGET);
   els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "プレイ中" : "待機中";
-  els.startGameButton.classList.toggle("hidden", !(isHost && room.status === "waiting" && playerIds.length === 2));
+  els.capacityLabel.textContent = `${playerIds.length} / ${room.maxPlayers || MAX_PLAYERS}人`;
+  els.turnLabel.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんの番` : "開始前";
+  els.startGameButton.classList.toggle("hidden", !(isHost && room.status === "waiting" && playerIds.length >= MIN_PLAYERS));
 
-  if (room.status !== "finished" && playerIds.length === 2 && playerIds.every((id) => isFinished(players[id].status))) {
+  if (room.status !== "finished" && playerIds.length >= MIN_PLAYERS && playerIds.every((id) => isFinished(players[id].status))) {
     finishRoomIfNeeded();
   }
 
@@ -281,7 +317,7 @@ function renderRoom(room) {
 
   els.myTotal.textContent = formatNumber(me.total || 0);
   els.myHitCount.textContent = formatNumber(me.hitCount || 0);
-  els.myStatus.textContent = buildMyStatus(me, room.target);
+  els.myStatus.textContent = buildMyStatus(me, room);
 
   const candidate = me.candidate;
   if (candidate && canPlay(me) && room.status === "playing") {
@@ -294,17 +330,14 @@ function renderRoom(room) {
     els.candidatePopulation.textContent = "終了";
   } else {
     els.candidateName.textContent = room.status === "waiting" ? "待機中" : "候補なし";
-    els.candidatePrefecture.textContent = playerIds.length < 2 ? "相手の参加を待っています" : "ホストがゲームを開始します";
+    els.candidatePrefecture.textContent = playerIds.length < MIN_PLAYERS ? "参加者を待っています" : "ホストがゲームを開始します";
     els.candidatePopulation.textContent = "人口：?????";
   }
 
-  els.hitButton.disabled = !(room.status === "playing" && canPlay(me));
-  els.standButton.disabled = !(room.status === "playing" && canPlay(me));
+  els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
+  els.standButton.disabled = !canTakeTurn(room, currentPlayerId);
 
-  els.opponentName.textContent = opponent?.name || "参加待ち";
-  els.opponentTotal.textContent = formatNumber(opponent?.total || 0);
-  els.opponentStatus.textContent = statusLabels[opponent?.status] || "待機中";
-  els.opponentHitCount.textContent = formatNumber(opponent?.hitCount || 0);
+  renderPlayersList(room, players, playerIds);
 
   renderResult(room, players);
 }
@@ -317,12 +350,11 @@ function renderResult(room, players) {
 
   const result = room.result;
   const me = players[currentPlayerId];
-  const opponentId = result.playerIds.find((id) => id !== currentPlayerId);
-  const opponent = players[opponentId];
+  const winnerIds = result.winnerPlayerIds || (result.winnerPlayerId && result.winnerPlayerId !== "draw" ? [result.winnerPlayerId] : []);
 
-  if (result.winnerPlayerId === "draw") {
+  if (winnerIds.length === 0) {
     els.resultTitle.textContent = "引き分け";
-  } else if (result.winnerPlayerId === currentPlayerId) {
+  } else if (winnerIds.includes(currentPlayerId)) {
     els.resultTitle.textContent = "あなたの勝ち";
     els.resultPanel.classList.add("win");
   } else {
@@ -330,9 +362,41 @@ function renderResult(room, players) {
     els.resultPanel.classList.add("lose");
   }
 
-  els.resultDetail.textContent =
-    `あなた ${formatNumber(me.total || 0)}人（${statusLabels[me.status]}） / ` +
-    `${opponent?.name || "相手"} ${formatNumber(opponent?.total || 0)}人（${statusLabels[opponent?.status] || "待機中"}）`;
+  const summaries = (result.playerIds || getDisplayPlayerIds(room))
+    .map((id) => {
+      const player = players[id];
+      const label = id === currentPlayerId ? "あなた" : player?.name || "参加者";
+      return `${label} ${formatNumber(player?.total || 0)}人（${statusLabels[player?.status] || "待機中"}）`;
+    })
+    .join(" / ");
+  els.resultDetail.textContent = `${result.reason || "TARGETとの差で判定しました。"} ${summaries}`;
+}
+
+function renderPlayersList(room, players, playerIds) {
+  els.playersList.innerHTML = "";
+  const turnPlayerId = getCurrentTurnPlayerId(room);
+
+  for (const playerId of playerIds) {
+    const player = players[playerId];
+    if (!player) continue;
+
+    const item = document.createElement("div");
+    item.className = "player-row";
+    if (playerId === currentPlayerId) item.classList.add("me");
+    if (playerId === turnPlayerId && room.status === "playing") item.classList.add("current-turn");
+
+    const title = document.createElement("strong");
+    title.textContent = `${player.name || "参加者"}${playerId === currentPlayerId ? "（あなた）" : ""}`;
+
+    const meta = document.createElement("span");
+    meta.textContent =
+      `${formatNumber(player.total || 0)}人 / ` +
+      `${statusLabels[player.status] || "待機中"} / ` +
+      `HIT ${formatNumber(player.hitCount || 0)}回`;
+
+    item.append(title, meta);
+    els.playersList.append(item);
+  }
 }
 
 function judge(players, target) {
@@ -344,25 +408,100 @@ function judge(players, target) {
     busted: player.status === "bust",
     just: player.status === "just"
   }));
-  const [a, b] = normalized;
+  const justPlayers = normalized.filter((player) => player.just);
+  const livePlayers = normalized.filter((player) => !player.busted);
+  let winnerPlayerIds = [];
+  let reason = "全員BUSTのため引き分けです。";
 
-  let winnerPlayerId = "draw";
-  if (a.just && !b.just) winnerPlayerId = a.id;
-  else if (!a.just && b.just) winnerPlayerId = b.id;
-  else if (a.busted && !b.busted) winnerPlayerId = b.id;
-  else if (!a.busted && b.busted) winnerPlayerId = a.id;
-  else if (!a.busted && !b.busted && a.diff !== b.diff) winnerPlayerId = a.diff < b.diff ? a.id : b.id;
+  if (justPlayers.length > 0) {
+    winnerPlayerIds = justPlayers.map((player) => player.id);
+    reason = justPlayers.length === 1 ? "JUSTしたプレイヤーの勝利です。" : "複数人がJUSTしたため引き分けです。";
+  } else if (livePlayers.length > 0) {
+    const bestDiff = Math.min(...livePlayers.map((player) => player.diff));
+    winnerPlayerIds = livePlayers.filter((player) => player.diff === bestDiff).map((player) => player.id);
+    reason = winnerPlayerIds.length === 1 ? "TARGETとの差が最も小さいプレイヤーの勝利です。" : "TARGETとの差が同じため引き分けです。";
+  }
+
+  const winnerPlayerId = winnerPlayerIds.length === 1 ? winnerPlayerIds[0] : "draw";
 
   return {
     winnerPlayerId,
+    winnerPlayerIds: winnerPlayerId === "draw" ? [] : winnerPlayerIds,
     playerIds: normalized.map((player) => player.id),
+    reason,
     decidedAt: Date.now()
   };
+}
+
+function buildRoomProgressUpdates(room, actedPlayerId) {
+  const playerIds = getStartedPlayerIds(room);
+  const players = playerIds.map((id) => [id, room.players?.[id]]).filter(([, player]) => player);
+
+  if (players.length >= MIN_PLAYERS && players.every(([, player]) => isFinished(player.status))) {
+    return {
+      status: "finished",
+      result: judge(players, room.target || TARGET),
+      finishedAt: serverTimestamp()
+    };
+  }
+
+  return {
+    turnIndex: getNextTurnIndex(room, actedPlayerId)
+  };
+}
+
+function prefixPlayerUpdate(playerId, payload) {
+  return Object.fromEntries(Object.entries(payload).map(([key, value]) => [`players/${playerId}/${key}`, value]));
+}
+
+function getNextTurnIndex(room, actedPlayerId) {
+  const playerOrder = getPlayerOrder(room);
+  if (playerOrder.length === 0) return 0;
+
+  const actedIndex = Math.max(0, playerOrder.indexOf(actedPlayerId));
+  for (let offset = 1; offset <= playerOrder.length; offset += 1) {
+    const nextIndex = (actedIndex + offset) % playerOrder.length;
+    const nextPlayer = room.players?.[playerOrder[nextIndex]];
+    if (canPlay(nextPlayer)) return nextIndex;
+  }
+  return actedIndex;
+}
+
+function canTakeTurn(room, playerId) {
+  return room?.status === "playing" && canPlay(room.players?.[playerId]) && getCurrentTurnPlayerId(room) === playerId;
+}
+
+function getCurrentTurnPlayerId(room) {
+  const playerOrder = getPlayerOrder(room);
+  if (playerOrder.length === 0 || !Number.isInteger(room.turnIndex)) return "";
+  return playerOrder[room.turnIndex] || "";
+}
+
+function getStartedPlayerIds(room) {
+  if (Array.isArray(room.startedPlayerIds) && room.startedPlayerIds.length > 0) return room.startedPlayerIds;
+  if (Array.isArray(room.playerOrder) && room.playerOrder.length > 0) return room.playerOrder;
+  return getPlayerOrder(room);
+}
+
+function getDisplayPlayerIds(room) {
+  return room.status === "waiting" ? getPlayerOrder(room) : getStartedPlayerIds(room);
+}
+
+function getPlayerOrder(room) {
+  const players = room.players || {};
+  if (Array.isArray(room.playerOrder) && room.playerOrder.length > 0) {
+    return room.playerOrder.filter((id) => players[id]);
+  }
+
+  return Object.entries(players)
+    .sort(([, a], [, b]) => (a.joinedOrder || 0) - (b.joinedOrder || 0))
+    .map(([id]) => id);
 }
 
 function makePlayer(name, status) {
   return {
     name,
+    joinedOrder: Date.now(),
     total: 0,
     hitCount: 0,
     status,
@@ -423,11 +562,18 @@ async function getCurrentRoom() {
   return snapshot.val();
 }
 
-function buildMyStatus(player, target) {
+function buildMyStatus(player, room) {
+  const target = room.target || TARGET;
   if (player.status === "bust") return `BUST：${formatNumber(player.total - target)}人オーバー`;
   if (player.status === "just") return "JUST：TARGETと完全一致";
   if (player.status === "stand") return `STAND：TARGETまで${formatNumber(target - player.total)}人`;
-  if (player.status === "active") return `TARGETまで${formatNumber(target - player.total)}人`;
+  if (player.status === "active") {
+    if (room.status === "playing" && getCurrentTurnPlayerId(room) !== currentPlayerId) {
+      const turnPlayer = room.players?.[getCurrentTurnPlayerId(room)];
+      return `${turnPlayer?.name || "他の参加者"}さんの番です。TARGETまで${formatNumber(target - player.total)}人`;
+    }
+    return `あなたの番です。TARGETまで${formatNumber(target - player.total)}人`;
+  }
   return "待機中";
 }
 
