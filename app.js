@@ -56,6 +56,13 @@ const statusLabels = {
 
 const els = {
   setupView: document.querySelector("#setupView"),
+  setupModeView: document.querySelector("#setupModeView"),
+  createRoomForm: document.querySelector("#createRoomForm"),
+  joinRoomForm: document.querySelector("#joinRoomForm"),
+  selectCreateModeButton: document.querySelector("#selectCreateModeButton"),
+  selectJoinModeButton: document.querySelector("#selectJoinModeButton"),
+  backFromCreateButton: document.querySelector("#backFromCreateButton"),
+  backFromJoinButton: document.querySelector("#backFromJoinButton"),
   gameView: document.querySelector("#gameView"),
   playerNameInput: document.querySelector("#playerNameInput"),
   roomIdInput: document.querySelector("#roomIdInput"),
@@ -94,6 +101,10 @@ els.targetLabel.textContent = formatNumber(TARGET);
 disableSetup(true);
 initializeFirebase();
 
+els.selectCreateModeButton.addEventListener("click", () => showSetupMode("create"));
+els.selectJoinModeButton.addEventListener("click", () => showSetupMode("join"));
+els.backFromCreateButton.addEventListener("click", () => showSetupMode("choice"));
+els.backFromJoinButton.addEventListener("click", () => showSetupMode("choice"));
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startGameButton.addEventListener("click", startGame);
@@ -540,8 +551,20 @@ function setSetupMessage(message) {
 }
 
 function disableSetup(disabled) {
+  els.selectCreateModeButton.disabled = disabled;
+  els.selectJoinModeButton.disabled = disabled;
   els.createRoomButton.disabled = disabled;
   els.joinRoomButton.disabled = disabled;
+}
+
+function showSetupMode(mode) {
+  els.setupModeView.classList.toggle("hidden", mode !== "choice");
+  els.createRoomForm.classList.toggle("hidden", mode !== "create");
+  els.joinRoomForm.classList.toggle("hidden", mode !== "join");
+  setSetupMessage("");
+
+  if (mode === "create") els.playerNameInput.focus();
+  if (mode === "join") els.roomIdInput.focus();
 }
 
 function canPlay(player) {

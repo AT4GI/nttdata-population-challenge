@@ -139,6 +139,20 @@ h1 {
   max-width: 720px;
 }
 
+.setup-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.setup-choice-grid button {
+  min-height: 64px;
+}
+
+.setup-form {
+  max-width: 420px;
+}
+
 .field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -341,6 +355,7 @@ label input {
   }
 
   .field-grid,
+  .setup-choice-grid,
   .guide-grid,
   .game-grid {
     grid-template-columns: 1fr;

@@ -20,20 +20,33 @@
       </section>
 
       <section id="setupView" class="panel setup-panel">
-        <div class="field-grid">
+        <div id="setupModeView" class="setup-choice-grid">
+          <button id="selectCreateModeButton" type="button">部屋を作る</button>
+          <button id="selectJoinModeButton" type="button" class="secondary">部屋に参加する</button>
+        </div>
+
+        <div id="createRoomForm" class="setup-form hidden">
           <label>
             表示名
             <input id="playerNameInput" type="text" maxlength="20" placeholder="Player">
           </label>
+          <div class="button-row">
+            <button id="createRoomButton" type="button">部屋を作る</button>
+            <button id="backFromCreateButton" type="button" class="secondary">戻る</button>
+          </div>
+        </div>
+
+        <div id="joinRoomForm" class="setup-form hidden">
           <label>
             部屋ID
             <input id="roomIdInput" type="text" maxlength="8" placeholder="ABC123">
           </label>
+          <div class="button-row">
+            <button id="joinRoomButton" type="button">参加する</button>
+            <button id="backFromJoinButton" type="button" class="secondary">戻る</button>
+          </div>
         </div>
-        <div class="button-row">
-          <button id="createRoomButton" type="button">部屋を作る</button>
-          <button id="joinRoomButton" type="button" class="secondary">部屋IDで参加</button>
-        </div>
+
         <p id="setupMessage" class="message" role="status"></p>
         <div class="guide-grid" aria-label="遊び方と対戦方法">
           <section class="guide-block" aria-labelledby="rulesTitle">
