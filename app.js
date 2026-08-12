@@ -353,12 +353,12 @@ function renderResult(room, players) {
   const winnerIds = result.winnerPlayerIds || (result.winnerPlayerId && result.winnerPlayerId !== "draw" ? [result.winnerPlayerId] : []);
 
   if (winnerIds.length === 0) {
-    els.resultTitle.textContent = "引き分け";
+    els.resultTitle.textContent = "DRAW";
   } else if (winnerIds.includes(currentPlayerId)) {
-    els.resultTitle.textContent = "あなたの勝ち";
+    els.resultTitle.textContent = "WIN";
     els.resultPanel.classList.add("win");
   } else {
-    els.resultTitle.textContent = "あなたの負け";
+    els.resultTitle.textContent = "LOSE";
     els.resultPanel.classList.add("lose");
   }
 
