@@ -115,6 +115,9 @@ Firebase CLIは前提にしていません。
 - `index.html`: 画面構造
 - `styles.css`: 画面デザイン
 - `app.js`: ゲーム処理とFirebase連携
+- `data/municipalities/`: 市区町村人口カードのデータ
+- `data/municipalities/municipalities.csv`: 収集・確認用の市区町村人口CSV
+- `data/municipalities/municipalities.js`: アプリが読み込む人口カードと抽選重み
 - `config-loader.js`: Firebase設定の実行時読み込み
 - `firebase-config.example.js`: Firebase設定ファイルのテンプレート
 - `firebase-config.js`: Firebaseプロジェクト設定（ローカル作成、Git管理対象外）
@@ -214,6 +217,39 @@ ipconfig
 離れた場所にいる人と試す場合は、Firebase Hosting、GitHub Pages、Vercel、Netlifyなどに静的ファイルとして公開してください。公開後は、参加者全員が同じ公開URLを開き、同じRealtime Databaseを参照することで対戦できます。
 
 CPU戦を試す場合は、トップ画面で「CPU戦をする」を選びます。表示名、CPU人数、TARGETを選んで「CPU戦を始める」を押すと、すぐにゲーム画面へ移動します。TARGETをランダムにした場合は、特別TARGETを除いた候補から自動で選ばれます。
+
+## 市区町村人口データ
+
+人口カードは `data/municipalities/` に分離しています。現在はカテゴリごとに5件ずつ入れた仮データです。
+
+カテゴリはゲームバランス用の人口帯です。
+
+| category | 人口帯 |
+| --- | --- |
+| `village_town` | 5万人未満 |
+| `small_city` | 5万人以上10万人未満 |
+| `mid_city` | 10万人以上20万人未満 |
+| `large_city` | 20万人以上70万人未満 |
+| `ordinance_city` | 70万人以上 |
+
+TARGETごとの排出確率は、カードごとではなくカテゴリごとの重みで調整します。たとえば `NTT DATAグループ社員数` は `mid_city` を出やすくし、`NTT株式会社の株主数` は `ordinance_city` を出やすくしています。
+
+### 人口データの集め方
+
+まずは100件を目標にします。最初から全国全件を狙うより、ゲームで使う人口帯をそろえる方が安全です。
+
+1. 25件: 各カテゴリ5件ずつ
+2. 100件: 各カテゴリ20件ずつ
+3. 200〜300件: 20万〜70万人の `large_city` と政令指定都市を厚めに追加
+4. 全国市区町村: 総務省、都道府県、市区町村の公式データに差し替え
+
+CSVでは最低限、次の列を埋めます。
+
+```csv
+id,prefecture,municipality,population,category,populationDate,sourceName,sourceUrl
+```
+
+`category` は手で入れてもよいですが、最終的には `population` から自動分類できます。データ収集時は、人口、時点、出典URLを正確に残すことを優先してください。
 
 ## 公開方法
 

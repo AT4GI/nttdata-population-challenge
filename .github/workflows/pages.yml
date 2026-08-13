@@ -36,6 +36,7 @@ jobs:
         run: |
           mkdir site
           cp index.html styles.css app.js config-loader.js site/
+          cp -R data site/
           node <<'NODE'
           const fs = require("node:fs");
           const required = [

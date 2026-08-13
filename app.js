@@ -9,6 +9,11 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 import { loadFirebaseConfig } from "./config-loader.js";
+import {
+  DEFAULT_DRAW_PROFILE,
+  DRAW_PROFILES,
+  MUNICIPALITIES
+} from "./data/municipalities/municipalities.js";
 
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
@@ -64,39 +69,6 @@ const TARGETS = [
   }
 ];
 const DEFAULT_TARGET = TARGETS.find((target) => target.isDefault) || TARGETS[0];
-const MUNICIPALITIES = [
-  { id: "tokyo-hachioji", name: "八王子市", prefecture: "東京都", population: 579355 },
-  { id: "tokyo-mitaka", name: "三鷹市", prefecture: "東京都", population: 195391 },
-  { id: "kanagawa-kamakura", name: "鎌倉市", prefecture: "神奈川県", population: 172710 },
-  { id: "kanagawa-atsugi", name: "厚木市", prefecture: "神奈川県", population: 223705 },
-  { id: "chiba-urayasu", name: "浦安市", prefecture: "千葉県", population: 169749 },
-  { id: "saitama-kawagoe", name: "川越市", prefecture: "埼玉県", population: 353301 },
-  { id: "yamanashi-fujiyoshida", name: "富士吉田市", prefecture: "山梨県", population: 46722 },
-  { id: "shizuoka-atami", name: "熱海市", prefecture: "静岡県", population: 34396 },
-  { id: "nagano-matsumoto", name: "松本市", prefecture: "長野県", population: 241145 },
-  { id: "toyama-himi", name: "氷見市", prefecture: "富山県", population: 41700 },
-  { id: "ishikawa-nanao", name: "七尾市", prefecture: "石川県", population: 49000 },
-  { id: "gifu-takayama", name: "高山市", prefecture: "岐阜県", population: 84000 },
-  { id: "aichi-okazaki", name: "岡崎市", prefecture: "愛知県", population: 385376 },
-  { id: "mie-ise", name: "伊勢市", prefecture: "三重県", population: 122432 },
-  { id: "shiga-hikone", name: "彦根市", prefecture: "滋賀県", population: 112156 },
-  { id: "kyoto-maizuru", name: "舞鶴市", prefecture: "京都府", population: 77650 },
-  { id: "osaka-ibaraki", name: "茨木市", prefecture: "大阪府", population: 285715 },
-  { id: "hyogo-akashi", name: "明石市", prefecture: "兵庫県", population: 303601 },
-  { id: "nara-kashihara", name: "橿原市", prefecture: "奈良県", population: 119250 },
-  { id: "wakayama-tanabe", name: "田辺市", prefecture: "和歌山県", population: 69000 },
-  { id: "okayama-kurashiki", name: "倉敷市", prefecture: "岡山県", population: 474862 },
-  { id: "hiroshima-onomichi", name: "尾道市", prefecture: "広島県", population: 126000 },
-  { id: "yamaguchi-hagi", name: "萩市", prefecture: "山口県", population: 44000 },
-  { id: "kagawa-marugame", name: "丸亀市", prefecture: "香川県", population: 109589 },
-  { id: "ehime-imabari", name: "今治市", prefecture: "愛媛県", population: 151672 },
-  { id: "fukuoka-dazaifu", name: "太宰府市", prefecture: "福岡県", population: 71812 },
-  { id: "saga-karatsu", name: "唐津市", prefecture: "佐賀県", population: 117373 },
-  { id: "nagasaki-sasebo", name: "佐世保市", prefecture: "長崎県", population: 239636 },
-  { id: "kumamoto-amakusa", name: "天草市", prefecture: "熊本県", population: 73523 },
-  { id: "kagoshima-kirishima", name: "霧島市", prefecture: "鹿児島県", population: 123135 }
-];
-
 const statusLabels = {
   waiting: "待機中",
   active: "プレイ中",
@@ -247,7 +219,7 @@ async function createCpuRoom() {
     }
 
     for (const playerId of playerOrder) {
-      players[playerId].candidate = pickCandidate(players[playerId].drawn || {});
+      players[playerId].candidate = pickCandidate(players[playerId].drawn || {}, target.id);
     }
 
     await set(ref(db, `rooms/${roomId}`), {
@@ -346,7 +318,7 @@ async function startGame() {
     };
     for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
-      updates[`players/${playerId}/candidate`] = pickCandidate(players[playerId].drawn || {});
+      updates[`players/${playerId}/candidate`] = pickCandidate(players[playerId].drawn || {}, room.targetId);
     }
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
@@ -384,7 +356,7 @@ async function applyPlayerAction(room, playerId, action) {
 }
 
 function buildHitPayload(room, player) {
-  const candidate = player.candidate || pickCandidate(player.drawn || {});
+  const candidate = player.candidate || pickCandidate(player.drawn || {}, room.targetId);
   const nextTotal = (player.total || 0) + candidate.population;
   const drawn = { ...(player.drawn || {}), [candidate.id]: true };
   const target = getRoomTarget(room).value;
@@ -399,7 +371,7 @@ function buildHitPayload(room, player) {
   };
 
   if (status === "active") {
-    payload.candidate = pickCandidate(drawn);
+    payload.candidate = pickCandidate(drawn, room.targetId);
   } else {
     payload.candidate = null;
     payload.finishedAt = serverTimestamp();
@@ -594,7 +566,7 @@ function decideCpuAction(room, cpuPlayer) {
 function getIdealCpuAction(room, cpuPlayer) {
   const target = getRoomTarget(room).value;
   const currentTotal = cpuPlayer.total || 0;
-  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {});
+  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {}, room.targetId);
   const nextTotal = currentTotal + candidate.population;
   const currentDiff = Math.abs(target - currentTotal);
   const nextDiff = Math.abs(target - nextTotal);
@@ -721,10 +693,29 @@ function makePlayer(name, status, options = {}) {
   };
 }
 
-function pickCandidate(drawn) {
+function pickCandidate(drawn, targetId) {
   const available = MUNICIPALITIES.filter((item) => !drawn[item.id]);
   const pool = available.length > 0 ? available : MUNICIPALITIES;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pickWeightedCandidate(pool, targetId);
+}
+
+function pickWeightedCandidate(pool, targetId) {
+  const profile = DRAW_PROFILES[targetId] || DEFAULT_DRAW_PROFILE;
+  const weightedPool = pool.map((item) => ({
+    item,
+    weight: Number(profile[item.category] ?? DEFAULT_DRAW_PROFILE[item.category] ?? 1)
+  }));
+  const totalWeight = weightedPool.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
+
+  if (totalWeight <= 0) return pool[Math.floor(Math.random() * pool.length)];
+
+  let threshold = Math.random() * totalWeight;
+  for (const entry of weightedPool) {
+    threshold -= Math.max(0, entry.weight);
+    if (threshold <= 0) return entry.item;
+  }
+
+  return weightedPool[weightedPool.length - 1].item;
 }
 
 function getPlayerName(defaultName) {
