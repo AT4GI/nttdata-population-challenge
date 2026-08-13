@@ -23,6 +23,7 @@
         <div id="setupModeView" class="setup-choice-grid">
           <button id="selectCreateModeButton" type="button">部屋を作る</button>
           <button id="selectJoinModeButton" type="button" class="secondary">部屋に参加する</button>
+          <button id="selectCpuModeButton" type="button" class="secondary">CPU戦をする</button>
         </div>
 
         <div id="createRoomForm" class="setup-form hidden">
@@ -47,6 +48,26 @@
           </div>
         </div>
 
+        <div id="cpuRoomForm" class="setup-form hidden">
+          <label>
+            表示名
+            <input id="cpuPlayerNameInput" type="text" maxlength="20" placeholder="Player">
+          </label>
+          <label class="stacked-field">
+            CPU人数
+            <select id="cpuCountSelect">
+              <option value="1">1人</option>
+              <option value="2">2人</option>
+              <option value="3">3人</option>
+              <option value="4">4人</option>
+            </select>
+          </label>
+          <div class="button-row">
+            <button id="startCpuRoomButton" type="button">CPU戦を始める</button>
+            <button id="backFromCpuButton" type="button" class="secondary">戻る</button>
+          </div>
+        </div>
+
         <p id="setupMessage" class="message" role="status"></p>
         <div class="guide-grid" aria-label="遊び方と対戦方法">
           <section class="guide-block" aria-labelledby="rulesTitle">
@@ -66,6 +87,13 @@
               <li>友達は同じURLを開き、表示名と部屋IDを入れて参加します。</li>
               <li>2人以上そろったら、ホストが「ゲーム開始」を押します。</li>
             </ol>
+          </section>
+          <section class="guide-block" aria-labelledby="cpuTitle">
+            <h2 id="cpuTitle">一人で遊ぶ</h2>
+            <ul>
+              <li>CPU戦では、CPU人数を1〜4人から選んですぐに始められます。</li>
+              <li>CPUは自分の番になると、少し考えてから自動でHITかSTANDを選びます。</li>
+            </ul>
           </section>
         </div>
       </section>

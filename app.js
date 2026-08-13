@@ -13,6 +13,13 @@ import { loadFirebaseConfig } from "./config-loader.js";
 const TARGET = 200000;
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
+const CPU_THINK_DELAY_MS = 1000;
+const CPU_ACCURACY_SETS = {
+  1: [0.75],
+  2: [0.65, 0.5],
+  3: [0.65, 0.5, 0.45],
+  4: [0.65, 0.5, 0.45, 0.45]
+};
 const MUNICIPALITIES = [
   { id: "tokyo-hachioji", name: "八王子市", prefecture: "東京都", population: 579355 },
   { id: "tokyo-mitaka", name: "三鷹市", prefecture: "東京都", population: 195391 },
@@ -59,15 +66,21 @@ const els = {
   setupModeView: document.querySelector("#setupModeView"),
   createRoomForm: document.querySelector("#createRoomForm"),
   joinRoomForm: document.querySelector("#joinRoomForm"),
+  cpuRoomForm: document.querySelector("#cpuRoomForm"),
   selectCreateModeButton: document.querySelector("#selectCreateModeButton"),
   selectJoinModeButton: document.querySelector("#selectJoinModeButton"),
+  selectCpuModeButton: document.querySelector("#selectCpuModeButton"),
   backFromCreateButton: document.querySelector("#backFromCreateButton"),
   backFromJoinButton: document.querySelector("#backFromJoinButton"),
+  backFromCpuButton: document.querySelector("#backFromCpuButton"),
   gameView: document.querySelector("#gameView"),
   playerNameInput: document.querySelector("#playerNameInput"),
+  cpuPlayerNameInput: document.querySelector("#cpuPlayerNameInput"),
   roomIdInput: document.querySelector("#roomIdInput"),
+  cpuCountSelect: document.querySelector("#cpuCountSelect"),
   createRoomButton: document.querySelector("#createRoomButton"),
   joinRoomButton: document.querySelector("#joinRoomButton"),
+  startCpuRoomButton: document.querySelector("#startCpuRoomButton"),
   setupMessage: document.querySelector("#setupMessage"),
   targetLabel: document.querySelector("#targetLabel"),
   roomCode: document.querySelector("#roomCode"),
@@ -95,6 +108,8 @@ let appReady = false;
 let currentRoomId = "";
 let currentPlayerId = sessionStorage.getItem("populationBlackjackPlayerId") || crypto.randomUUID();
 let unsubscribeRoom = null;
+let cpuActionTimer = null;
+let cpuActionKey = "";
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 els.targetLabel.textContent = formatNumber(TARGET);
@@ -103,10 +118,13 @@ initializeFirebase();
 
 els.selectCreateModeButton.addEventListener("click", () => showSetupMode("create"));
 els.selectJoinModeButton.addEventListener("click", () => showSetupMode("join"));
+els.selectCpuModeButton.addEventListener("click", () => showSetupMode("cpu"));
 els.backFromCreateButton.addEventListener("click", () => showSetupMode("choice"));
 els.backFromJoinButton.addEventListener("click", () => showSetupMode("choice"));
+els.backFromCpuButton.addEventListener("click", () => showSetupMode("choice"));
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
+els.startCpuRoomButton.addEventListener("click", createCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
@@ -133,10 +151,11 @@ async function createRoom() {
   await runSetupAction(async () => {
     const roomId = makeRoomId();
     const playerName = getPlayerName("Player 1");
-    const player = makePlayer(playerName, "waiting");
+    const player = makePlayer(playerName, "waiting", { type: "human" });
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
+      roomMode: "online",
       target: TARGET,
       status: "waiting",
       maxPlayers: MAX_PLAYERS,
@@ -148,6 +167,51 @@ async function createRoom() {
       players: {
         [currentPlayerId]: player
       }
+    });
+
+    enterRoom(roomId);
+  });
+}
+
+async function createCpuRoom() {
+  if (!appReady) return;
+
+  await runSetupAction(async () => {
+    const roomId = makeRoomId();
+    const cpuCount = getCpuCount();
+    const cpuProfiles = makeCpuProfiles(cpuCount);
+    const cpuPlayerIds = cpuProfiles.map((_, index) => `cpu_${index + 1}`);
+    const playerOrder = [currentPlayerId, ...cpuPlayerIds];
+    const players = {
+      [currentPlayerId]: makePlayer(getCpuPlayerName(), "active", { type: "human" })
+    };
+
+    for (const [index, cpuId] of cpuPlayerIds.entries()) {
+      const profile = cpuProfiles[index];
+      players[cpuId] = makePlayer(`CPU ${index + 1}`, "active", {
+        type: "cpu",
+        difficulty: profile.difficulty,
+        accuracy: profile.accuracy
+      });
+    }
+
+    for (const playerId of playerOrder) {
+      players[playerId].candidate = pickCandidate(players[playerId].drawn || {});
+    }
+
+    await set(ref(db, `rooms/${roomId}`), {
+      roomId,
+      roomMode: "cpu",
+      target: TARGET,
+      status: "playing",
+      maxPlayers: MAX_PLAYERS,
+      turnIndex: 0,
+      playerOrder,
+      startedPlayerIds: playerOrder,
+      hostPlayerId: currentPlayerId,
+      createdAt: serverTimestamp(),
+      startedAt: serverTimestamp(),
+      players
     });
 
     enterRoom(roomId);
@@ -187,7 +251,7 @@ async function joinRoom() {
     }
 
     const defaultName = `Player ${Math.min(playerIds.length + 1, MAX_PLAYERS)}`;
-    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(defaultName), "waiting"));
+    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(defaultName), "waiting", { type: "human" }));
     enterRoom(roomId);
   });
 }
@@ -241,54 +305,63 @@ async function startGame() {
 async function hit() {
   await runGameAction(async () => {
     const room = await getCurrentRoom();
-    const me = getMe(room);
     if (!room || !canTakeTurn(room, currentPlayerId)) return;
 
-    const candidate = me.candidate || pickCandidate(me.drawn || {});
-    const nextTotal = (me.total || 0) + candidate.population;
-    const drawn = { ...(me.drawn || {}), [candidate.id]: true };
-    const status = nextTotal > room.target ? "bust" : nextTotal === room.target ? "just" : "active";
-    const payload = {
-      total: nextTotal,
-      hitCount: (me.hitCount || 0) + 1,
-      status,
-      drawn,
-      lastRevealed: candidate,
-      updatedAt: serverTimestamp()
-    };
-
-    if (status === "active") {
-      payload.candidate = pickCandidate(drawn);
-    } else {
-      payload.candidate = null;
-      payload.finishedAt = serverTimestamp();
-    }
-
-    const nextPlayers = { ...(room.players || {}), [currentPlayerId]: { ...me, ...payload } };
-    const updates = prefixPlayerUpdate(currentPlayerId, payload);
-    Object.assign(updates, buildRoomProgressUpdates({ ...room, players: nextPlayers }, currentPlayerId));
-
-    await update(ref(db, `rooms/${currentRoomId}`), updates);
+    await applyPlayerAction(room, currentPlayerId, "hit");
   });
 }
 
 async function stand() {
   await runGameAction(async () => {
     const room = await getCurrentRoom();
-    const me = getMe(room);
     if (!room || !canTakeTurn(room, currentPlayerId)) return;
 
-    const payload = {
-      status: "stand",
-      candidate: null,
-      finishedAt: serverTimestamp()
-    };
-    const nextPlayers = { ...(room.players || {}), [currentPlayerId]: { ...me, ...payload } };
-    const updates = prefixPlayerUpdate(currentPlayerId, payload);
-    Object.assign(updates, buildRoomProgressUpdates({ ...room, players: nextPlayers }, currentPlayerId));
-
-    await update(ref(db, `rooms/${currentRoomId}`), updates);
+    await applyPlayerAction(room, currentPlayerId, "stand");
   });
+}
+
+async function applyPlayerAction(room, playerId, action) {
+  const player = room.players?.[playerId];
+  if (!player || !canPlay(player) || getCurrentTurnPlayerId(room) !== playerId) return;
+
+  const payload = action === "hit" ? buildHitPayload(room, player) : buildStandPayload();
+  const nextPlayers = { ...(room.players || {}), [playerId]: { ...player, ...payload } };
+  const updates = prefixPlayerUpdate(playerId, payload);
+  Object.assign(updates, buildRoomProgressUpdates({ ...room, players: nextPlayers }, playerId));
+
+  await update(ref(db, `rooms/${currentRoomId}`), updates);
+}
+
+function buildHitPayload(room, player) {
+  const candidate = player.candidate || pickCandidate(player.drawn || {});
+  const nextTotal = (player.total || 0) + candidate.population;
+  const drawn = { ...(player.drawn || {}), [candidate.id]: true };
+  const status = nextTotal > room.target ? "bust" : nextTotal === room.target ? "just" : "active";
+  const payload = {
+    total: nextTotal,
+    hitCount: (player.hitCount || 0) + 1,
+    status,
+    drawn,
+    lastRevealed: candidate,
+    updatedAt: serverTimestamp()
+  };
+
+  if (status === "active") {
+    payload.candidate = pickCandidate(drawn);
+  } else {
+    payload.candidate = null;
+    payload.finishedAt = serverTimestamp();
+  }
+
+  return payload;
+}
+
+function buildStandPayload() {
+  return {
+    status: "stand",
+    candidate: null,
+    finishedAt: serverTimestamp()
+  };
 }
 
 async function finishRoomIfNeeded() {
@@ -351,6 +424,7 @@ function renderRoom(room) {
   renderPlayersList(room, players, playerIds);
 
   renderResult(room, players);
+  scheduleCpuTurn(room);
 }
 
 function renderResult(room, players) {
@@ -397,7 +471,10 @@ function renderPlayersList(room, players, playerIds) {
     if (playerId === turnPlayerId && room.status === "playing") item.classList.add("current-turn");
 
     const title = document.createElement("strong");
-    title.textContent = `${player.name || "参加者"}${playerId === currentPlayerId ? "（あなた）" : ""}`;
+    const playerBadges = [];
+    if (playerId === currentPlayerId) playerBadges.push("あなた");
+    if (player.type === "cpu") playerBadges.push("CPU");
+    title.textContent = `${player.name || "参加者"}${playerBadges.length > 0 ? `（${playerBadges.join(" / ")}）` : ""}`;
 
     const meta = document.createElement("span");
     meta.textContent =
@@ -408,6 +485,70 @@ function renderPlayersList(room, players, playerIds) {
     item.append(title, meta);
     els.playersList.append(item);
   }
+}
+
+function scheduleCpuTurn(room) {
+  const turnPlayerId = getCurrentTurnPlayerId(room);
+  const turnPlayer = room.players?.[turnPlayerId];
+  if (room.status !== "playing" || room.hostPlayerId !== currentPlayerId || turnPlayer?.type !== "cpu") {
+    clearCpuAction();
+    return;
+  }
+
+  const actionKey = `${room.roomId}:${turnPlayerId}:${turnPlayer.hitCount || 0}:${turnPlayer.total || 0}:${turnPlayer.status}`;
+  if (cpuActionKey === actionKey) return;
+
+  clearCpuAction();
+  cpuActionKey = actionKey;
+  cpuActionTimer = window.setTimeout(() => actCpuTurn(turnPlayerId, actionKey), CPU_THINK_DELAY_MS);
+}
+
+function clearCpuAction() {
+  if (cpuActionTimer) {
+    window.clearTimeout(cpuActionTimer);
+    cpuActionTimer = null;
+  }
+  cpuActionKey = "";
+}
+
+async function actCpuTurn(cpuPlayerId, actionKey) {
+  try {
+    const room = await getCurrentRoom();
+    const cpuPlayer = room?.players?.[cpuPlayerId];
+    if (!room || room.status !== "playing" || room.hostPlayerId !== currentPlayerId || cpuPlayer?.type !== "cpu") return;
+    if (getCurrentTurnPlayerId(room) !== cpuPlayerId || !canPlay(cpuPlayer)) return;
+
+    const action = decideCpuAction(room, cpuPlayer);
+    await applyPlayerAction(room, cpuPlayerId, action);
+  } catch (error) {
+    els.myStatus.textContent = formatFirebaseError(error);
+  } finally {
+    if (cpuActionKey === actionKey) {
+      cpuActionTimer = null;
+      cpuActionKey = "";
+    }
+  }
+}
+
+function decideCpuAction(room, cpuPlayer) {
+  const idealAction = getIdealCpuAction(room, cpuPlayer);
+  const accuracy = Number(cpuPlayer.accuracy || 0.5);
+  if (Math.random() < accuracy) return idealAction;
+  return idealAction === "hit" ? "stand" : "hit";
+}
+
+function getIdealCpuAction(room, cpuPlayer) {
+  const target = room.target || TARGET;
+  const currentTotal = cpuPlayer.total || 0;
+  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {});
+  const nextTotal = currentTotal + candidate.population;
+  const currentDiff = Math.abs(target - currentTotal);
+  const nextDiff = Math.abs(target - nextTotal);
+
+  if (nextTotal > target) return "stand";
+  if (target - currentTotal <= 10000) return "stand";
+  if (nextDiff < currentDiff) return "hit";
+  return "stand";
 }
 
 function judge(players, target) {
@@ -509,9 +650,12 @@ function getPlayerOrder(room) {
     .map(([id]) => id);
 }
 
-function makePlayer(name, status) {
+function makePlayer(name, status, options = {}) {
   return {
     name,
+    type: options.type || "human",
+    difficulty: options.difficulty || null,
+    accuracy: options.accuracy || null,
     joinedOrder: Date.now(),
     total: 0,
     hitCount: 0,
@@ -531,6 +675,22 @@ function pickCandidate(drawn) {
 
 function getPlayerName(defaultName) {
   return els.playerNameInput.value.trim() || defaultName;
+}
+
+function getCpuPlayerName() {
+  return els.cpuPlayerNameInput.value.trim() || "Player";
+}
+
+function getCpuCount() {
+  return Math.min(4, Math.max(1, Number(els.cpuCountSelect.value || 1)));
+}
+
+function makeCpuProfiles(cpuCount) {
+  const accuracies = CPU_ACCURACY_SETS[cpuCount] || CPU_ACCURACY_SETS[1];
+  return accuracies.map((accuracy) => ({
+    accuracy,
+    difficulty: accuracy >= 0.7 ? "hard" : accuracy >= 0.6 ? "normal" : "easy"
+  }));
 }
 
 function makeRoomId() {
@@ -553,18 +713,22 @@ function setSetupMessage(message) {
 function disableSetup(disabled) {
   els.selectCreateModeButton.disabled = disabled;
   els.selectJoinModeButton.disabled = disabled;
+  els.selectCpuModeButton.disabled = disabled;
   els.createRoomButton.disabled = disabled;
   els.joinRoomButton.disabled = disabled;
+  els.startCpuRoomButton.disabled = disabled;
 }
 
 function showSetupMode(mode) {
   els.setupModeView.classList.toggle("hidden", mode !== "choice");
   els.createRoomForm.classList.toggle("hidden", mode !== "create");
   els.joinRoomForm.classList.toggle("hidden", mode !== "join");
+  els.cpuRoomForm.classList.toggle("hidden", mode !== "cpu");
   setSetupMessage("");
 
   if (mode === "create") els.playerNameInput.focus();
   if (mode === "join") els.roomIdInput.focus();
+  if (mode === "cpu") els.cpuPlayerNameInput.focus();
 }
 
 function canPlay(player) {

@@ -28,7 +28,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -61,7 +62,8 @@ button:disabled {
   opacity: 0.45;
 }
 
-input {
+input,
+select {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -141,7 +143,7 @@ h1 {
 
 .setup-choice-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -151,6 +153,15 @@ h1 {
 
 .setup-form {
   max-width: 420px;
+}
+
+.stacked-field {
+  display: block;
+  margin-top: 16px;
+}
+
+.stacked-field select {
+  margin-top: 8px;
 }
 
 .field-grid {
@@ -184,7 +195,7 @@ label input {
 
 .guide-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 20px;
 }
