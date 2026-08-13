@@ -129,6 +129,15 @@ h1 {
   font-size: 1.5rem;
 }
 
+.target-pill small {
+  display: block;
+  max-width: 220px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .panel {
   border: 1px solid var(--line);
   border-radius: 8px;

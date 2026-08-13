@@ -10,7 +10,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 import { loadFirebaseConfig } from "./config-loader.js";
 
-const TARGET = 200000;
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const CPU_THINK_DELAY_MS = 1000;
@@ -20,6 +19,51 @@ const CPU_ACCURACY_SETS = {
   3: [0.65, 0.5, 0.45],
   4: [0.65, 0.5, 0.45, 0.45]
 };
+const TARGETS = [
+  {
+    id: "ntt-data-employees",
+    label: "NTT DATAグループ社員数",
+    value: 206900,
+    dateLabel: "2026年6月30日時点",
+    sourceLabel: "NTT 2026年度 第1四半期決算補足資料",
+    difficulty: "標準",
+    isDefault: true
+  },
+  {
+    id: "toyosu-station-total",
+    label: "豊洲駅 2社合算乗降客数",
+    value: 235989,
+    dateLabel: "2023年度",
+    sourceLabel: "東京メトロ公式 + ゆりかもめ公式",
+    difficulty: "標準"
+  },
+  {
+    id: "ntt-group-employees",
+    label: "NTTグループ全社員数",
+    value: 344196,
+    dateLabel: "2026年3月31日時点",
+    sourceLabel: "NTT公式 会社概要",
+    difficulty: "高め"
+  },
+  {
+    id: "koto-city-population",
+    label: "東京都江東区人口",
+    value: 544929,
+    dateLabel: "2026年8月1日時点",
+    sourceLabel: "江東区公式 住民基本台帳人口",
+    difficulty: "高め"
+  },
+  {
+    id: "ntt-shareholders",
+    label: "NTT株式会社の株主数",
+    value: 3386781,
+    dateLabel: "2026年6月30日時点",
+    sourceLabel: "NTT公式 株式の概要",
+    difficulty: "特別",
+    isSpecial: true
+  }
+];
+const DEFAULT_TARGET = TARGETS.find((target) => target.isDefault) || TARGETS[0];
 const MUNICIPALITIES = [
   { id: "tokyo-hachioji", name: "八王子市", prefecture: "東京都", population: 579355 },
   { id: "tokyo-mitaka", name: "三鷹市", prefecture: "東京都", population: 195391 },
@@ -83,6 +127,9 @@ const els = {
   startCpuRoomButton: document.querySelector("#startCpuRoomButton"),
   setupMessage: document.querySelector("#setupMessage"),
   targetLabel: document.querySelector("#targetLabel"),
+  targetName: document.querySelector("#targetName"),
+  createTargetSelect: document.querySelector("#createTargetSelect"),
+  cpuTargetSelect: document.querySelector("#cpuTargetSelect"),
   roomCode: document.querySelector("#roomCode"),
   roomState: document.querySelector("#roomState"),
   turnLabel: document.querySelector("#turnLabel"),
@@ -112,7 +159,9 @@ let cpuActionTimer = null;
 let cpuActionKey = "";
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
-els.targetLabel.textContent = formatNumber(TARGET);
+populateTargetSelects();
+els.targetLabel.textContent = formatNumber(DEFAULT_TARGET.value);
+els.targetName.textContent = DEFAULT_TARGET.label;
 disableSetup(true);
 initializeFirebase();
 
@@ -152,11 +201,12 @@ async function createRoom() {
     const roomId = makeRoomId();
     const playerName = getPlayerName("Player 1");
     const player = makePlayer(playerName, "waiting", { type: "human" });
+    const target = getSelectedTarget(els.createTargetSelect.value);
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
       roomMode: "online",
-      target: TARGET,
+      ...makeRoomTargetPayload(target),
       status: "waiting",
       maxPlayers: MAX_PLAYERS,
       turnIndex: null,
@@ -178,6 +228,7 @@ async function createCpuRoom() {
 
   await runSetupAction(async () => {
     const roomId = makeRoomId();
+    const target = getSelectedCpuTarget();
     const cpuCount = getCpuCount();
     const cpuProfiles = makeCpuProfiles(cpuCount);
     const cpuPlayerIds = cpuProfiles.map((_, index) => `cpu_${index + 1}`);
@@ -202,7 +253,7 @@ async function createCpuRoom() {
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
       roomMode: "cpu",
-      target: TARGET,
+      ...makeRoomTargetPayload(target),
       status: "playing",
       maxPlayers: MAX_PLAYERS,
       turnIndex: 0,
@@ -336,7 +387,8 @@ function buildHitPayload(room, player) {
   const candidate = player.candidate || pickCandidate(player.drawn || {});
   const nextTotal = (player.total || 0) + candidate.population;
   const drawn = { ...(player.drawn || {}), [candidate.id]: true };
-  const status = nextTotal > room.target ? "bust" : nextTotal === room.target ? "just" : "active";
+  const target = getRoomTarget(room).value;
+  const status = nextTotal > target ? "bust" : nextTotal === target ? "just" : "active";
   const payload = {
     total: nextTotal,
     hitCount: (player.hitCount || 0) + 1,
@@ -374,7 +426,7 @@ async function finishRoomIfNeeded() {
 
   await update(ref(db, `rooms/${currentRoomId}`), {
     status: "finished",
-    result: judge(players, room.target),
+    result: judge(players, getRoomTarget(room).value),
     finishedAt: serverTimestamp()
   });
 }
@@ -386,8 +438,10 @@ function renderRoom(room) {
   const isHost = room.hostPlayerId === currentPlayerId;
   const turnPlayerId = getCurrentTurnPlayerId(room);
   const turnPlayer = players[turnPlayerId];
+  const target = getRoomTarget(room);
 
-  els.targetLabel.textContent = formatNumber(room.target || TARGET);
+  els.targetLabel.textContent = formatNumber(target.value);
+  els.targetName.textContent = `${target.label} / ${target.difficulty}`;
   els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "プレイ中" : "待機中";
   els.capacityLabel.textContent = `${playerIds.length} / ${room.maxPlayers || MAX_PLAYERS}人`;
   els.turnLabel.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんの番` : "開始前";
@@ -538,7 +592,7 @@ function decideCpuAction(room, cpuPlayer) {
 }
 
 function getIdealCpuAction(room, cpuPlayer) {
-  const target = room.target || TARGET;
+  const target = getRoomTarget(room).value;
   const currentTotal = cpuPlayer.total || 0;
   const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {});
   const nextTotal = currentTotal + candidate.population;
@@ -592,7 +646,7 @@ function buildRoomProgressUpdates(room, actedPlayerId) {
   if (players.length >= MIN_PLAYERS && players.every(([, player]) => isFinished(player.status))) {
     return {
       status: "finished",
-      result: judge(players, room.target || TARGET),
+      result: judge(players, getRoomTarget(room).value),
       finishedAt: serverTimestamp()
     };
   }
@@ -685,6 +739,56 @@ function getCpuCount() {
   return Math.min(4, Math.max(1, Number(els.cpuCountSelect.value || 1)));
 }
 
+function populateTargetSelects() {
+  els.createTargetSelect.innerHTML = TARGETS.map((target) => makeTargetOption(target)).join("");
+  els.cpuTargetSelect.innerHTML = [
+    '<option value="random">ランダム（特別を除く）</option>',
+    ...TARGETS.map((target) => makeTargetOption(target))
+  ].join("");
+  els.createTargetSelect.value = DEFAULT_TARGET.id;
+  els.cpuTargetSelect.value = "random";
+}
+
+function makeTargetOption(target) {
+  return `<option value="${target.id}">${target.label} ${formatNumber(target.value)}人（${target.difficulty}）</option>`;
+}
+
+function getSelectedTarget(targetId) {
+  return TARGETS.find((target) => target.id === targetId) || DEFAULT_TARGET;
+}
+
+function getSelectedCpuTarget() {
+  if (els.cpuTargetSelect.value === "random") return pickRandomTarget();
+  return getSelectedTarget(els.cpuTargetSelect.value);
+}
+
+function pickRandomTarget() {
+  const targets = TARGETS.filter((target) => !target.isSpecial);
+  return targets[Math.floor(Math.random() * targets.length)] || DEFAULT_TARGET;
+}
+
+function getRoomTarget(room) {
+  return {
+    id: room.targetId || DEFAULT_TARGET.id,
+    label: room.targetLabel || getSelectedTarget(room.targetId).label,
+    value: Number(room.target || DEFAULT_TARGET.value),
+    dateLabel: room.targetDateLabel || getSelectedTarget(room.targetId).dateLabel,
+    sourceLabel: room.targetSourceLabel || getSelectedTarget(room.targetId).sourceLabel,
+    difficulty: room.targetDifficulty || getSelectedTarget(room.targetId).difficulty
+  };
+}
+
+function makeRoomTargetPayload(target) {
+  return {
+    targetId: target.id,
+    target: target.value,
+    targetLabel: target.label,
+    targetDateLabel: target.dateLabel,
+    targetSourceLabel: target.sourceLabel,
+    targetDifficulty: target.difficulty
+  };
+}
+
 function makeCpuProfiles(cpuCount) {
   const accuracies = CPU_ACCURACY_SETS[cpuCount] || CPU_ACCURACY_SETS[1];
   return accuracies.map((accuracy) => ({
@@ -750,7 +854,7 @@ async function getCurrentRoom() {
 }
 
 function buildMyStatus(player, room) {
-  const target = room.target || TARGET;
+  const target = getRoomTarget(room).value;
   if (player.status === "bust") return `BUST：${formatNumber(player.total - target)}人オーバー`;
   if (player.status === "just") return "JUST：TARGETと完全一致";
   if (player.status === "stand") return `STAND：TARGETまで${formatNumber(target - player.total)}人`;

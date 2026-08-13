@@ -16,6 +16,7 @@
         <div class="target-pill">
           <span>TARGET</span>
           <strong id="targetLabel">200,000</strong>
+          <small id="targetName">NTT DATAグループ社員数</small>
         </div>
       </section>
 
@@ -30,6 +31,10 @@
           <label>
             表示名
             <input id="playerNameInput" type="text" maxlength="20" placeholder="Player">
+          </label>
+          <label class="stacked-field">
+            TARGET
+            <select id="createTargetSelect"></select>
           </label>
           <div class="button-row">
             <button id="createRoomButton" type="button">部屋を作る</button>
@@ -61,6 +66,10 @@
               <option value="3">3人</option>
               <option value="4">4人</option>
             </select>
+          </label>
+          <label class="stacked-field">
+            TARGET
+            <select id="cpuTargetSelect"></select>
           </label>
           <div class="button-row">
             <button id="startCpuRoomButton" type="button">CPU戦を始める</button>
