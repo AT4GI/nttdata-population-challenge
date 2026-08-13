@@ -10,6 +10,8 @@
   --accent: #f5b700;
   --danger: #c9342f;
   --success: #137a4b;
+  --turn: #0f7f68;
+  --idle: #9aa5b1;
   font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
 }
 
@@ -196,6 +198,36 @@ label input {
   margin-top: 18px;
 }
 
+.target-roulette {
+  margin-top: 16px;
+}
+
+.roulette-window {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 52px;
+  padding: 13px 14px;
+  background: #101820;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 850;
+  overflow: hidden;
+}
+
+.roulette-window.spinning {
+  animation: slotTick 0.18s linear infinite;
+}
+
+@keyframes slotTick {
+  from {
+    transform: translateY(-3px);
+  }
+
+  to {
+    transform: translateY(3px);
+  }
+}
+
 .message {
   min-height: 1.4em;
   margin: 14px 0 0;
@@ -256,8 +288,45 @@ label input {
   letter-spacing: 0.08em;
 }
 
+.room-code.compact {
+  color: var(--muted);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
 .state-text {
   font-weight: 800;
+}
+
+.game-grid.my-turn .play-panel {
+  border-color: var(--turn);
+  box-shadow: 0 0 0 4px rgba(15, 127, 104, 0.12), 0 16px 40px rgba(22, 32, 42, 0.08);
+}
+
+.game-grid.other-turn .play-panel {
+  border-color: var(--idle);
+}
+
+.turn-banner {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #eef3f1;
+  color: var(--ink);
+  font-weight: 850;
+}
+
+.game-grid.my-turn .turn-banner {
+  border-color: var(--turn);
+  background: #e8f6f2;
+  color: #075542;
+}
+
+.game-grid.other-turn .turn-banner {
+  border-color: var(--idle);
+  background: #f0f2f4;
+  color: #4d5864;
 }
 
 .score-row {
@@ -304,6 +373,13 @@ label input {
   margin-bottom: 16px;
 }
 
+.draw-profile {
+  margin: -8px 0 16px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 .players-list {
   display: grid;
   gap: 10px;
@@ -338,6 +414,47 @@ label input {
 .player-row span {
   color: var(--muted);
   margin-top: 4px;
+}
+
+.player-row .last-action {
+  color: #405160;
+  font-size: 0.88rem;
+}
+
+.history-block {
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+.history-block h2 {
+  margin-bottom: 12px;
+  font-size: 1.05rem;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbfd;
+  padding: 10px 12px;
+}
+
+.history-row strong,
+.history-row span {
+  overflow-wrap: anywhere;
+}
+
+.history-row span,
+.empty-history {
+  color: var(--muted);
 }
 
 .result-panel {

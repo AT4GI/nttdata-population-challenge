@@ -24,6 +24,13 @@ const CPU_ACCURACY_SETS = {
   3: [0.65, 0.5, 0.45],
   4: [0.65, 0.5, 0.45, 0.45]
 };
+const CATEGORY_LABELS = {
+  village_town: "町村・小規模",
+  small_city: "5万〜10万人",
+  mid_city: "10万〜30万人",
+  large_city: "30万〜70万人",
+  ordinance_city: "政令指定都市級"
+};
 const TARGETS = [
   {
     id: "ntt-data-employees",
@@ -57,6 +64,15 @@ const TARGETS = [
     dateLabel: "2026年8月1日時点",
     sourceLabel: "江東区公式 住民基本台帳人口",
     difficulty: "高め"
+  },
+  {
+    id: "three-million-challenge",
+    label: "全国市区町村 300万人チャレンジ",
+    value: 3000000,
+    dateLabel: "全国市区町村データ拡張後向け",
+    sourceLabel: "e-Stat 住民基本台帳人口で調整予定",
+    difficulty: "特別",
+    isSpecial: true
   },
   {
     id: "ntt-shareholders",
@@ -102,10 +118,14 @@ const els = {
   targetName: document.querySelector("#targetName"),
   createTargetSelect: document.querySelector("#createTargetSelect"),
   cpuTargetSelect: document.querySelector("#cpuTargetSelect"),
+  targetRoulette: document.querySelector("#targetRoulette"),
+  rouletteWindow: document.querySelector("#rouletteWindow"),
+  roomCodeLabel: document.querySelector("#roomCodeLabel"),
   roomCode: document.querySelector("#roomCode"),
   roomState: document.querySelector("#roomState"),
   turnLabel: document.querySelector("#turnLabel"),
   capacityLabel: document.querySelector("#capacityLabel"),
+  turnBanner: document.querySelector("#turnBanner"),
   startGameButton: document.querySelector("#startGameButton"),
   myTotal: document.querySelector("#myTotal"),
   myHitCount: document.querySelector("#myHitCount"),
@@ -115,6 +135,8 @@ const els = {
   hitButton: document.querySelector("#hitButton"),
   standButton: document.querySelector("#standButton"),
   myStatus: document.querySelector("#myStatus"),
+  myHistoryList: document.querySelector("#myHistoryList"),
+  drawProfileText: document.querySelector("#drawProfileText"),
   playersList: document.querySelector("#playersList"),
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
@@ -129,6 +151,7 @@ let currentPlayerId = sessionStorage.getItem("populationBlackjackPlayerId") || c
 let unsubscribeRoom = null;
 let cpuActionTimer = null;
 let cpuActionKey = "";
+let rouletteTimer = null;
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
@@ -145,7 +168,7 @@ els.backFromJoinButton.addEventListener("click", () => showSetupMode("choice"));
 els.backFromCpuButton.addEventListener("click", () => showSetupMode("choice"));
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
-els.startCpuRoomButton.addEventListener("click", createCpuRoom);
+els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
@@ -195,12 +218,26 @@ async function createRoom() {
   });
 }
 
-async function createCpuRoom() {
+async function startCpuRoom() {
+  if (!appReady) return;
+
+  if (els.cpuTargetSelect.value !== "random") {
+    await createCpuRoom(getSelectedTarget(els.cpuTargetSelect.value));
+    return;
+  }
+
+  disableSetup(true);
+  const target = await runTargetRoulette();
+  disableSetup(false);
+  await createCpuRoom(target);
+}
+
+async function createCpuRoom(selectedTarget = null) {
   if (!appReady) return;
 
   await runSetupAction(async () => {
     const roomId = makeRoomId();
-    const target = getSelectedCpuTarget();
+    const target = selectedTarget || getSelectedCpuTarget();
     const cpuCount = getCpuCount();
     const cpuProfiles = makeCpuProfiles(cpuCount);
     const cpuPlayerIds = cpuProfiles.map((_, index) => `cpu_${index + 1}`);
@@ -361,12 +398,28 @@ function buildHitPayload(room, player) {
   const drawn = { ...(player.drawn || {}), [candidate.id]: true };
   const target = getRoomTarget(room).value;
   const status = nextTotal > target ? "bust" : nextTotal === target ? "just" : "active";
+  const historyItem = {
+    id: candidate.id,
+    name: candidate.name,
+    prefecture: candidate.prefecture,
+    population: candidate.population,
+    totalAfter: nextTotal
+  };
   const payload = {
     total: nextTotal,
     hitCount: (player.hitCount || 0) + 1,
     status,
     drawn,
+    history: [...(player.history || []), historyItem],
     lastRevealed: candidate,
+    lastAction: {
+      type: "hit",
+      municipality: candidate.name,
+      prefecture: candidate.prefecture,
+      population: candidate.population,
+      totalAfter: nextTotal,
+      status
+    },
     updatedAt: serverTimestamp()
   };
 
@@ -384,6 +437,9 @@ function buildStandPayload() {
   return {
     status: "stand",
     candidate: null,
+    lastAction: {
+      type: "stand"
+    },
     finishedAt: serverTimestamp()
   };
 }
@@ -411,12 +467,20 @@ function renderRoom(room) {
   const turnPlayerId = getCurrentTurnPlayerId(room);
   const turnPlayer = players[turnPlayerId];
   const target = getRoomTarget(room);
+  const isMyTurn = canTakeTurn(room, currentPlayerId);
+  const isPlaying = room.status === "playing";
 
   els.targetLabel.textContent = formatNumber(target.value);
   els.targetName.textContent = `${target.label} / ${target.difficulty}`;
-  els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "プレイ中" : "待機中";
-  els.capacityLabel.textContent = `${playerIds.length} / ${room.maxPlayers || MAX_PLAYERS}人`;
+  els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "ゲーム開始" : "待機中";
+  els.capacityLabel.textContent = room.status === "waiting" ? `${playerIds.length}人参加中` : `${playerIds.length}人プレイ`;
   els.turnLabel.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんの番` : "開始前";
+  els.turnBanner.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんのターン` : "ゲーム開始前";
+  els.roomCodeLabel.textContent = room.status === "waiting" ? "部屋ID" : "共有用 部屋ID";
+  els.roomCode.classList.toggle("compact", room.status !== "waiting");
+  els.gameView.classList.toggle("my-turn", isMyTurn);
+  els.gameView.classList.toggle("other-turn", isPlaying && !isMyTurn);
+  els.drawProfileText.textContent = describeDrawProfile(target.id);
   els.startGameButton.classList.toggle("hidden", !(isHost && room.status === "waiting" && playerIds.length >= MIN_PLAYERS));
 
   if (room.status !== "finished" && playerIds.length >= MIN_PLAYERS && playerIds.every((id) => isFinished(players[id].status))) {
@@ -447,6 +511,7 @@ function renderRoom(room) {
   els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
   els.standButton.disabled = !canTakeTurn(room, currentPlayerId);
 
+  renderMyHistory(me);
   renderPlayersList(room, players, playerIds);
 
   renderResult(room, players);
@@ -508,9 +573,52 @@ function renderPlayersList(room, players, playerIds) {
       `${statusLabels[player.status] || "待機中"} / ` +
       `HIT ${formatNumber(player.hitCount || 0)}回`;
 
-    item.append(title, meta);
+    const action = document.createElement("span");
+    action.className = "last-action";
+    action.textContent = buildLastActionText(player);
+
+    item.append(title, meta, action);
     els.playersList.append(item);
   }
+}
+
+function renderMyHistory(player) {
+  els.myHistoryList.innerHTML = "";
+  const history = player.history || [];
+  if (history.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-history";
+    empty.textContent = "まだHITしていません。";
+    els.myHistoryList.append(empty);
+    return;
+  }
+
+  for (const [index, item] of history.entries()) {
+    const row = document.createElement("div");
+    row.className = "history-row";
+
+    const title = document.createElement("strong");
+    title.textContent = `${index + 1}. ${item.prefecture} ${item.name}`;
+
+    const detail = document.createElement("span");
+    detail.textContent = `+${formatNumber(item.population)}人 → ${formatNumber(item.totalAfter)}人`;
+
+    row.append(title, detail);
+    els.myHistoryList.append(row);
+  }
+}
+
+function buildLastActionText(player) {
+  const action = player.lastAction;
+  if (!action) {
+    return player.status === "active" ? "まだ選択していません。" : "開始前";
+  }
+  if (action.type === "stand") return "直前：STAND";
+  if (action.type === "hit") {
+    const resultLabel = action.status === "bust" ? "BUST" : action.status === "just" ? "JUST" : "HIT";
+    return `直前：${resultLabel} ${action.prefecture} ${action.municipality} +${formatNumber(action.population)}人`;
+  }
+  return "";
 }
 
 function scheduleCpuTurn(room) {
@@ -758,6 +866,41 @@ function pickRandomTarget() {
   return targets[Math.floor(Math.random() * targets.length)] || DEFAULT_TARGET;
 }
 
+function runTargetRoulette() {
+  const targets = TARGETS.filter((target) => !target.isSpecial);
+  const selected = targets[Math.floor(Math.random() * targets.length)] || DEFAULT_TARGET;
+  let index = 0;
+
+  clearRoulette();
+  els.targetRoulette.classList.remove("hidden");
+  els.rouletteWindow.classList.add("spinning");
+  els.rouletteWindow.textContent = targets[0]?.label || DEFAULT_TARGET.label;
+
+  return new Promise((resolve) => {
+    rouletteTimer = window.setInterval(() => {
+      const target = targets[index % targets.length] || DEFAULT_TARGET;
+      els.rouletteWindow.textContent = `${target.label} ${formatNumber(target.value)}人`;
+      index += 1;
+    }, 90);
+
+    window.setTimeout(() => {
+      clearRoulette(false);
+      els.rouletteWindow.classList.remove("spinning");
+      els.rouletteWindow.textContent = `${selected.label} ${formatNumber(selected.value)}人`;
+      setSetupMessage(`TARGETは「${selected.label}」に決まりました。`);
+      window.setTimeout(() => resolve(selected), 500);
+    }, 1500);
+  });
+}
+
+function clearRoulette(hide = true) {
+  if (rouletteTimer) {
+    window.clearInterval(rouletteTimer);
+    rouletteTimer = null;
+  }
+  if (hide) els.targetRoulette.classList.add("hidden");
+}
+
 function getRoomTarget(room) {
   return {
     id: room.targetId || DEFAULT_TARGET.id,
@@ -778,6 +921,23 @@ function makeRoomTargetPayload(target) {
     targetSourceLabel: target.sourceLabel,
     targetDifficulty: target.difficulty
   };
+}
+
+function describeDrawProfile(targetId) {
+  const profile = DRAW_PROFILES[targetId] || DEFAULT_DRAW_PROFILE;
+  const entries = Object.entries(CATEGORY_LABELS)
+    .map(([category, label]) => ({
+      label,
+      weight: Number(profile[category] ?? DEFAULT_DRAW_PROFILE[category] ?? 1)
+    }))
+    .filter((entry) => entry.weight > 0)
+    .sort((a, b) => b.weight - a.weight);
+
+  const summary = entries
+    .slice(0, 3)
+    .map((entry) => `${entry.label}が出やすい`)
+    .join("、");
+  return `出る市区町村の傾向：${summary || "全カテゴリ均等"}`;
 }
 
 function makeCpuProfiles(cpuCount) {
@@ -815,6 +975,7 @@ function disableSetup(disabled) {
 }
 
 function showSetupMode(mode) {
+  clearRoulette();
   els.setupModeView.classList.toggle("hidden", mode !== "choice");
   els.createRoomForm.classList.toggle("hidden", mode !== "create");
   els.joinRoomForm.classList.toggle("hidden", mode !== "join");

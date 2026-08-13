@@ -71,6 +71,10 @@
             TARGET
             <select id="cpuTargetSelect"></select>
           </label>
+          <div id="targetRoulette" class="target-roulette hidden" aria-live="polite">
+            <p class="label">RANDOM TARGET</p>
+            <div id="rouletteWindow" class="roulette-window">選択中...</div>
+          </div>
           <div class="button-row">
             <button id="startCpuRoomButton" type="button">CPU戦を始める</button>
             <button id="backFromCpuButton" type="button" class="secondary">戻る</button>
@@ -110,7 +114,7 @@
       <section id="gameView" class="game-grid hidden" aria-live="polite">
         <div class="panel room-panel">
           <div>
-            <p class="label">部屋ID</p>
+            <p class="label" id="roomCodeLabel">部屋ID</p>
             <div class="room-code" id="roomCode">------</div>
           </div>
           <div>
@@ -122,13 +126,14 @@
             <div class="state-text" id="turnLabel">開始前</div>
           </div>
           <div>
-            <p class="label">参加人数</p>
+            <p class="label">プレイ人数</p>
             <div class="state-text" id="capacityLabel">1 / 5人</div>
           </div>
           <button id="startGameButton" type="button" class="hidden">ゲーム開始</button>
         </div>
 
         <section class="panel play-panel" aria-labelledby="candidateTitle">
+          <div class="turn-banner" id="turnBanner">開始前</div>
           <div class="score-row">
             <div>
               <p class="label">あなたの現在人口</p>
@@ -152,10 +157,16 @@
             <button id="standButton" type="button" class="secondary" disabled>STAND</button>
           </div>
           <p id="myStatus" class="message"></p>
+
+          <section class="history-block" aria-labelledby="historyTitle">
+            <h2 id="historyTitle">これまでの累積</h2>
+            <div id="myHistoryList" class="history-list"></div>
+          </section>
         </section>
 
         <section class="panel players-panel" aria-labelledby="playersTitle">
           <h2 id="playersTitle">参加者</h2>
+          <p id="drawProfileText" class="draw-profile"></p>
           <div id="playersList" class="players-list"></div>
         </section>
 

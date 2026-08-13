@@ -59,6 +59,13 @@ export const DRAW_PROFILES = {
     large_city: 5,
     ordinance_city: 1
   },
+  "three-million-challenge": {
+    village_town: 0.05,
+    small_city: 0.2,
+    mid_city: 1,
+    large_city: 3,
+    ordinance_city: 6
+  },
   "ntt-shareholders": {
     village_town: 0.05,
     small_city: 0.2,
