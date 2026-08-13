@@ -19,6 +19,7 @@ const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const CPU_THINK_DELAY_MS = 1000;
 const OVER_TARGET_DRAW_RATE = 0.01;
+const DRAW_PROFILE_NOTICE_MS = 5000;
 const CPU_ACCURACY_SETS = {
   1: [0.75],
   2: [0.65, 0.5],
@@ -116,14 +117,10 @@ const els = {
   joinRoomButton: document.querySelector("#joinRoomButton"),
   startCpuRoomButton: document.querySelector("#startCpuRoomButton"),
   setupMessage: document.querySelector("#setupMessage"),
-  targetLabel: document.querySelector("#targetLabel"),
-  targetName: document.querySelector("#targetName"),
   createTargetSelect: document.querySelector("#createTargetSelect"),
   cpuTargetSelect: document.querySelector("#cpuTargetSelect"),
   targetRoulette: document.querySelector("#targetRoulette"),
   rouletteWindow: document.querySelector("#rouletteWindow"),
-  createDrawProfilePreview: document.querySelector("#createDrawProfilePreview"),
-  cpuDrawProfilePreview: document.querySelector("#cpuDrawProfilePreview"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
   roomCode: document.querySelector("#roomCode"),
   roomState: document.querySelector("#roomState"),
@@ -131,6 +128,8 @@ const els = {
   capacityLabel: document.querySelector("#capacityLabel"),
   turnBanner: document.querySelector("#turnBanner"),
   startGameButton: document.querySelector("#startGameButton"),
+  totalLabel: document.querySelector("#totalLabel"),
+  hitCountLabel: document.querySelector("#hitCountLabel"),
   myTotal: document.querySelector("#myTotal"),
   myHitCount: document.querySelector("#myHitCount"),
   candidateName: document.querySelector("#candidateName"),
@@ -156,12 +155,10 @@ let unsubscribeRoom = null;
 let cpuActionTimer = null;
 let cpuActionKey = "";
 let rouletteTimer = null;
+let lastProfileRoomKey = "";
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
-els.targetLabel.textContent = formatNumber(DEFAULT_TARGET.value);
-els.targetName.textContent = DEFAULT_TARGET.label;
-renderSetupDrawProfiles();
 disableSetup(true);
 initializeFirebase();
 
@@ -174,8 +171,6 @@ els.backFromCpuButton.addEventListener("click", () => showSetupMode("choice"));
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
-els.createTargetSelect.addEventListener("change", renderSetupDrawProfiles);
-els.cpuTargetSelect.addEventListener("change", renderSetupDrawProfiles);
 els.startGameButton.addEventListener("click", startGame);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
@@ -398,6 +393,7 @@ async function applyPlayerAction(room, playerId, action) {
   Object.assign(updates, buildRoomProgressUpdates({ ...room, players: nextPlayers }, playerId));
 
   await update(ref(db, `rooms/${currentRoomId}`), updates);
+  triggerActionEffect(action, payload.status);
 }
 
 function buildHitPayload(room, player) {
@@ -478,9 +474,10 @@ function renderRoom(room) {
   const target = getRoomTarget(room);
   const isMyTurn = canTakeTurn(room, currentPlayerId);
   const isPlaying = room.status === "playing";
+  const focusPlayer = isPlaying && turnPlayer ? turnPlayer : me;
+  const focusPlayerId = isPlaying && turnPlayer ? turnPlayerId : currentPlayerId;
+  const focusLabel = focusPlayerId === currentPlayerId ? "あなた" : focusPlayer?.name || "参加者";
 
-  els.targetLabel.textContent = formatNumber(target.value);
-  els.targetName.textContent = `${target.label} / ${target.difficulty}`;
   els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "ゲーム開始" : "待機中";
   els.capacityLabel.textContent = room.status === "waiting" ? `${playerIds.length}人参加中` : `${playerIds.length}人プレイ`;
   els.turnLabel.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんの番` : "開始前";
@@ -490,7 +487,7 @@ function renderRoom(room) {
   els.roomPanel.classList.toggle("hidden", room.status !== "waiting");
   els.gameView.classList.toggle("my-turn", isMyTurn);
   els.gameView.classList.toggle("other-turn", isPlaying && !isMyTurn);
-  renderDrawProfile(els.drawProfileText, target, { compact: true });
+  renderDrawProfileNotice(room, target);
   els.startGameButton.classList.toggle("hidden", !(isHost && room.status === "waiting" && playerIds.length >= MIN_PLAYERS));
 
   if (room.status !== "finished" && playerIds.length >= MIN_PLAYERS && playerIds.every((id) => isFinished(players[id].status))) {
@@ -499,18 +496,20 @@ function renderRoom(room) {
 
   if (!me) return;
 
-  els.myTotal.textContent = formatNumber(me.total || 0);
-  els.myHitCount.textContent = formatNumber(me.hitCount || 0);
+  els.totalLabel.textContent = `${focusLabel}の現在人口`;
+  els.hitCountLabel.textContent = `${focusLabel}のHIT回数`;
+  els.myTotal.textContent = formatNumber(focusPlayer?.total || 0);
+  els.myHitCount.textContent = formatNumber(focusPlayer?.hitCount || 0);
   els.myStatus.textContent = buildMyStatus(me, room);
 
-  const candidate = me.candidate;
-  if (candidate && canPlay(me) && room.status === "playing") {
+  const candidate = focusPlayer?.candidate;
+  if (candidate && canPlay(focusPlayer) && room.status === "playing") {
     els.candidateName.textContent = candidate.name;
-    els.candidatePrefecture.textContent = candidate.prefecture;
-    els.candidatePopulation.textContent = "人口：?????";
-  } else if (me.lastRevealed && !canPlay(me)) {
-    els.candidateName.textContent = me.lastRevealed.name;
-    els.candidatePrefecture.textContent = `${me.lastRevealed.prefecture} / ${formatNumber(me.lastRevealed.population)}人`;
+    els.candidatePrefecture.textContent = `${focusLabel}の候補 / ${candidate.prefecture}`;
+    els.candidatePopulation.textContent = focusPlayerId === currentPlayerId ? "人口：?????" : "選択待ち";
+  } else if (focusPlayer?.lastRevealed && !canPlay(focusPlayer)) {
+    els.candidateName.textContent = focusPlayer.lastRevealed.name;
+    els.candidatePrefecture.textContent = `${focusPlayer.lastRevealed.prefecture} / ${formatNumber(focusPlayer.lastRevealed.population)}人`;
     els.candidatePopulation.textContent = "終了";
   } else {
     els.candidateName.textContent = room.status === "waiting" ? "待機中" : "候補なし";
@@ -521,7 +520,7 @@ function renderRoom(room) {
   els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
   els.standButton.disabled = !canTakeTurn(room, currentPlayerId);
 
-  renderMyHistory(me);
+  renderHistory(focusPlayer, focusLabel);
   renderPlayersList(room, players, playerIds);
 
   renderResult(room, players);
@@ -575,6 +574,7 @@ function renderPlayersList(room, players, playerIds) {
     const playerBadges = [];
     if (playerId === currentPlayerId) playerBadges.push("あなた");
     if (player.type === "cpu") playerBadges.push("CPU");
+    if (playerId === turnPlayerId && room.status === "playing") playerBadges.push("TURN");
     title.textContent = `${player.name || "参加者"}${playerBadges.length > 0 ? `（${playerBadges.join(" / ")}）` : ""}`;
 
     const meta = document.createElement("span");
@@ -592,13 +592,13 @@ function renderPlayersList(room, players, playerIds) {
   }
 }
 
-function renderMyHistory(player) {
+function renderHistory(player, label) {
   els.myHistoryList.innerHTML = "";
-  const history = player.history || [];
+  const history = player?.history || [];
   if (history.length === 0) {
     const empty = document.createElement("p");
     empty.className = "empty-history";
-    empty.textContent = "まだHITしていません。";
+    empty.textContent = `${label}はまだHITしていません。`;
     els.myHistoryList.append(empty);
     return;
   }
@@ -616,6 +616,16 @@ function renderMyHistory(player) {
     row.append(title, detail);
     els.myHistoryList.append(row);
   }
+}
+
+function triggerActionEffect(action, status) {
+  const effectClass = status === "bust" ? "action-bust" : status === "just" ? "action-just" : action === "hit" ? "action-hit" : "action-stand";
+  els.gameView.classList.remove("action-hit", "action-stand", "action-bust", "action-just");
+  void els.gameView.offsetWidth;
+  els.gameView.classList.add(effectClass);
+  window.setTimeout(() => {
+    els.gameView.classList.remove(effectClass);
+  }, 700);
 }
 
 function buildLastActionText(player) {
@@ -874,17 +884,8 @@ function populateTargetSelects() {
   els.cpuTargetSelect.value = "random";
 }
 
-function renderSetupDrawProfiles() {
-  const createTarget = getSelectedTarget(els.createTargetSelect.value);
-  const cpuTarget = els.cpuTargetSelect.value === "random" ? DEFAULT_TARGET : getSelectedTarget(els.cpuTargetSelect.value);
-  renderDrawProfile(els.createDrawProfilePreview, createTarget);
-  renderDrawProfile(els.cpuDrawProfilePreview, cpuTarget, {
-    title: els.cpuTargetSelect.value === "random" ? "ランダム選択時の例" : "人口カード構成"
-  });
-}
-
 function makeTargetOption(target) {
-  return `<option value="${target.id}">${target.label} ${formatNumber(target.value)}人（${target.difficulty}）</option>`;
+  return `<option value="${target.id}">${target.label}</option>`;
 }
 
 function getSelectedTarget(targetId) {
@@ -956,6 +957,25 @@ function makeRoomTargetPayload(target) {
     targetSourceLabel: target.sourceLabel,
     targetDifficulty: target.difficulty
   };
+}
+
+function renderDrawProfileNotice(room, target) {
+  const profileKey = `${room.roomId}:${room.startedAt || ""}:${room.status}`;
+  if (room.status === "playing" && profileKey !== lastProfileRoomKey) {
+    lastProfileRoomKey = profileKey;
+    renderDrawProfile(els.drawProfileText, target);
+    els.drawProfileText.classList.remove("hidden", "fade-out");
+    window.setTimeout(() => {
+      els.drawProfileText.classList.add("fade-out");
+      window.setTimeout(() => els.drawProfileText.classList.add("hidden"), 450);
+    }, DRAW_PROFILE_NOTICE_MS);
+    return;
+  }
+
+  if (room.status !== "playing") {
+    lastProfileRoomKey = "";
+    els.drawProfileText.classList.add("hidden");
+  }
 }
 
 function renderDrawProfile(container, target, options = {}) {
