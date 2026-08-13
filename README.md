@@ -97,6 +97,9 @@ CPUは人数に応じて自動で強さが調整されます。CPUが1人のと�
 - 現在ターンの表示
 - CPUの自動HIT / STAND
 - 全員終了後の勝敗表示
+- 結果画面のランキング表示
+- 部屋の再戦機能（ホスト操作、同じ参加者・TARGETで再戦）
+- 効果音（HIT / STAND / BUST / JUST / 勝敗）とミュート切り替え
 - Firebase設定値の分離
 - Firebase設定未入力、接続失敗、権限エラーの画面表示
 
@@ -321,13 +324,11 @@ Firebase Hostingで配信する場合も、検証用RulesはFirebase Consoleで�
 
 - 実データの全国市区町村人口データへの差し替え
 - TARGETをNTT DATA公式情報に基づく値へ更新
-- 部屋の再戦機能
 - 部屋の削除または期限切れ処理
 - プレイヤー離脱時の処理
 - Firebase Authenticationによる簡易認証
 - Realtime Database Rulesの本番向け制御
 - 対戦履歴の保存
-- 結果画面の演出
 - 市区町村の地図表示
 - スマートフォンでの操作性改善
 - UIデザインのハッカソン発表向けブラッシュアップ

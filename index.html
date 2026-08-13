@@ -4,9 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>NTT DATA人口ブラックジャック MVP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Orbitron:wght@500;600;700;800&display=swap">
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
+    <button id="soundToggleButton" type="button" class="sound-toggle" aria-pressed="true" aria-label="効果音の切り替え">🔊</button>
     <main class="app-shell">
       <section class="title-area" aria-labelledby="app-title">
         <div>
@@ -110,7 +114,7 @@
         <div class="panel room-panel">
           <div>
             <p class="label" id="roomCodeLabel">部屋ID</p>
-            <div class="room-code" id="roomCode">------</div>
+            <div class="room-code num-digital" id="roomCode">------</div>
           </div>
           <div>
             <p class="label">状態</p>
@@ -131,18 +135,24 @@
 
         <section class="panel play-panel" aria-labelledby="candidateTitle">
           <div class="turn-banner" id="turnBanner">開始前</div>
+          <div class="target-progress hidden" id="targetProgress" aria-hidden="true">
+            <div class="target-progress-track">
+              <div class="target-progress-fill" id="targetProgressFill"></div>
+            </div>
+            <span class="target-progress-label num-digital" id="targetProgressLabel">0%</span>
+          </div>
           <div class="score-row">
             <div>
               <p class="label" id="totalLabel">現在人口</p>
-              <div class="score" id="myTotal">0</div>
+              <div class="score num-digital" id="myTotal">0</div>
             </div>
             <div>
               <p class="label" id="hitCountLabel">HIT回数</p>
-              <div class="hit-count" id="myHitCount">0</div>
+              <div class="hit-count num-digital" id="myHitCount">0</div>
             </div>
           </div>
 
-          <div class="candidate-box">
+          <div class="candidate-box" id="candidateBox">
             <p class="label" id="candidateTitle">次の市区町村</p>
             <h2 id="candidateName">待機中</h2>
             <p id="candidatePrefecture">2人以上そろったら開始できます</p>
@@ -168,12 +178,19 @@
 
         <section id="resultPanel" class="panel result-panel hidden" aria-labelledby="resultTitle">
           <p class="label">RESULT</p>
-          <h2 id="resultTitle">結果待ち</h2>
+          <h2 id="resultTitle" class="num-digital">結果待ち</h2>
           <p id="resultDetail"></p>
-          <button id="leaveRoomButton" type="button" class="secondary">トップに戻る</button>
+          <div id="resultRanking" class="result-ranking"></div>
+          <div class="button-row result-actions">
+            <button id="rematchButton" type="button" class="hidden">もう一戦する</button>
+            <button id="leaveRoomButton" type="button" class="secondary">トップに戻る</button>
+          </div>
+          <p id="rematchWaitingNote" class="message hidden">ホストが再戦を選ぶとゲームが始まります。</p>
         </section>
       </section>
     </main>
+
+    <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
 
     <script type="module" src="./app.js"></script>
   </body>

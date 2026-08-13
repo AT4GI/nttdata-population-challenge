@@ -33,6 +33,44 @@ const CATEGORY_LABELS = {
   large_city: "30万〜70万人",
   ordinance_city: "70万人以上"
 };
+const CATEGORY_SUITS = {
+  village_town: "♣",
+  small_city: "♦",
+  mid_city: "♥",
+  large_city: "♠",
+  ordinance_city: "★"
+};
+const TIER_CLASSES = Object.keys(CATEGORY_LABELS).map((category) => `tier-${category}`);
+const CONFETTI_COLORS = ["#d4af37", "#f5da7a", "#37d38f", "#fff6da"];
+const SOUND_MUTED_KEY = "populationBlackjackSoundMuted";
+const SFX_NOTES = {
+  hit: [{ freq: 880, start: 0, duration: 0.12, type: "triangle" }],
+  stand: [{ freq: 440, start: 0, duration: 0.18, type: "sine" }],
+  bust: [
+    { freq: 260, start: 0, duration: 0.2, type: "sawtooth" },
+    { freq: 160, start: 0.12, duration: 0.28, type: "sawtooth" }
+  ],
+  just: [
+    { freq: 660, start: 0, duration: 0.14, type: "triangle" },
+    { freq: 880, start: 0.1, duration: 0.16, type: "triangle" },
+    { freq: 1320, start: 0.2, duration: 0.24, type: "triangle" }
+  ],
+  win: [
+    { freq: 523, start: 0, duration: 0.16, type: "triangle" },
+    { freq: 659, start: 0.12, duration: 0.16, type: "triangle" },
+    { freq: 784, start: 0.24, duration: 0.16, type: "triangle" },
+    { freq: 1046, start: 0.36, duration: 0.3, type: "triangle" }
+  ],
+  lose: [
+    { freq: 392, start: 0, duration: 0.2, type: "sine" },
+    { freq: 311, start: 0.16, duration: 0.32, type: "sine" }
+  ],
+  draw: [
+    { freq: 440, start: 0, duration: 0.16, type: "sine" },
+    { freq: 440, start: 0.18, duration: 0.16, type: "sine" }
+  ],
+  tick: [{ freq: 700, start: 0, duration: 0.05, type: "square", volume: 0.08 }]
+};
 const TARGETS = [
   {
     id: "ntt-data-employees",
@@ -132,6 +170,11 @@ const els = {
   hitCountLabel: document.querySelector("#hitCountLabel"),
   myTotal: document.querySelector("#myTotal"),
   myHitCount: document.querySelector("#myHitCount"),
+  targetProgress: document.querySelector("#targetProgress"),
+  targetProgressFill: document.querySelector("#targetProgressFill"),
+  targetProgressLabel: document.querySelector("#targetProgressLabel"),
+  candidateBox: document.querySelector("#candidateBox"),
+  confettiLayer: document.querySelector("#confettiLayer"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
@@ -144,7 +187,11 @@ const els = {
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
   resultDetail: document.querySelector("#resultDetail"),
-  leaveRoomButton: document.querySelector("#leaveRoomButton")
+  resultRanking: document.querySelector("#resultRanking"),
+  rematchButton: document.querySelector("#rematchButton"),
+  rematchWaitingNote: document.querySelector("#rematchWaitingNote"),
+  leaveRoomButton: document.querySelector("#leaveRoomButton"),
+  soundToggleButton: document.querySelector("#soundToggleButton")
 };
 
 let db = null;
@@ -156,10 +203,14 @@ let cpuActionTimer = null;
 let cpuActionKey = "";
 let rouletteTimer = null;
 let lastProfileRoomKey = "";
+let lastResultKey = "";
+let audioCtx = null;
+let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
 disableSetup(true);
+updateSoundToggleButton();
 initializeFirebase();
 
 els.selectCreateModeButton.addEventListener("click", () => showSetupMode("create"));
@@ -174,7 +225,9 @@ els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
+els.rematchButton.addEventListener("click", rematchRoom);
 els.leaveRoomButton.addEventListener("click", () => window.location.reload());
+els.soundToggleButton.addEventListener("click", toggleSound);
 
 async function initializeFirebase() {
   try {
@@ -383,6 +436,40 @@ async function stand() {
   });
 }
 
+async function rematchRoom() {
+  await runGameAction(async () => {
+    const room = await getCurrentRoom();
+    if (!room || room.status !== "finished" || room.hostPlayerId !== currentPlayerId) return;
+
+    const target = getRoomTarget(room);
+    const playerOrder = getPlayerOrder(room);
+    const updates = {
+      status: "playing",
+      result: null,
+      turnIndex: 0,
+      playerOrder,
+      startedPlayerIds: playerOrder,
+      startedAt: serverTimestamp(),
+      finishedAt: null
+    };
+
+    for (const playerId of playerOrder) {
+      Object.assign(updates, prefixPlayerUpdate(playerId, {
+        total: 0,
+        hitCount: 0,
+        status: "active",
+        drawn: {},
+        history: [],
+        lastRevealed: null,
+        lastAction: null,
+        candidate: pickCandidate({}, target.id, target.value)
+      }));
+    }
+
+    await update(ref(db, `rooms/${currentRoomId}`), updates);
+  });
+}
+
 async function applyPlayerAction(room, playerId, action) {
   const player = room.players?.[playerId];
   if (!player || !canPlay(player) || getCurrentTurnPlayerId(room) !== playerId) return;
@@ -503,7 +590,8 @@ function renderRoom(room) {
   els.myStatus.textContent = buildMyStatus(me, room);
 
   const candidate = focusPlayer?.candidate;
-  if (candidate && canPlay(focusPlayer) && room.status === "playing") {
+  const isCandidateMasked = Boolean(candidate && canPlay(focusPlayer) && room.status === "playing");
+  if (isCandidateMasked) {
     els.candidateName.textContent = candidate.name;
     els.candidatePrefecture.textContent = `${focusLabel}の候補 / ${candidate.prefecture}`;
     els.candidatePopulation.textContent = focusPlayerId === currentPlayerId ? "人口：?????" : "選択待ち";
@@ -516,6 +604,14 @@ function renderRoom(room) {
     els.candidatePrefecture.textContent = playerIds.length < MIN_PLAYERS ? "参加者を待っています" : "ホストがゲームを開始します";
     els.candidatePopulation.textContent = "人口：?????";
   }
+
+  const revealCategory = isCandidateMasked
+    ? candidate.category
+    : focusPlayer?.lastRevealed && !canPlay(focusPlayer)
+      ? focusPlayer.lastRevealed.category
+      : null;
+  updateCandidateCard(revealCategory, isCandidateMasked);
+  updateTargetProgress(room, focusPlayer, target);
 
   els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
   els.standButton.disabled = !canTakeTurn(room, currentPlayerId);
@@ -531,30 +627,76 @@ function renderResult(room, players) {
   const shouldShow = room.status === "finished" && room.result;
   els.resultPanel.classList.toggle("hidden", !shouldShow);
   els.resultPanel.classList.remove("win", "lose");
-  if (!shouldShow) return;
+  const isHost = room.hostPlayerId === currentPlayerId;
+  els.rematchButton.classList.toggle("hidden", !(shouldShow && isHost));
+  els.rematchWaitingNote.classList.toggle("hidden", !(shouldShow && !isHost));
+  if (!shouldShow) {
+    lastResultKey = "";
+    return;
+  }
 
   const result = room.result;
-  const me = players[currentPlayerId];
   const winnerIds = result.winnerPlayerIds || (result.winnerPlayerId && result.winnerPlayerId !== "draw" ? [result.winnerPlayerId] : []);
+  let outcome = "draw";
 
   if (winnerIds.length === 0) {
     els.resultTitle.textContent = "DRAW";
   } else if (winnerIds.includes(currentPlayerId)) {
     els.resultTitle.textContent = "WIN";
     els.resultPanel.classList.add("win");
+    outcome = "win";
   } else {
     els.resultTitle.textContent = "LOSE";
     els.resultPanel.classList.add("lose");
+    outcome = "lose";
   }
 
-  const summaries = (result.playerIds || getDisplayPlayerIds(room))
-    .map((id) => {
-      const player = players[id];
-      const label = id === currentPlayerId ? "あなた" : player?.name || "参加者";
-      return `${label} ${formatNumber(player?.total || 0)}人（${statusLabels[player?.status] || "待機中"}）`;
-    })
-    .join(" / ");
-  els.resultDetail.textContent = `${result.reason || "TARGETとの差で判定しました。"} ${summaries}`;
+  els.resultDetail.textContent = result.reason || "TARGETとの差で判定しました。";
+  renderResultRanking(room, players, result, winnerIds);
+
+  const resultKey = `${room.roomId}:${room.finishedAt || result.decidedAt || ""}`;
+  if (resultKey !== lastResultKey) {
+    lastResultKey = resultKey;
+    playSfx(outcome);
+    if (outcome === "win") spawnConfetti(els.resultPanel);
+  }
+}
+
+function renderResultRanking(room, players, result, winnerIds) {
+  if (!els.resultRanking) return;
+  els.resultRanking.innerHTML = "";
+  const target = getRoomTarget(room).value;
+  const ids = result.playerIds || getDisplayPlayerIds(room);
+  const rows = ids
+    .map((id) => ({ id, player: players[id], diff: Math.abs(target - (players[id]?.total || 0)) }))
+    .filter((row) => row.player);
+
+  rows.sort((a, b) => {
+    const aBust = a.player.status === "bust";
+    const bBust = b.player.status === "bust";
+    if (aBust !== bBust) return aBust ? 1 : -1;
+    return a.diff - b.diff;
+  });
+
+  rows.forEach((row, index) => {
+    const item = document.createElement("div");
+    item.className = "result-row";
+    if (row.id === currentPlayerId) item.classList.add("me");
+    if (winnerIds.includes(row.id)) item.classList.add("winner");
+
+    const rank = document.createElement("span");
+    rank.className = "result-rank";
+    rank.textContent = winnerIds.includes(row.id) ? "🏆" : `${index + 1}位`;
+
+    const name = document.createElement("strong");
+    name.textContent = row.id === currentPlayerId ? "あなた" : row.player.name || "参加者";
+
+    const detail = document.createElement("span");
+    detail.textContent = `${formatNumber(row.player.total || 0)}人（${statusLabels[row.player.status] || "待機中"} / 差${formatNumber(row.diff)}人）`;
+
+    item.append(rank, name, detail);
+    els.resultRanking.append(item);
+  });
 }
 
 function renderPlayersList(room, players, playerIds) {
@@ -626,6 +768,121 @@ function triggerActionEffect(action, status) {
   window.setTimeout(() => {
     els.gameView.classList.remove(effectClass);
   }, 700);
+
+  playSfx(status === "bust" ? "bust" : status === "just" ? "just" : action === "hit" ? "hit" : "stand");
+
+  if (action === "hit" && els.candidatePopulation) {
+    els.candidatePopulation.classList.remove("pop-flash");
+    void els.candidatePopulation.offsetWidth;
+    els.candidatePopulation.classList.add("pop-flash");
+    window.setTimeout(() => {
+      els.candidatePopulation.classList.remove("pop-flash");
+    }, 500);
+  }
+
+  if (status === "just") spawnConfetti(els.candidateBox);
+}
+
+function updateCandidateCard(category, masked) {
+  if (!els.candidateBox) return;
+  els.candidateBox.classList.remove(...TIER_CLASSES);
+  if (category && CATEGORY_LABELS[category]) {
+    els.candidateBox.classList.add(`tier-${category}`);
+    els.candidateBox.dataset.suit = CATEGORY_SUITS[category] || "";
+  } else {
+    els.candidateBox.dataset.suit = "";
+  }
+  els.candidateBox.classList.toggle("masked", masked);
+}
+
+function updateTargetProgress(room, player, target) {
+  if (!els.targetProgress) return;
+  const isPlaying = room.status === "playing";
+  els.targetProgress.classList.toggle("hidden", !isPlaying);
+  if (!isPlaying) return;
+
+  const targetValue = target?.value || 0;
+  const total = player?.total || 0;
+  const percent = targetValue > 0 ? Math.min(100, (total / targetValue) * 100) : 0;
+  els.targetProgressFill.style.width = `${percent}%`;
+  els.targetProgressLabel.textContent = `${Math.round(percent)}%`;
+  els.targetProgress.classList.toggle("near", percent >= 85 && player?.status !== "bust");
+  els.targetProgress.classList.toggle("over", player?.status === "bust");
+}
+
+function spawnConfetti(anchorEl) {
+  if (!anchorEl || !els.confettiLayer) return;
+  const rect = anchorEl.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const pieces = [];
+
+  for (let i = 0; i < 18; i += 1) {
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 90 + Math.random() * 90;
+    const piece = document.createElement("span");
+    piece.className = "confetti-piece";
+    piece.style.left = `${centerX}px`;
+    piece.style.top = `${centerY}px`;
+    piece.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    piece.style.setProperty("--dx", `${Math.cos(angle) * distance}px`);
+    piece.style.setProperty("--dy", `${Math.sin(angle) * distance - 30}px`);
+    piece.style.setProperty("--rot", `${Math.round(Math.random() * 360 - 180)}deg`);
+    piece.style.setProperty("--delay", `${Math.round(Math.random() * 120)}ms`);
+    els.confettiLayer.append(piece);
+    pieces.push(piece);
+  }
+
+  window.setTimeout(() => {
+    for (const piece of pieces) piece.remove();
+  }, 1150);
+}
+
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    audioCtx = new AudioContextClass();
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(ctx, { freq, start, duration, type = "sine", volume = 0.16 }) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+  gain.gain.setValueAtTime(0, ctx.currentTime + start);
+  gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + start + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(ctx.currentTime + start);
+  osc.stop(ctx.currentTime + start + duration + 0.02);
+}
+
+function playSfx(name) {
+  if (soundMuted) return;
+  const notes = SFX_NOTES[name];
+  if (!notes) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    for (const note of notes) playTone(ctx, note);
+  } catch (error) {
+    // Web Audioが使えない環境では無音でフォールバックする
+  }
+}
+
+function toggleSound() {
+  soundMuted = !soundMuted;
+  localStorage.setItem(SOUND_MUTED_KEY, soundMuted ? "1" : "0");
+  updateSoundToggleButton();
+}
+
+function updateSoundToggleButton() {
+  els.soundToggleButton.textContent = soundMuted ? "🔇" : "🔊";
+  els.soundToggleButton.setAttribute("aria-pressed", String(!soundMuted));
 }
 
 function buildLastActionText(player) {
@@ -916,6 +1173,7 @@ function runTargetRoulette() {
     rouletteTimer = window.setInterval(() => {
       const target = targets[index % targets.length] || DEFAULT_TARGET;
       els.rouletteWindow.textContent = `${target.label} ${formatNumber(target.value)}人`;
+      playSfx("tick");
       index += 1;
     }, 90);
 
