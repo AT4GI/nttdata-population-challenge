@@ -36,6 +36,7 @@
             TARGET
             <select id="createTargetSelect"></select>
           </label>
+          <div id="createDrawProfilePreview" class="draw-profile-card"></div>
           <div class="button-row">
             <button id="createRoomButton" type="button">部屋を作る</button>
             <button id="backFromCreateButton" type="button" class="secondary">戻る</button>
@@ -71,6 +72,7 @@
             TARGET
             <select id="cpuTargetSelect"></select>
           </label>
+          <div id="cpuDrawProfilePreview" class="draw-profile-card"></div>
           <div id="targetRoulette" class="target-roulette hidden" aria-live="polite">
             <p class="label">RANDOM TARGET</p>
             <div id="rouletteWindow" class="roulette-window">選択中...</div>
@@ -166,7 +168,7 @@
 
         <section class="panel players-panel" aria-labelledby="playersTitle">
           <h2 id="playersTitle">参加者</h2>
-          <p id="drawProfileText" class="draw-profile"></p>
+          <div id="drawProfileText" class="draw-profile-card compact"></div>
           <div id="playersList" class="players-list"></div>
         </section>
 

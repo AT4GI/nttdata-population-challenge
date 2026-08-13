@@ -18,6 +18,7 @@ import {
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const CPU_THINK_DELAY_MS = 1000;
+const OVER_TARGET_DRAW_RATE = 0.01;
 const CPU_ACCURACY_SETS = {
   1: [0.75],
   2: [0.65, 0.5],
@@ -25,11 +26,11 @@ const CPU_ACCURACY_SETS = {
   4: [0.65, 0.5, 0.45, 0.45]
 };
 const CATEGORY_LABELS = {
-  village_town: "町村・小規模",
+  village_town: "0〜5万人",
   small_city: "5万〜10万人",
   mid_city: "10万〜30万人",
   large_city: "30万〜70万人",
-  ordinance_city: "政令指定都市級"
+  ordinance_city: "70万人以上"
 };
 const TARGETS = [
   {
@@ -106,6 +107,7 @@ const els = {
   backFromJoinButton: document.querySelector("#backFromJoinButton"),
   backFromCpuButton: document.querySelector("#backFromCpuButton"),
   gameView: document.querySelector("#gameView"),
+  roomPanel: document.querySelector(".room-panel"),
   playerNameInput: document.querySelector("#playerNameInput"),
   cpuPlayerNameInput: document.querySelector("#cpuPlayerNameInput"),
   roomIdInput: document.querySelector("#roomIdInput"),
@@ -120,6 +122,8 @@ const els = {
   cpuTargetSelect: document.querySelector("#cpuTargetSelect"),
   targetRoulette: document.querySelector("#targetRoulette"),
   rouletteWindow: document.querySelector("#rouletteWindow"),
+  createDrawProfilePreview: document.querySelector("#createDrawProfilePreview"),
+  cpuDrawProfilePreview: document.querySelector("#cpuDrawProfilePreview"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
   roomCode: document.querySelector("#roomCode"),
   roomState: document.querySelector("#roomState"),
@@ -157,6 +161,7 @@ sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
 els.targetLabel.textContent = formatNumber(DEFAULT_TARGET.value);
 els.targetName.textContent = DEFAULT_TARGET.label;
+renderSetupDrawProfiles();
 disableSetup(true);
 initializeFirebase();
 
@@ -169,6 +174,8 @@ els.backFromCpuButton.addEventListener("click", () => showSetupMode("choice"));
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
+els.createTargetSelect.addEventListener("change", renderSetupDrawProfiles);
+els.cpuTargetSelect.addEventListener("change", renderSetupDrawProfiles);
 els.startGameButton.addEventListener("click", startGame);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
@@ -256,7 +263,7 @@ async function createCpuRoom(selectedTarget = null) {
     }
 
     for (const playerId of playerOrder) {
-      players[playerId].candidate = pickCandidate(players[playerId].drawn || {}, target.id);
+      players[playerId].candidate = pickCandidate(players[playerId].drawn || {}, target.id, target.value);
     }
 
     await set(ref(db, `rooms/${roomId}`), {
@@ -320,6 +327,7 @@ function enterRoom(roomId) {
   currentRoomId = roomId;
   els.roomCode.textContent = roomId;
   els.roomIdInput.value = roomId;
+  document.body.classList.add("in-room");
   els.setupView.classList.add("hidden");
   els.gameView.classList.remove("hidden");
   setSetupMessage("");
@@ -355,7 +363,7 @@ async function startGame() {
     };
     for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
-      updates[`players/${playerId}/candidate`] = pickCandidate(players[playerId].drawn || {}, room.targetId);
+      updates[`players/${playerId}/candidate`] = pickCandidate(players[playerId].drawn || {}, room.targetId, getRoomTarget(room).value);
     }
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
@@ -393,10 +401,11 @@ async function applyPlayerAction(room, playerId, action) {
 }
 
 function buildHitPayload(room, player) {
-  const candidate = player.candidate || pickCandidate(player.drawn || {}, room.targetId);
+  const roomTarget = getRoomTarget(room);
+  const candidate = player.candidate || pickCandidate(player.drawn || {}, room.targetId, roomTarget.value);
   const nextTotal = (player.total || 0) + candidate.population;
   const drawn = { ...(player.drawn || {}), [candidate.id]: true };
-  const target = getRoomTarget(room).value;
+  const target = roomTarget.value;
   const status = nextTotal > target ? "bust" : nextTotal === target ? "just" : "active";
   const historyItem = {
     id: candidate.id,
@@ -424,7 +433,7 @@ function buildHitPayload(room, player) {
   };
 
   if (status === "active") {
-    payload.candidate = pickCandidate(drawn, room.targetId);
+    payload.candidate = pickCandidate(drawn, room.targetId, target);
   } else {
     payload.candidate = null;
     payload.finishedAt = serverTimestamp();
@@ -475,12 +484,13 @@ function renderRoom(room) {
   els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "ゲーム開始" : "待機中";
   els.capacityLabel.textContent = room.status === "waiting" ? `${playerIds.length}人参加中` : `${playerIds.length}人プレイ`;
   els.turnLabel.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんの番` : "開始前";
-  els.turnBanner.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんのターン` : "ゲーム開始前";
+  els.turnBanner.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんのターン / TARGET ${formatNumber(target.value)}人` : `ゲーム開始前 / TARGET ${formatNumber(target.value)}人`;
   els.roomCodeLabel.textContent = room.status === "waiting" ? "部屋ID" : "共有用 部屋ID";
   els.roomCode.classList.toggle("compact", room.status !== "waiting");
+  els.roomPanel.classList.toggle("hidden", room.status !== "waiting");
   els.gameView.classList.toggle("my-turn", isMyTurn);
   els.gameView.classList.toggle("other-turn", isPlaying && !isMyTurn);
-  els.drawProfileText.textContent = describeDrawProfile(target.id);
+  renderDrawProfile(els.drawProfileText, target, { compact: true });
   els.startGameButton.classList.toggle("hidden", !(isHost && room.status === "waiting" && playerIds.length >= MIN_PLAYERS));
 
   if (room.status !== "finished" && playerIds.length >= MIN_PLAYERS && playerIds.every((id) => isFinished(players[id].status))) {
@@ -674,7 +684,7 @@ function decideCpuAction(room, cpuPlayer) {
 function getIdealCpuAction(room, cpuPlayer) {
   const target = getRoomTarget(room).value;
   const currentTotal = cpuPlayer.total || 0;
-  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {}, room.targetId);
+  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {}, room.targetId, target);
   const nextTotal = currentTotal + candidate.population;
   const currentDiff = Math.abs(target - currentTotal);
   const nextDiff = Math.abs(target - nextTotal);
@@ -801,29 +811,45 @@ function makePlayer(name, status, options = {}) {
   };
 }
 
-function pickCandidate(drawn, targetId) {
+function pickCandidate(drawn, targetId, targetValue) {
   const available = MUNICIPALITIES.filter((item) => !drawn[item.id]);
   const pool = available.length > 0 ? available : MUNICIPALITIES;
-  return pickWeightedCandidate(pool, targetId);
+  return pickWeightedCandidate(pool, targetId, targetValue);
 }
 
-function pickWeightedCandidate(pool, targetId) {
+function pickWeightedCandidate(pool, targetId, targetValue) {
+  const target = Number(targetValue || 0);
+  const underTargetPool = target > 0 ? pool.filter((item) => item.population <= target) : pool;
+  const overTargetPool = target > 0 ? pool.filter((item) => item.population > target) : [];
+
+  if (underTargetPool.length > 0 && overTargetPool.length > 0) {
+    return pickByCategoryWeight(Math.random() < OVER_TARGET_DRAW_RATE ? overTargetPool : underTargetPool, targetId);
+  }
+
+  return pickByCategoryWeight(underTargetPool.length > 0 ? underTargetPool : pool, targetId);
+}
+
+function pickByCategoryWeight(pool, targetId) {
   const profile = DRAW_PROFILES[targetId] || DEFAULT_DRAW_PROFILE;
-  const weightedPool = pool.map((item) => ({
-    item,
-    weight: Number(profile[item.category] ?? DEFAULT_DRAW_PROFILE[item.category] ?? 1)
-  }));
-  const totalWeight = weightedPool.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
+  const categoryGroups = Object.keys(CATEGORY_LABELS)
+    .map((category) => ({
+      category,
+      items: pool.filter((item) => item.category === category),
+      weight: Number(profile[category] ?? DEFAULT_DRAW_PROFILE[category] ?? 0)
+    }))
+    .filter((entry) => entry.items.length > 0);
+  const totalWeight = categoryGroups.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
 
   if (totalWeight <= 0) return pool[Math.floor(Math.random() * pool.length)];
 
   let threshold = Math.random() * totalWeight;
-  for (const entry of weightedPool) {
+  for (const entry of categoryGroups) {
     threshold -= Math.max(0, entry.weight);
-    if (threshold <= 0) return entry.item;
+    if (threshold <= 0) return entry.items[Math.floor(Math.random() * entry.items.length)];
   }
 
-  return weightedPool[weightedPool.length - 1].item;
+  const lastGroup = categoryGroups[categoryGroups.length - 1];
+  return lastGroup.items[Math.floor(Math.random() * lastGroup.items.length)];
 }
 
 function getPlayerName(defaultName) {
@@ -846,6 +872,15 @@ function populateTargetSelects() {
   ].join("");
   els.createTargetSelect.value = DEFAULT_TARGET.id;
   els.cpuTargetSelect.value = "random";
+}
+
+function renderSetupDrawProfiles() {
+  const createTarget = getSelectedTarget(els.createTargetSelect.value);
+  const cpuTarget = els.cpuTargetSelect.value === "random" ? DEFAULT_TARGET : getSelectedTarget(els.cpuTargetSelect.value);
+  renderDrawProfile(els.createDrawProfilePreview, createTarget);
+  renderDrawProfile(els.cpuDrawProfilePreview, cpuTarget, {
+    title: els.cpuTargetSelect.value === "random" ? "ランダム選択時の例" : "人口カード構成"
+  });
 }
 
 function makeTargetOption(target) {
@@ -923,21 +958,79 @@ function makeRoomTargetPayload(target) {
   };
 }
 
-function describeDrawProfile(targetId) {
-  const profile = DRAW_PROFILES[targetId] || DEFAULT_DRAW_PROFILE;
-  const entries = Object.entries(CATEGORY_LABELS)
-    .map(([category, label]) => ({
-      label,
-      weight: Number(profile[category] ?? DEFAULT_DRAW_PROFILE[category] ?? 1)
-    }))
-    .filter((entry) => entry.weight > 0)
-    .sort((a, b) => b.weight - a.weight);
+function renderDrawProfile(container, target, options = {}) {
+  if (!container) return;
 
-  const summary = entries
-    .slice(0, 3)
-    .map((entry) => `${entry.label}が出やすい`)
-    .join("、");
-  return `出る市区町村の傾向：${summary || "全カテゴリ均等"}`;
+  const rows = getEffectiveDrawRows(target.id, target.value);
+  container.innerHTML = "";
+
+  const title = document.createElement("h3");
+  title.textContent = options.title || "人口カード構成";
+
+  const note = document.createElement("p");
+  note.className = "draw-profile-note";
+  note.textContent = `TARGET超過の市区町村は約${Math.round(OVER_TARGET_DRAW_RATE * 100)}%だけ出ます。`;
+
+  const list = document.createElement("div");
+  list.className = "draw-profile-bars";
+
+  for (const row of rows) {
+    const item = document.createElement("div");
+    item.className = "draw-profile-row";
+
+    const label = document.createElement("span");
+    label.className = "draw-profile-label";
+    label.textContent = row.label;
+
+    const meter = document.createElement("span");
+    meter.className = "draw-profile-meter";
+
+    const fill = document.createElement("span");
+    fill.className = "draw-profile-fill";
+    fill.style.width = `${Math.max(0, Math.min(100, row.percent))}%`;
+    meter.append(fill);
+
+    const value = document.createElement("strong");
+    value.textContent = `${Math.round(row.percent)}%`;
+
+    item.append(label, meter, value);
+    list.append(item);
+  }
+
+  container.append(title, note, list);
+}
+
+function getEffectiveDrawRows(targetId, targetValue) {
+  const target = Number(targetValue || 0);
+  const profile = DRAW_PROFILES[targetId] || DEFAULT_DRAW_PROFILE;
+  const categories = Object.keys(CATEGORY_LABELS);
+  const underWeights = Object.fromEntries(categories.map((category) => [category, 0]));
+  const overWeights = Object.fromEntries(categories.map((category) => [category, 0]));
+
+  for (const category of categories) {
+    const categoryItems = MUNICIPALITIES.filter((item) => item.category === category);
+    const underItems = categoryItems.filter((item) => target <= 0 || item.population <= target);
+    const overItems = categoryItems.filter((item) => target > 0 && item.population > target);
+    const weight = Number(profile[category] ?? DEFAULT_DRAW_PROFILE[category] ?? 0);
+    if (underItems.length > 0) underWeights[category] = weight;
+    if (overItems.length > 0) overWeights[category] = weight;
+  }
+
+  const underTotal = Object.values(underWeights).reduce((sum, value) => sum + value, 0);
+  const overTotal = Object.values(overWeights).reduce((sum, value) => sum + value, 0);
+  const hasUnderAndOver = underTotal > 0 && overTotal > 0;
+  const underShare = hasUnderAndOver ? 100 - OVER_TARGET_DRAW_RATE * 100 : underTotal > 0 ? 100 : 0;
+  const overShare = hasUnderAndOver ? OVER_TARGET_DRAW_RATE * 100 : underTotal > 0 ? 0 : 100;
+
+  return categories.map((category) => {
+    const underPercent = underTotal > 0 ? (underWeights[category] / underTotal) * underShare : 0;
+    const overPercent = overTotal > 0 ? (overWeights[category] / overTotal) * overShare : 0;
+    return {
+      category,
+      label: CATEGORY_LABELS[category],
+      percent: underPercent + overPercent
+    };
+  });
 }
 
 function makeCpuProfiles(cpuCount) {

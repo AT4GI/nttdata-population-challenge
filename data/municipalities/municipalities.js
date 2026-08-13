@@ -32,53 +32,53 @@ export const MUNICIPALITIES = [
 
 export const DRAW_PROFILES = {
   "ntt-data-employees": {
-    village_town: 0.5,
-    small_city: 2,
-    mid_city: 5,
-    large_city: 2,
-    ordinance_city: 0.2
+    village_town: 15,
+    small_city: 25,
+    mid_city: 45,
+    large_city: 12,
+    ordinance_city: 3
   },
   "toyosu-station-total": {
-    village_town: 0.5,
-    small_city: 2,
-    mid_city: 4,
-    large_city: 2,
-    ordinance_city: 0.2
+    village_town: 12,
+    small_city: 23,
+    mid_city: 45,
+    large_city: 16,
+    ordinance_city: 4
   },
   "ntt-group-employees": {
-    village_town: 0.2,
-    small_city: 1,
-    mid_city: 3,
-    large_city: 5,
-    ordinance_city: 1
+    village_town: 8,
+    small_city: 18,
+    mid_city: 38,
+    large_city: 28,
+    ordinance_city: 8
   },
   "koto-city-population": {
-    village_town: 0.1,
-    small_city: 0.5,
-    mid_city: 2,
-    large_city: 5,
-    ordinance_city: 1
+    village_town: 5,
+    small_city: 12,
+    mid_city: 30,
+    large_city: 40,
+    ordinance_city: 13
   },
   "three-million-challenge": {
-    village_town: 0.05,
-    small_city: 0.2,
-    mid_city: 1,
-    large_city: 3,
-    ordinance_city: 6
+    village_town: 3,
+    small_city: 7,
+    mid_city: 18,
+    large_city: 32,
+    ordinance_city: 40
   },
   "ntt-shareholders": {
-    village_town: 0.05,
-    small_city: 0.2,
-    mid_city: 1,
-    large_city: 3,
-    ordinance_city: 6
+    village_town: 3,
+    small_city: 7,
+    mid_city: 15,
+    large_city: 30,
+    ordinance_city: 45
   }
 };
 
 export const DEFAULT_DRAW_PROFILE = {
-  village_town: 1,
-  small_city: 1,
-  mid_city: 1,
-  large_city: 1,
-  ordinance_city: 1
+  village_town: 20,
+  small_city: 20,
+  mid_city: 20,
+  large_city: 20,
+  ordinance_city: 20
 };
