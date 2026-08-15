@@ -787,7 +787,7 @@ label input {
 }
 
 .game-grid.action-hit .candidate-box {
-  animation: cardFlip 0.6s cubic-bezier(0.4, 0.1, 0.2, 1);
+  animation: cardFlip 0.9s cubic-bezier(0.4, 0.1, 0.2, 1);
 }
 
 .game-grid.action-stand .play-panel {
@@ -807,7 +807,7 @@ label input {
 }
 
 .game-grid.action-just .candidate-box {
-  animation: cardFlip 0.6s cubic-bezier(0.4, 0.1, 0.2, 1);
+  animation: cardFlip 0.9s cubic-bezier(0.4, 0.1, 0.2, 1);
 }
 
 @keyframes profileIn {

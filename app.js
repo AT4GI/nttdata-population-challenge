@@ -208,6 +208,7 @@ let cpuActionKey = "";
 let rouletteTimer = null;
 let lastProfileRoomKey = "";
 let lastResultKey = "";
+let actionPending = false;
 let audioCtx = null;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
 
@@ -276,6 +277,7 @@ async function createRoomWithTarget(target) {
       status: "waiting",
       maxPlayers: MAX_PLAYERS,
       turnIndex: null,
+      turnAdvancing: false,
       playerOrder: [],
       startedPlayerIds: [],
       hostPlayerId: currentPlayerId,
@@ -338,6 +340,7 @@ async function createCpuRoom(selectedTarget = null) {
       status: "playing",
       maxPlayers: MAX_PLAYERS,
       turnIndex: 0,
+      turnAdvancing: false,
       playerOrder,
       startedPlayerIds: playerOrder,
       hostPlayerId: currentPlayerId,
@@ -436,21 +439,33 @@ async function startGame() {
 }
 
 async function hit() {
-  await runGameAction(async () => {
-    const room = await getCurrentRoom();
-    if (!room || !canTakeTurn(room, currentPlayerId)) return;
+  if (actionPending) return;
+  actionPending = true;
+  try {
+    await runGameAction(async () => {
+      const room = await getCurrentRoom();
+      if (!room || !canTakeTurn(room, currentPlayerId)) return;
 
-    await applyPlayerAction(room, currentPlayerId, "hit");
-  });
+      await applyPlayerAction(room, currentPlayerId, "hit");
+    });
+  } finally {
+    actionPending = false;
+  }
 }
 
 async function stand() {
-  await runGameAction(async () => {
-    const room = await getCurrentRoom();
-    if (!room || !canTakeTurn(room, currentPlayerId)) return;
+  if (actionPending) return;
+  actionPending = true;
+  try {
+    await runGameAction(async () => {
+      const room = await getCurrentRoom();
+      if (!room || !canTakeTurn(room, currentPlayerId)) return;
 
-    await applyPlayerAction(room, currentPlayerId, "stand");
-  });
+      await applyPlayerAction(room, currentPlayerId, "stand");
+    });
+  } finally {
+    actionPending = false;
+  }
 }
 
 async function rematchRoom() {
@@ -464,6 +479,7 @@ async function rematchRoom() {
       status: "playing",
       result: null,
       turnIndex: 0,
+      turnAdvancing: false,
       playerOrder,
       startedPlayerIds: playerOrder,
       startedAt: serverTimestamp(),
@@ -489,15 +505,26 @@ async function rematchRoom() {
 
 async function applyPlayerAction(room, playerId, action) {
   const player = room.players?.[playerId];
-  if (!player || !canPlay(player) || getCurrentTurnPlayerId(room) !== playerId) return;
+  if (!player || !canPlay(player) || getCurrentTurnPlayerId(room) !== playerId || room.turnAdvancing) return;
 
   const payload = action === "hit" ? buildHitPayload(room, player) : buildStandPayload();
   const nextPlayers = { ...(room.players || {}), [playerId]: { ...player, ...payload } };
-  const updates = prefixPlayerUpdate(playerId, payload);
-  Object.assign(updates, buildRoomProgressUpdates({ ...room, players: nextPlayers }, playerId));
+  const revealUpdates = prefixPlayerUpdate(playerId, payload);
+  revealUpdates.turnAdvancing = true;
 
-  await update(ref(db, `rooms/${currentRoomId}`), updates);
+  await update(ref(db, `rooms/${currentRoomId}`), revealUpdates);
   triggerActionEffect(action, payload.status);
+
+  const progressUpdates = buildRoomProgressUpdates({ ...room, players: nextPlayers }, playerId);
+  progressUpdates.turnAdvancing = false;
+
+  await new Promise((resolve) => window.setTimeout(resolve, getTurnAdvanceDelay(action, payload.status)));
+  await update(ref(db, `rooms/${currentRoomId}`), progressUpdates);
+}
+
+function getTurnAdvanceDelay(action, status) {
+  if (status === "bust" || status === "just") return 1700;
+  return action === "hit" ? 1400 : 1000;
 }
 
 function buildHitPayload(room, player) {
@@ -587,8 +614,12 @@ function renderRoom(room) {
 
   els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "ゲーム開始" : "待機中";
   els.capacityLabel.textContent = room.status === "waiting" ? `${playerIds.length}人参加中` : `${playerIds.length}人プレイ`;
-  els.turnLabel.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんの番` : "開始前";
-  els.turnBanner.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんのターン / TARGET ${targetDisplay}` : `ゲーム開始前 / TARGET ${targetDisplay}`;
+  els.turnLabel.textContent = room.status === "playing" ? (room.turnAdvancing ? "結果確認中" : `${turnPlayer?.name || "不明"}さんの番`) : "開始前";
+  els.turnBanner.textContent = room.status === "playing"
+    ? room.turnAdvancing
+      ? `${turnPlayer?.name || "不明"}さんの結果を確認中… / TARGET ${targetDisplay}`
+      : `${turnPlayer?.name || "不明"}さんのターン / TARGET ${targetDisplay}`
+    : `ゲーム開始前 / TARGET ${targetDisplay}`;
   els.roomCodeLabel.textContent = room.status === "waiting" ? "部屋ID" : "共有用 部屋ID";
   els.roomCode.classList.toggle("compact", room.status !== "waiting");
   els.roomPanel.classList.toggle("hidden", room.status !== "waiting");
@@ -597,7 +628,7 @@ function renderRoom(room) {
   renderDrawProfileNotice(room, target);
   els.startGameButton.classList.toggle("hidden", !(isHost && room.status === "waiting" && playerIds.length >= MIN_PLAYERS));
 
-  if (room.status !== "finished" && playerIds.length >= MIN_PLAYERS && playerIds.every((id) => isFinished(players[id].status))) {
+  if (room.status !== "finished" && !room.turnAdvancing && playerIds.length >= MIN_PLAYERS && playerIds.every((id) => isFinished(players[id].status))) {
     finishRoomIfNeeded();
   }
 
@@ -791,7 +822,7 @@ function triggerActionEffect(action, status) {
   els.gameView.classList.add(effectClass);
   window.setTimeout(() => {
     els.gameView.classList.remove(effectClass);
-  }, 700);
+  }, 1200);
 
   playSfx(status === "bust" ? "bust" : status === "just" ? "just" : action === "hit" ? "hit" : "stand");
 
@@ -943,7 +974,7 @@ function buildLastActionText(player) {
 function scheduleCpuTurn(room) {
   const turnPlayerId = getCurrentTurnPlayerId(room);
   const turnPlayer = room.players?.[turnPlayerId];
-  if (room.status !== "playing" || room.hostPlayerId !== currentPlayerId || turnPlayer?.type !== "cpu") {
+  if (room.status !== "playing" || room.turnAdvancing || room.hostPlayerId !== currentPlayerId || turnPlayer?.type !== "cpu") {
     clearCpuAction();
     return;
   }
@@ -1073,7 +1104,7 @@ function getNextTurnIndex(room, actedPlayerId) {
 }
 
 function canTakeTurn(room, playerId) {
-  return room?.status === "playing" && canPlay(room.players?.[playerId]) && getCurrentTurnPlayerId(room) === playerId;
+  return room?.status === "playing" && !room.turnAdvancing && canPlay(room.players?.[playerId]) && getCurrentTurnPlayerId(room) === playerId;
 }
 
 function getCurrentTurnPlayerId(room) {
