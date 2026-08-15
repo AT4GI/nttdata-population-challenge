@@ -501,6 +501,30 @@ label input {
   transition: width 2s cubic-bezier(0.16, 0.84, 0.32, 1), background 0.3s ease;
 }
 
+.target-progress-fill.no-transition {
+  transition: none !important;
+}
+
+.target-progress.player-0 .target-progress-fill {
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-bright));
+}
+
+.target-progress.player-1 .target-progress-fill {
+  background: linear-gradient(90deg, #2f8f86, #4fd1c5);
+}
+
+.target-progress.player-2 .target-progress-fill {
+  background: linear-gradient(90deg, #6b46c1, #b794f4);
+}
+
+.target-progress.player-3 .target-progress-fill {
+  background: linear-gradient(90deg, #b5651f, #ffb066);
+}
+
+.target-progress.player-4 .target-progress-fill {
+  background: linear-gradient(90deg, #a13d63, #ff8fc0);
+}
+
 .target-progress.near .target-progress-fill {
   background: linear-gradient(90deg, var(--gold), var(--success-bright));
   animation: progressPulse 0.9s ease-in-out infinite;
@@ -741,13 +765,13 @@ label input {
 
 .game-start-intro-card {
   width: 100%;
-  max-width: 480px;
+  max-width: min(92vw, 720px);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   text-align: center;
   border: 1px solid var(--gold);
   border-radius: 16px;
-  padding: 28px 24px;
+  padding: clamp(28px, 5vw, 48px) clamp(24px, 5vw, 56px);
   background: linear-gradient(180deg, var(--panel-glass), rgba(10, 18, 13, 0.95));
   box-shadow: 0 24px 60px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   animation: resultCardIn 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
@@ -758,21 +782,38 @@ label input {
   color: var(--gold-bright);
   font-family: var(--font-display);
   font-weight: 800;
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
 }
 
 .game-start-intro-hint {
-  margin: 6px 0 18px;
+  margin: 8px 0 24px;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: clamp(0.9rem, 1.6vw, 1.1rem);
   font-weight: 700;
 }
 
 .game-start-intro-card .draw-profile-note {
   text-align: left;
+  font-size: clamp(0.86rem, 1.4vw, 1rem);
 }
 
 .game-start-intro-card .draw-profile-row {
+  grid-template-columns: minmax(100px, 160px) minmax(120px, 1fr) 56px;
   text-align: left;
+  min-height: clamp(24px, 3vw, 32px);
+}
+
+.game-start-intro-card .draw-profile-label,
+.game-start-intro-card .draw-profile-row strong {
+  font-size: clamp(0.88rem, 1.5vw, 1.05rem);
+}
+
+.game-start-intro-card .draw-profile-meter {
+  height: clamp(10px, 1.4vw, 14px);
+}
+
+.game-start-intro-card h3 {
+  font-size: clamp(1rem, 2vw, 1.2rem);
 }
 
 @keyframes introBackdropIn {

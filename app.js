@@ -20,6 +20,7 @@ const MAX_PLAYERS = 5;
 const CPU_THINK_DELAY_MS = 1000;
 const OVER_TARGET_DRAW_RATE = 0.01;
 const GAME_START_INTRO_MS = 3500;
+const PLAYER_COLOR_COUNT = 5;
 const CPU_ACCURACY_SETS = {
   1: [0.75],
   2: [0.65, 0.5],
@@ -213,6 +214,7 @@ let lastResultKey = "";
 let actionPending = false;
 let gameStartIntroTimer = null;
 let gameStartIntroVisible = false;
+let lastProgressPlayerId = "";
 let audioCtx = null;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
 
@@ -662,7 +664,7 @@ function renderRoom(room) {
       ? focusPlayer.lastRevealed.category
       : null;
   updateCandidateCard(revealCategory, isCandidateMasked);
-  updateTargetProgress(room, focusPlayer, target);
+  updateTargetProgress(room, focusPlayer, target, focusPlayerId);
 
   els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
   els.standButton.disabled = !canTakeTurn(room, currentPlayerId);
@@ -864,19 +866,40 @@ function updateCandidateCard(category, masked) {
   els.candidateBox.classList.toggle("masked", masked);
 }
 
-function updateTargetProgress(room, player, target) {
+function updateTargetProgress(room, player, target, playerId) {
   if (!els.targetProgress) return;
   const isPlaying = room.status === "playing";
   els.targetProgress.classList.toggle("hidden", !isPlaying);
-  if (!isPlaying) return;
+  if (!isPlaying) {
+    lastProgressPlayerId = "";
+    return;
+  }
 
   const targetValue = target?.value || 0;
   const total = player?.total || 0;
   const percent = targetValue > 0 ? Math.min(100, (total / targetValue) * 100) : 0;
+
+  const playerChanged = playerId !== lastProgressPlayerId;
+  lastProgressPlayerId = playerId;
+  if (playerChanged) els.targetProgressFill.classList.add("no-transition");
+
+  setPlayerColorClass(els.targetProgress, room, playerId);
   els.targetProgressFill.style.width = `${percent}%`;
   els.targetProgressLabel.textContent = isTargetHidden(room) ? "？" : `${Math.round(percent)}%`;
   els.targetProgress.classList.toggle("near", percent >= 85 && player?.status !== "bust");
   els.targetProgress.classList.toggle("over", player?.status === "bust");
+
+  if (playerChanged) {
+    void els.targetProgressFill.offsetWidth;
+    els.targetProgressFill.classList.remove("no-transition");
+  }
+}
+
+function setPlayerColorClass(el, room, playerId) {
+  const order = getPlayerOrder(room);
+  const index = Math.max(0, order.indexOf(playerId));
+  for (let i = 0; i < PLAYER_COLOR_COUNT; i += 1) el.classList.remove(`player-${i}`);
+  el.classList.add(`player-${index % PLAYER_COLOR_COUNT}`);
 }
 
 function isTargetHidden(room) {
