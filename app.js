@@ -21,6 +21,7 @@ const CPU_THINK_DELAY_MS = 1000;
 const OVER_TARGET_DRAW_RATE = 0.01;
 const GAME_START_INTRO_MS = 3500;
 const PLAYER_COLOR_COUNT = 5;
+const BAR_FILL_MS = 2000;
 const CPU_ACCURACY_SETS = {
   1: [0.75],
   2: [0.65, 0.5],
@@ -189,6 +190,7 @@ const els = {
   myHistoryList: document.querySelector("#myHistoryList"),
   drawProfileText: document.querySelector("#drawProfileText"),
   gameStartIntro: document.querySelector("#gameStartIntro"),
+  gameStartIntroRule: document.querySelector("#gameStartIntroRule"),
   gameStartIntroProfile: document.querySelector("#gameStartIntroProfile"),
   playersList: document.querySelector("#playersList"),
   resultPanel: document.querySelector("#resultPanel"),
@@ -517,18 +519,28 @@ async function applyPlayerAction(room, playerId, action) {
   revealUpdates.turnAdvancing = true;
 
   await update(ref(db, `rooms/${currentRoomId}`), revealUpdates);
-  triggerActionEffect(action, payload.status);
+  triggerImmediateEffect(action);
+
+  // Let the population bar visibly crawl up to (or past) the target before
+  // the bust/just effect fires, instead of flashing the result instantly.
+  if (action === "hit") await wait(BAR_FILL_MS);
+  triggerOutcomeEffect(payload.status);
 
   const progressUpdates = buildRoomProgressUpdates({ ...room, players: nextPlayers }, playerId);
   progressUpdates.turnAdvancing = false;
 
-  await new Promise((resolve) => window.setTimeout(resolve, getTurnAdvanceDelay(action, payload.status)));
+  await wait(getPostEffectDelay(action, payload.status));
   await update(ref(db, `rooms/${currentRoomId}`), progressUpdates);
 }
 
-function getTurnAdvanceDelay(action, status) {
-  if (status === "bust" || status === "just") return 2100;
-  return action === "hit" ? 2100 : 1000;
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function getPostEffectDelay(action, status) {
+  if (status === "bust") return 1300;
+  if (status === "just") return 1400;
+  return action === "hit" ? 600 : 900;
 }
 
 function buildHitPayload(room, player) {
@@ -817,16 +829,18 @@ function renderHistory(player, label) {
   }
 }
 
-function triggerActionEffect(action, status) {
-  const effectClass = status === "bust" ? "action-bust" : status === "just" ? "action-just" : action === "hit" ? "action-hit" : "action-stand";
+function flashEffectClass(effectClass) {
   els.gameView.classList.remove("action-hit", "action-stand", "action-bust", "action-just");
   void els.gameView.offsetWidth;
   els.gameView.classList.add(effectClass);
   window.setTimeout(() => {
     els.gameView.classList.remove(effectClass);
   }, 1200);
+}
 
-  playSfx(status === "bust" ? "bust" : status === "just" ? "just" : action === "hit" ? "hit" : "stand");
+function triggerImmediateEffect(action) {
+  flashEffectClass(action === "hit" ? "action-hit" : "action-stand");
+  playSfx(action === "hit" ? "hit" : "stand");
 
   if (action === "hit" && els.candidatePopulation) {
     els.candidatePopulation.classList.remove("pop-flash");
@@ -836,9 +850,18 @@ function triggerActionEffect(action, status) {
       els.candidatePopulation.classList.remove("pop-flash");
     }, 500);
   }
+}
 
-  if (status === "just") spawnConfetti(els.candidateBox);
-  if (status === "bust") triggerBustFlash();
+function triggerOutcomeEffect(status) {
+  if (status === "bust") {
+    flashEffectClass("action-bust");
+    playSfx("bust");
+    triggerBustFlash();
+  } else if (status === "just") {
+    flashEffectClass("action-just");
+    playSfx("just");
+    spawnConfetti(els.candidateBox);
+  }
 }
 
 function triggerBustFlash() {
@@ -1333,7 +1356,7 @@ function renderDrawProfileNotice(room, target) {
     if (profileKey !== lastProfileRoomKey) {
       lastProfileRoomKey = profileKey;
       renderDrawProfile(els.drawProfileText, target);
-      showGameStartIntro(target);
+      showGameStartIntro(room, target);
     }
     return;
   }
@@ -1343,13 +1366,24 @@ function renderDrawProfileNotice(room, target) {
   hideGameStartIntro(true);
 }
 
-function showGameStartIntro(target) {
+function showGameStartIntro(room, target) {
   if (!els.gameStartIntro || !els.gameStartIntroProfile) return;
   renderDrawProfile(els.gameStartIntroProfile, target);
+  renderGameStartIntroRule(room, target);
   window.clearTimeout(gameStartIntroTimer);
   els.gameStartIntro.classList.remove("hidden", "fade-out");
   gameStartIntroVisible = true;
   gameStartIntroTimer = window.setTimeout(() => hideGameStartIntro(false), GAME_START_INTRO_MS);
+}
+
+function renderGameStartIntroRule(room, target) {
+  if (!els.gameStartIntroRule) return;
+  els.gameStartIntroRule.innerHTML = "";
+
+  const targetSpan = document.createElement("strong");
+  targetSpan.textContent = isTargetHidden(room) ? "非公開（伏せモード）" : `${formatNumber(target.value)}人`;
+
+  els.gameStartIntroRule.append("TARGETは", targetSpan, "。これを超えないように、HITかSTANDを選んでいきましょう。");
 }
 
 function hideGameStartIntro(immediate) {
