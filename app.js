@@ -19,7 +19,7 @@ const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const CPU_THINK_DELAY_MS = 1000;
 const OVER_TARGET_DRAW_RATE = 0.01;
-const DRAW_PROFILE_NOTICE_MS = 5000;
+const GAME_START_INTRO_MS = 3500;
 const CPU_ACCURACY_SETS = {
   1: [0.75],
   2: [0.65, 0.5],
@@ -187,6 +187,8 @@ const els = {
   myStatus: document.querySelector("#myStatus"),
   myHistoryList: document.querySelector("#myHistoryList"),
   drawProfileText: document.querySelector("#drawProfileText"),
+  gameStartIntro: document.querySelector("#gameStartIntro"),
+  gameStartIntroProfile: document.querySelector("#gameStartIntroProfile"),
   playersList: document.querySelector("#playersList"),
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
@@ -209,6 +211,8 @@ let rouletteTimer = null;
 let lastProfileRoomKey = "";
 let lastResultKey = "";
 let actionPending = false;
+let gameStartIntroTimer = null;
+let gameStartIntroVisible = false;
 let audioCtx = null;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
 
@@ -667,13 +671,13 @@ function renderRoom(room) {
   renderPlayersList(room, players, playerIds);
 
   renderResult(room, players);
+  document.body.classList.toggle("modal-open", (room.status === "finished" && Boolean(room.result)) || gameStartIntroVisible);
   scheduleCpuTurn(room);
 }
 
 function renderResult(room, players) {
   const shouldShow = room.status === "finished" && room.result;
   els.resultPanel.classList.toggle("hidden", !shouldShow);
-  document.body.classList.toggle("modal-open", shouldShow);
   els.resultPanel.classList.remove("win", "lose");
   const isHost = room.hostPlayerId === currentPlayerId;
   els.rematchButton.classList.toggle("hidden", !(shouldShow && isHost));
@@ -1300,21 +1304,46 @@ function makeRoomTargetPayload(target) {
 
 function renderDrawProfileNotice(room, target) {
   const profileKey = `${room.roomId}:${room.startedAt || ""}:${room.status}`;
-  if (room.status === "playing" && profileKey !== lastProfileRoomKey) {
-    lastProfileRoomKey = profileKey;
-    renderDrawProfile(els.drawProfileText, target);
-    els.drawProfileText.classList.remove("hidden", "fade-out");
-    window.setTimeout(() => {
-      els.drawProfileText.classList.add("fade-out");
-      window.setTimeout(() => els.drawProfileText.classList.add("hidden"), 450);
-    }, DRAW_PROFILE_NOTICE_MS);
+
+  if (room.status === "playing") {
+    els.drawProfileText.classList.remove("hidden");
+    if (profileKey !== lastProfileRoomKey) {
+      lastProfileRoomKey = profileKey;
+      renderDrawProfile(els.drawProfileText, target);
+      showGameStartIntro(target);
+    }
     return;
   }
 
-  if (room.status !== "playing") {
-    lastProfileRoomKey = "";
-    els.drawProfileText.classList.add("hidden");
+  lastProfileRoomKey = "";
+  els.drawProfileText.classList.add("hidden");
+  hideGameStartIntro(true);
+}
+
+function showGameStartIntro(target) {
+  if (!els.gameStartIntro || !els.gameStartIntroProfile) return;
+  renderDrawProfile(els.gameStartIntroProfile, target);
+  window.clearTimeout(gameStartIntroTimer);
+  els.gameStartIntro.classList.remove("hidden", "fade-out");
+  gameStartIntroVisible = true;
+  gameStartIntroTimer = window.setTimeout(() => hideGameStartIntro(false), GAME_START_INTRO_MS);
+}
+
+function hideGameStartIntro(immediate) {
+  if (!els.gameStartIntro) return;
+  window.clearTimeout(gameStartIntroTimer);
+  gameStartIntroTimer = null;
+  gameStartIntroVisible = false;
+  if (els.gameStartIntro.classList.contains("hidden")) return;
+
+  if (immediate) {
+    els.gameStartIntro.classList.add("hidden");
+    els.gameStartIntro.classList.remove("fade-out");
+    return;
   }
+
+  els.gameStartIntro.classList.add("fade-out");
+  window.setTimeout(() => els.gameStartIntro.classList.add("hidden"), 450);
 }
 
 function renderDrawProfile(container, target, options = {}) {

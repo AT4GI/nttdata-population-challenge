@@ -153,8 +153,6 @@
           <button id="startGameButton" type="button" class="hidden">ゲーム開始</button>
         </div>
 
-        <section id="drawProfileText" class="draw-profile-card game-start-profile hidden" aria-live="polite"></section>
-
         <section class="panel play-panel" aria-labelledby="candidateTitle">
           <div class="turn-banner" id="turnBanner">開始前</div>
           <div class="target-progress hidden" id="targetProgress" aria-hidden="true">
@@ -198,6 +196,8 @@
           <div id="playersList" class="players-list"></div>
         </section>
 
+        <section id="drawProfileText" class="draw-profile-card draw-profile-bottom hidden" aria-live="polite"></section>
+
         <section id="resultPanel" class="panel result-panel hidden" aria-labelledby="resultTitle">
           <div class="result-card">
             <p class="label">RESULT</p>
@@ -217,6 +217,13 @@
     <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
     <div id="burstFlash" class="burst-flash" aria-hidden="true">
       <span class="burst-flash-text">BUST</span>
+    </div>
+    <div id="gameStartIntro" class="game-start-intro hidden" aria-hidden="true">
+      <div class="game-start-intro-card">
+        <p class="label">GAME START</p>
+        <p class="game-start-intro-hint">まもなくゲーム開始します…</p>
+        <div id="gameStartIntroProfile"></div>
+      </div>
     </div>
 
     <script type="module" src="./app.js"></script>
