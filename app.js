@@ -148,6 +148,7 @@ const els = {
   gameView: document.querySelector("#gameView"),
   roomPanel: document.querySelector(".room-panel"),
   playerNameInput: document.querySelector("#playerNameInput"),
+  joinPlayerNameInput: document.querySelector("#joinPlayerNameInput"),
   cpuPlayerNameInput: document.querySelector("#cpuPlayerNameInput"),
   roomIdInput: document.querySelector("#roomIdInput"),
   cpuCountSelect: document.querySelector("#cpuCountSelect"),
@@ -157,6 +158,8 @@ const els = {
   setupMessage: document.querySelector("#setupMessage"),
   createTargetSelect: document.querySelector("#createTargetSelect"),
   cpuTargetSelect: document.querySelector("#cpuTargetSelect"),
+  createHideTargetCheckbox: document.querySelector("#createHideTargetCheckbox"),
+  cpuHideTargetCheckbox: document.querySelector("#cpuHideTargetCheckbox"),
   targetRoulette: document.querySelector("#targetRoulette"),
   rouletteWindow: document.querySelector("#rouletteWindow"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
@@ -175,6 +178,7 @@ const els = {
   targetProgressLabel: document.querySelector("#targetProgressLabel"),
   candidateBox: document.querySelector("#candidateBox"),
   confettiLayer: document.querySelector("#confettiLayer"),
+  burstFlash: document.querySelector("#burstFlash"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
@@ -247,16 +251,28 @@ async function initializeFirebase() {
 async function createRoom() {
   if (!appReady) return;
 
+  if (els.createTargetSelect.value === "random") {
+    disableSetup(true);
+    const target = await runTargetRoulette();
+    disableSetup(false);
+    await createRoomWithTarget(target);
+    return;
+  }
+
+  await createRoomWithTarget(getSelectedTarget(els.createTargetSelect.value));
+}
+
+async function createRoomWithTarget(target) {
   await runSetupAction(async () => {
     const roomId = makeRoomId();
-    const playerName = getPlayerName("Player 1");
+    const playerName = getPlayerName(els.playerNameInput, "Player 1");
     const player = makePlayer(playerName, "waiting", { type: "human" });
-    const target = getSelectedTarget(els.createTargetSelect.value);
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
       roomMode: "online",
       ...makeRoomTargetPayload(target),
+      hideTarget: els.createHideTargetCheckbox.checked,
       status: "waiting",
       maxPlayers: MAX_PLAYERS,
       turnIndex: null,
@@ -318,6 +334,7 @@ async function createCpuRoom(selectedTarget = null) {
       roomId,
       roomMode: "cpu",
       ...makeRoomTargetPayload(target),
+      hideTarget: els.cpuHideTargetCheckbox.checked,
       status: "playing",
       maxPlayers: MAX_PLAYERS,
       turnIndex: 0,
@@ -366,7 +383,7 @@ async function joinRoom() {
     }
 
     const defaultName = `Player ${Math.min(playerIds.length + 1, MAX_PLAYERS)}`;
-    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(defaultName), "waiting", { type: "human" }));
+    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(els.joinPlayerNameInput, defaultName), "waiting", { type: "human" }));
     enterRoom(roomId);
   });
 }
@@ -565,10 +582,13 @@ function renderRoom(room) {
   const focusPlayerId = isPlaying && turnPlayer ? turnPlayerId : currentPlayerId;
   const focusLabel = focusPlayerId === currentPlayerId ? "あなた" : focusPlayer?.name || "参加者";
 
+  const hideTarget = isTargetHidden(room);
+  const targetDisplay = hideTarget ? "？？？？？？人" : `${formatNumber(target.value)}人`;
+
   els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "ゲーム開始" : "待機中";
   els.capacityLabel.textContent = room.status === "waiting" ? `${playerIds.length}人参加中` : `${playerIds.length}人プレイ`;
   els.turnLabel.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんの番` : "開始前";
-  els.turnBanner.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんのターン / TARGET ${formatNumber(target.value)}人` : `ゲーム開始前 / TARGET ${formatNumber(target.value)}人`;
+  els.turnBanner.textContent = room.status === "playing" ? `${turnPlayer?.name || "不明"}さんのターン / TARGET ${targetDisplay}` : `ゲーム開始前 / TARGET ${targetDisplay}`;
   els.roomCodeLabel.textContent = room.status === "waiting" ? "部屋ID" : "共有用 部屋ID";
   els.roomCode.classList.toggle("compact", room.status !== "waiting");
   els.roomPanel.classList.toggle("hidden", room.status !== "waiting");
@@ -626,6 +646,7 @@ function renderRoom(room) {
 function renderResult(room, players) {
   const shouldShow = room.status === "finished" && room.result;
   els.resultPanel.classList.toggle("hidden", !shouldShow);
+  document.body.classList.toggle("modal-open", shouldShow);
   els.resultPanel.classList.remove("win", "lose");
   const isHost = room.hostPlayerId === currentPlayerId;
   els.rematchButton.classList.toggle("hidden", !(shouldShow && isHost));
@@ -651,7 +672,10 @@ function renderResult(room, players) {
     outcome = "lose";
   }
 
-  els.resultDetail.textContent = result.reason || "TARGETとの差で判定しました。";
+  const reason = result.reason || "TARGETとの差で判定しました。";
+  els.resultDetail.textContent = isTargetHidden(room)
+    ? `${reason}（TARGETは${formatNumber(getRoomTarget(room).value)}人でした）`
+    : reason;
   renderResultRanking(room, players, result, winnerIds);
 
   const resultKey = `${room.roomId}:${room.finishedAt || result.decidedAt || ""}`;
@@ -781,6 +805,20 @@ function triggerActionEffect(action, status) {
   }
 
   if (status === "just") spawnConfetti(els.candidateBox);
+  if (status === "bust") triggerBustFlash();
+}
+
+function triggerBustFlash() {
+  if (!els.burstFlash) return;
+  document.body.classList.remove("bust-shake");
+  els.burstFlash.classList.remove("show");
+  void els.burstFlash.offsetWidth;
+  document.body.classList.add("bust-shake");
+  els.burstFlash.classList.add("show");
+  window.setTimeout(() => {
+    els.burstFlash.classList.remove("show");
+    document.body.classList.remove("bust-shake");
+  }, 800);
 }
 
 function updateCandidateCard(category, masked) {
@@ -805,9 +843,13 @@ function updateTargetProgress(room, player, target) {
   const total = player?.total || 0;
   const percent = targetValue > 0 ? Math.min(100, (total / targetValue) * 100) : 0;
   els.targetProgressFill.style.width = `${percent}%`;
-  els.targetProgressLabel.textContent = `${Math.round(percent)}%`;
+  els.targetProgressLabel.textContent = isTargetHidden(room) ? "？" : `${Math.round(percent)}%`;
   els.targetProgress.classList.toggle("near", percent >= 85 && player?.status !== "bust");
   els.targetProgress.classList.toggle("over", player?.status === "bust");
+}
+
+function isTargetHidden(room) {
+  return Boolean(room.hideTarget);
 }
 
 function spawnConfetti(anchorEl) {
@@ -1119,8 +1161,8 @@ function pickByCategoryWeight(pool, targetId) {
   return lastGroup.items[Math.floor(Math.random() * lastGroup.items.length)];
 }
 
-function getPlayerName(defaultName) {
-  return els.playerNameInput.value.trim() || defaultName;
+function getPlayerName(inputEl, defaultName) {
+  return inputEl.value.trim() || defaultName;
 }
 
 function getCpuPlayerName() {
@@ -1132,7 +1174,10 @@ function getCpuCount() {
 }
 
 function populateTargetSelects() {
-  els.createTargetSelect.innerHTML = TARGETS.map((target) => makeTargetOption(target)).join("");
+  els.createTargetSelect.innerHTML = [
+    '<option value="random">ランダム（特別を除く）</option>',
+    ...TARGETS.map((target) => makeTargetOption(target))
+  ].join("");
   els.cpuTargetSelect.innerHTML = [
     '<option value="random">ランダム（特別を除く）</option>',
     ...TARGETS.map((target) => makeTargetOption(target))
@@ -1354,7 +1399,7 @@ function showSetupMode(mode) {
   setSetupMessage("");
 
   if (mode === "create") els.playerNameInput.focus();
-  if (mode === "join") els.roomIdInput.focus();
+  if (mode === "join") els.joinPlayerNameInput.focus();
   if (mode === "cpu") els.cpuPlayerNameInput.focus();
 }
 
@@ -1378,15 +1423,18 @@ async function getCurrentRoom() {
 
 function buildMyStatus(player, room) {
   const target = getRoomTarget(room).value;
-  if (player.status === "bust") return `BUST：${formatNumber(player.total - target)}人オーバー`;
+  const hideTarget = isTargetHidden(room);
+  if (player.status === "bust") return hideTarget ? "BUST：TARGETをオーバーしました" : `BUST：${formatNumber(player.total - target)}人オーバー`;
   if (player.status === "just") return "JUST：TARGETと完全一致";
-  if (player.status === "stand") return `STAND：TARGETまで${formatNumber(target - player.total)}人`;
+  if (player.status === "stand") return hideTarget ? "STAND：結果を待っています" : `STAND：TARGETまで${formatNumber(target - player.total)}人`;
   if (player.status === "active") {
     if (room.status === "playing" && getCurrentTurnPlayerId(room) !== currentPlayerId) {
       const turnPlayer = room.players?.[getCurrentTurnPlayerId(room)];
-      return `${turnPlayer?.name || "他の参加者"}さんの番です。TARGETまで${formatNumber(target - player.total)}人`;
+      return hideTarget
+        ? `${turnPlayer?.name || "他の参加者"}さんの番です。`
+        : `${turnPlayer?.name || "他の参加者"}さんの番です。TARGETまで${formatNumber(target - player.total)}人`;
     }
-    return `あなたの番です。TARGETまで${formatNumber(target - player.total)}人`;
+    return hideTarget ? "あなたの番です。" : `あなたの番です。TARGETまで${formatNumber(target - player.total)}人`;
   }
   return "待機中";
 }

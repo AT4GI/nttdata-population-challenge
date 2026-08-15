@@ -35,13 +35,26 @@
             TARGET
             <select id="createTargetSelect"></select>
           </label>
+          <label class="checkbox-field">
+            <input id="createHideTargetCheckbox" type="checkbox">
+            TARGETの人数を隠す（伏せモード）
+          </label>
           <div class="button-row">
             <button id="createRoomButton" type="button">部屋を作る</button>
             <button id="backFromCreateButton" type="button" class="secondary">戻る</button>
           </div>
         </div>
 
+        <div id="targetRoulette" class="target-roulette hidden" aria-live="polite">
+          <p class="label">RANDOM TARGET</p>
+          <div id="rouletteWindow" class="roulette-window">選択中...</div>
+        </div>
+
         <div id="joinRoomForm" class="setup-form hidden">
+          <label>
+            表示名
+            <input id="joinPlayerNameInput" type="text" maxlength="20" placeholder="Player">
+          </label>
           <label>
             部屋ID
             <input id="roomIdInput" type="text" maxlength="8" placeholder="ABC123">
@@ -70,10 +83,10 @@
             TARGET
             <select id="cpuTargetSelect"></select>
           </label>
-          <div id="targetRoulette" class="target-roulette hidden" aria-live="polite">
-            <p class="label">RANDOM TARGET</p>
-            <div id="rouletteWindow" class="roulette-window">選択中...</div>
-          </div>
+          <label class="checkbox-field">
+            <input id="cpuHideTargetCheckbox" type="checkbox">
+            TARGETの人数を隠す（伏せモード）
+          </label>
           <div class="button-row">
             <button id="startCpuRoomButton" type="button">CPU戦を始める</button>
             <button id="backFromCpuButton" type="button" class="secondary">戻る</button>
@@ -88,7 +101,8 @@
               <li>2〜5人で同じ部屋に入り、ホストがゲームを開始します。</li>
               <li>自分の番になったら、市区町村の人口を予想してHITかSTANDを選びます。</li>
               <li>HITすると人口が加算され、TARGETを超えるとBUST、ぴったりならJUSTです。</li>
-              <li>全員がSTAND / BUST / JUSTになると、TARGETに一番近い人が勝ちです。</li>
+              <li>BUSTした人はその時点で負け確定です。ゲームは続き、全員がSTAND / BUST / JUSTになったら、BUSTしていない人の中でTARGETに一番近い人が勝ちです。</li>
+              <li>「伏せモード」を選ぶと、TARGETの人数を非公開にしたまま対戦できます。正解の人数は結果画面で発表されます。</li>
             </ul>
           </section>
           <section class="guide-block" aria-labelledby="inviteTitle">
@@ -177,20 +191,25 @@
         </section>
 
         <section id="resultPanel" class="panel result-panel hidden" aria-labelledby="resultTitle">
-          <p class="label">RESULT</p>
-          <h2 id="resultTitle" class="num-digital">結果待ち</h2>
-          <p id="resultDetail"></p>
-          <div id="resultRanking" class="result-ranking"></div>
-          <div class="button-row result-actions">
-            <button id="rematchButton" type="button" class="hidden">もう一戦する</button>
-            <button id="leaveRoomButton" type="button" class="secondary">トップに戻る</button>
+          <div class="result-card">
+            <p class="label">RESULT</p>
+            <h2 id="resultTitle" class="num-digital">結果待ち</h2>
+            <p id="resultDetail"></p>
+            <div id="resultRanking" class="result-ranking"></div>
+            <div class="button-row result-actions">
+              <button id="rematchButton" type="button" class="hidden">もう一戦する</button>
+              <button id="leaveRoomButton" type="button" class="secondary">トップに戻る</button>
+            </div>
+            <p id="rematchWaitingNote" class="message hidden">ホストが再戦を選ぶとゲームが始まります。</p>
           </div>
-          <p id="rematchWaitingNote" class="message hidden">ホストが再戦を選ぶとゲームが始まります。</p>
         </section>
       </section>
     </main>
 
     <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+    <div id="burstFlash" class="burst-flash" aria-hidden="true">
+      <span class="burst-flash-text">BUST</span>
+    </div>
 
     <script type="module" src="./app.js"></script>
   </body>
