@@ -201,20 +201,99 @@ h1 {
   margin-top: 16px;
 }
 
-.checkbox-field {
+.mode-toggle {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-top: 16px;
-  font-size: 0.9rem;
-  color: var(--muted);
-  font-weight: 700;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: rgba(16, 27, 20, 0.6);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
-.checkbox-field input[type="checkbox"] {
+.mode-toggle:hover {
+  border-color: var(--line);
+}
+
+.mode-toggle:has(.mode-toggle-input:checked) {
+  border-color: var(--gold);
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.mode-toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #0a140e;
+  border: 1px solid var(--line-soft);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+.mode-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
   width: 18px;
   height: 18px;
-  accent-color: var(--gold);
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
+}
+
+.mode-toggle-input:checked ~ .mode-toggle-track {
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-bright));
+  border-color: var(--gold);
+}
+
+.mode-toggle-input:checked ~ .mode-toggle-track .mode-toggle-thumb {
+  transform: translateX(20px);
+  background: #0a140e;
+}
+
+.mode-toggle-input:focus-visible ~ .mode-toggle-track {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.mode-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 400;
+}
+
+.mode-toggle-text strong {
+  font-size: 0.92rem;
+  font-family: var(--font-display);
+  color: var(--ink);
+  transition: color 0.2s ease;
+}
+
+.mode-toggle-text small {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.mode-toggle-input:checked ~ .mode-toggle-text strong {
+  color: var(--gold-bright);
 }
 
 .stacked-field select {

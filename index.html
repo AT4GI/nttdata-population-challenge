@@ -35,9 +35,13 @@
             TARGET
             <select id="createTargetSelect"></select>
           </label>
-          <label class="checkbox-field">
-            <input id="createHideTargetCheckbox" type="checkbox">
-            TARGETの人数を隠す（伏せモード）
+          <label class="mode-toggle">
+            <input id="createHideTargetCheckbox" type="checkbox" class="mode-toggle-input">
+            <span class="mode-toggle-track" aria-hidden="true"><span class="mode-toggle-thumb"></span></span>
+            <span class="mode-toggle-text">
+              <strong>伏せモード</strong>
+              <small>TARGETの人数を隠して対戦し、結果画面で発表します</small>
+            </span>
           </label>
           <div class="button-row">
             <button id="createRoomButton" type="button">部屋を作る</button>
@@ -83,9 +87,13 @@
             TARGET
             <select id="cpuTargetSelect"></select>
           </label>
-          <label class="checkbox-field">
-            <input id="cpuHideTargetCheckbox" type="checkbox">
-            TARGETの人数を隠す（伏せモード）
+          <label class="mode-toggle">
+            <input id="cpuHideTargetCheckbox" type="checkbox" class="mode-toggle-input">
+            <span class="mode-toggle-track" aria-hidden="true"><span class="mode-toggle-thumb"></span></span>
+            <span class="mode-toggle-text">
+              <strong>伏せモード</strong>
+              <small>TARGETの人数を隠して対戦し、結果画面で発表します</small>
+            </span>
           </label>
           <div class="button-row">
             <button id="startCpuRoomButton" type="button">CPU戦を始める</button>
