@@ -328,9 +328,7 @@ async function createCpuRoom(selectedTarget = null) {
       });
     }
 
-    for (const playerId of playerOrder) {
-      players[playerId].candidate = pickCandidate(players[playerId].drawn || {}, target.id, target.value);
-    }
+    players[playerOrder[0]].candidate = pickCandidate(players[playerOrder[0]].drawn || {}, target.id, target.value);
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
@@ -431,8 +429,8 @@ async function startGame() {
     };
     for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
-      updates[`players/${playerId}/candidate`] = pickCandidate(players[playerId].drawn || {}, room.targetId, getRoomTarget(room).value);
     }
+    updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(players[playerOrder[0]].drawn || {}, room.targetId, getRoomTarget(room).value);
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
@@ -486,7 +484,7 @@ async function rematchRoom() {
       finishedAt: null
     };
 
-    for (const playerId of playerOrder) {
+    playerOrder.forEach((playerId, index) => {
       Object.assign(updates, prefixPlayerUpdate(playerId, {
         total: 0,
         hitCount: 0,
@@ -495,9 +493,9 @@ async function rematchRoom() {
         history: [],
         lastRevealed: null,
         lastAction: null,
-        candidate: pickCandidate({}, target.id, target.value)
+        candidate: index === 0 ? pickCandidate({}, target.id, target.value) : null
       }));
-    }
+    });
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
@@ -523,8 +521,8 @@ async function applyPlayerAction(room, playerId, action) {
 }
 
 function getTurnAdvanceDelay(action, status) {
-  if (status === "bust" || status === "just") return 1700;
-  return action === "hit" ? 1400 : 1000;
+  if (status === "bust" || status === "just") return 2100;
+  return action === "hit" ? 2100 : 1000;
 }
 
 function buildHitPayload(room, player) {
@@ -559,10 +557,8 @@ function buildHitPayload(room, player) {
     updatedAt: serverTimestamp()
   };
 
-  if (status === "active") {
-    payload.candidate = pickCandidate(drawn, room.targetId, target);
-  } else {
-    payload.candidate = null;
+  payload.candidate = null;
+  if (status !== "active") {
     payload.finishedAt = serverTimestamp();
   }
 
@@ -646,10 +642,10 @@ function renderRoom(room) {
     els.candidateName.textContent = candidate.name;
     els.candidatePrefecture.textContent = `${focusLabel}の候補 / ${candidate.prefecture}`;
     els.candidatePopulation.textContent = focusPlayerId === currentPlayerId ? "人口：?????" : "選択待ち";
-  } else if (focusPlayer?.lastRevealed && !canPlay(focusPlayer)) {
+  } else if (focusPlayer?.lastRevealed) {
     els.candidateName.textContent = focusPlayer.lastRevealed.name;
     els.candidatePrefecture.textContent = `${focusPlayer.lastRevealed.prefecture} / ${formatNumber(focusPlayer.lastRevealed.population)}人`;
-    els.candidatePopulation.textContent = "終了";
+    els.candidatePopulation.textContent = canPlay(focusPlayer) ? "HIT！" : "終了";
   } else {
     els.candidateName.textContent = room.status === "waiting" ? "待機中" : "候補なし";
     els.candidatePrefecture.textContent = playerIds.length < MIN_PLAYERS ? "参加者を待っています" : "ホストがゲームを開始します";
@@ -658,7 +654,7 @@ function renderRoom(room) {
 
   const revealCategory = isCandidateMasked
     ? candidate.category
-    : focusPlayer?.lastRevealed && !canPlay(focusPlayer)
+    : focusPlayer?.lastRevealed
       ? focusPlayer.lastRevealed.category
       : null;
   updateCandidateCard(revealCategory, isCandidateMasked);
@@ -1081,9 +1077,18 @@ function buildRoomProgressUpdates(room, actedPlayerId) {
     };
   }
 
-  return {
-    turnIndex: getNextTurnIndex(room, actedPlayerId)
-  };
+  const nextTurnIndex = getNextTurnIndex(room, actedPlayerId);
+  const updates = { turnIndex: nextTurnIndex };
+
+  const playerOrder = getPlayerOrder(room);
+  const nextPlayerId = playerOrder[nextTurnIndex];
+  const nextPlayer = room.players?.[nextPlayerId];
+  if (nextPlayer && canPlay(nextPlayer) && !nextPlayer.candidate) {
+    const target = getRoomTarget(room);
+    updates[`players/${nextPlayerId}/candidate`] = pickCandidate(nextPlayer.drawn || {}, room.targetId, target.value);
+  }
+
+  return updates;
 }
 
 function prefixPlayerUpdate(playerId, payload) {

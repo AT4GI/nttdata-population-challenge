@@ -498,7 +498,7 @@ label input {
   width: 0%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--gold-dark), var(--gold-bright));
-  transition: width 1.4s cubic-bezier(0.16, 0.84, 0.32, 1), background 0.3s ease;
+  transition: width 2s cubic-bezier(0.16, 0.84, 0.32, 1), background 0.3s ease;
 }
 
 .target-progress.near .target-progress-fill {
