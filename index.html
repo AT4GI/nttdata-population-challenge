@@ -194,6 +194,27 @@
         <section class="panel players-panel" aria-labelledby="playersTitle">
           <h2 id="playersTitle">参加者</h2>
           <div id="playersList" class="players-list"></div>
+
+          <section class="battle-comments" aria-labelledby="battleCommentsTitle">
+            <div class="battle-comments-heading">
+              <h3 id="battleCommentsTitle">コメント</h3>
+              <span class="battle-comments-step">リアルタイム</span>
+            </div>
+            <div id="battleCommentsList" class="battle-comments-list" aria-live="polite">
+              <p class="battle-comments-empty">まだコメントはありません</p>
+            </div>
+            <div class="battle-comments-compose">
+              <input
+                id="battleCommentInput"
+                type="text"
+                maxlength="80"
+                placeholder="コメントを入力"
+                aria-label="コメントを入力"
+              >
+              <button id="battleCommentSendButton" type="button">送信</button>
+            </div>
+            <p class="battle-comments-note">同じ部屋の参加者にリアルタイムで共有されます。</p>
+          </section>
         </section>
 
         <section id="drawProfileText" class="draw-profile-card draw-profile-bottom hidden" aria-live="polite"></section>

@@ -4,6 +4,7 @@ import {
   ref,
   get,
   onValue,
+  push,
   set,
   update,
   serverTimestamp
@@ -21,6 +22,7 @@ const CPU_THINK_DELAY_MS = 1000;
 const OVER_TARGET_DRAW_RATE = 0.01;
 const GAME_START_INTRO_MS = 3500;
 const PLAYER_COLOR_COUNT = 5;
+const MAX_BATTLE_COMMENTS = 50;
 const BAR_FILL_MS = 2000;
 const CPU_ACCURACY_SETS = {
   1: [0.75],
@@ -193,6 +195,9 @@ const els = {
   gameStartIntroRule: document.querySelector("#gameStartIntroRule"),
   gameStartIntroProfile: document.querySelector("#gameStartIntroProfile"),
   playersList: document.querySelector("#playersList"),
+  battleCommentsList: document.querySelector("#battleCommentsList"),
+  battleCommentInput: document.querySelector("#battleCommentInput"),
+  battleCommentSendButton: document.querySelector("#battleCommentSendButton"),
   resultPanel: document.querySelector("#resultPanel"),
   resultTitle: document.querySelector("#resultTitle"),
   resultDetail: document.querySelector("#resultDetail"),
@@ -218,6 +223,7 @@ let gameStartIntroTimer = null;
 let gameStartIntroVisible = false;
 let lastProgressPlayerId = "";
 let audioCtx = null;
+let commentPending = false;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
@@ -241,6 +247,94 @@ els.standButton.addEventListener("click", stand);
 els.rematchButton.addEventListener("click", rematchRoom);
 els.leaveRoomButton.addEventListener("click", () => window.location.reload());
 els.soundToggleButton.addEventListener("click", toggleSound);
+els.battleCommentSendButton.addEventListener("click", sendBattleComment);
+els.battleCommentInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.isComposing) return;
+  event.preventDefault();
+  sendBattleComment();
+});
+
+async function sendBattleComment() {
+  const text = els.battleCommentInput.value.trim();
+  if (!text || !db || !currentRoomId || commentPending) return;
+
+  commentPending = true;
+  els.battleCommentSendButton.disabled = true;
+
+  try {
+    const room = await getCurrentRoom();
+    const me = room?.players?.[currentPlayerId];
+    if (!me) return;
+
+    const commentRef = push(ref(db, `rooms/${currentRoomId}/comments`));
+    await set(commentRef, {
+      playerId: currentPlayerId,
+      text: text.slice(0, 80),
+      createdAt: serverTimestamp()
+    });
+
+    els.battleCommentInput.value = "";
+    els.battleCommentInput.focus();
+  } catch (error) {
+    els.myStatus.textContent = `コメント送信に失敗しました: ${error.message}`;
+  } finally {
+    commentPending = false;
+    els.battleCommentSendButton.disabled = false;
+  }
+}
+
+function renderBattleComments(room) {
+  els.battleCommentsList.replaceChildren();
+
+  const comments = Object.entries(room.comments || {})
+    .map(([id, comment]) => ({ id, ...comment }))
+    .filter((comment) => typeof comment.text === "string" && comment.text.trim())
+    .sort((a, b) => {
+      const aTime = Number.isFinite(a.createdAt) ? a.createdAt : 0;
+      const bTime = Number.isFinite(b.createdAt) ? b.createdAt : 0;
+      return aTime === bTime ? a.id.localeCompare(b.id) : aTime - bTime;
+    })
+    .slice(-MAX_BATTLE_COMMENTS);
+
+  if (comments.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "battle-comments-empty";
+    empty.textContent = "まだコメントはありません";
+    els.battleCommentsList.append(empty);
+    return;
+  }
+
+  for (const comment of comments) {
+    const isMine = comment.playerId === currentPlayerId;
+    const item = document.createElement("div");
+    item.className = `battle-comment-item${isMine ? " mine" : ""}`;
+
+    const meta = document.createElement("div");
+    meta.className = "battle-comment-meta";
+
+    const author = document.createElement("span");
+    author.textContent = isMine
+      ? "あなた"
+      : room.players?.[comment.playerId]?.name || "参加者";
+
+    const time = document.createElement("time");
+    time.textContent = Number.isFinite(comment.createdAt)
+      ? new Date(comment.createdAt).toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit"
+        })
+      : "送信中";
+
+    const body = document.createElement("p");
+    body.textContent = comment.text;
+
+    meta.append(author, time);
+    item.append(meta, body);
+    els.battleCommentsList.append(item);
+  }
+
+  els.battleCommentsList.scrollTop = els.battleCommentsList.scrollHeight;
+}
 
 async function initializeFirebase() {
   try {
@@ -683,6 +777,7 @@ function renderRoom(room) {
 
   renderHistory(focusPlayer, focusLabel);
   renderPlayersList(room, players, playerIds);
+  renderBattleComments(room);
 
   renderResult(room, players);
   document.body.classList.toggle("modal-open", (room.status === "finished" && Boolean(room.result)) || gameStartIntroVisible);
