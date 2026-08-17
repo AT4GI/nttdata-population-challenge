@@ -628,12 +628,22 @@ label input {
   height: 220px;
   margin: 2px auto 0;
   border-radius: 8px;
-  background: #07130d;
-  filter: drop-shadow(0 7px 8px rgba(0, 0, 0, 0.42));
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: #d9dfd7;
+  box-shadow: inset 0 0 0 1px rgba(245, 218, 122, 0.08), 0 7px 14px rgba(0, 0, 0, 0.34);
+}
+
+.japan-map:focus,
+.japan-map.leaflet-container:focus {
+  outline: none;
 }
 
 .japan-map .leaflet-tile-pane {
-  filter: brightness(0.42) saturate(0.55) sepia(0.22) hue-rotate(78deg) contrast(1.12);
+  filter: brightness(0.78) saturate(0.72) sepia(0.1) hue-rotate(68deg) contrast(1.18);
+}
+
+.japan-map .leaflet-tile {
+  image-rendering: auto;
 }
 
 .japan-map .leaflet-control-attribution {
@@ -662,17 +672,17 @@ label input {
 }
 
 .game-location-marker-pulse {
-  width: 26px;
-  height: 26px;
+  width: 18px;
+  height: 18px;
   border: 1px solid var(--danger-bright);
   background: rgba(255, 91, 71, 0.16);
   animation: mapMarkerPulse 1.5s ease-out infinite;
 }
 
 .game-location-marker-dot {
-  width: 11px;
-  height: 11px;
-  border: 2px solid #fff6da;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid #fff6da;
   background: var(--danger-bright);
   box-shadow: 0 0 8px rgba(255, 91, 71, 0.95);
 }

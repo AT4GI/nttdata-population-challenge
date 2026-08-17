@@ -968,8 +968,8 @@ function updateLocationMap(location, player) {
       icon: window.L.divIcon({
         className: "game-location-marker",
         html: '<span class="game-location-marker-pulse"></span><span class="game-location-marker-dot"></span>',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
       }),
       interactive: false
     }).addTo(locationMap);
