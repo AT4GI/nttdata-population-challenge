@@ -172,11 +172,37 @@
             </div>
           </div>
 
-          <div class="candidate-box" id="candidateBox">
-            <p class="label" id="candidateTitle">次の市区町村</p>
-            <h2 id="candidateName">待機中</h2>
-            <p id="candidatePrefecture">2人以上そろったら開始できます</p>
-            <p class="unknown" id="candidatePopulation">人口：?????</p>
+          <div class="candidate-stage">
+            <div class="candidate-box" id="candidateBox">
+              <p class="label" id="candidateTitle">次の市区町村</p>
+              <h2 id="candidateName">待機中</h2>
+              <p id="candidatePrefecture">2人以上そろったら開始できます</p>
+              <p class="unknown" id="candidatePopulation">人口：?????</p>
+            </div>
+
+            <aside class="location-map" aria-label="候補市区町村の位置">
+              <div class="location-map-heading">
+                <p class="label">LOCATION HINT</p>
+                <span id="mapLocationLabel">候補を待っています</span>
+              </div>
+              <svg id="japanMap" class="japan-map" viewBox="0 0 320 230" role="img" aria-labelledby="mapTitle mapDescription">
+                <title id="mapTitle">デフォルメ日本地図</title>
+                <desc id="mapDescription">候補の市区町村の位置をマーカーで表示します</desc>
+                <g class="japan-islands" aria-hidden="true">
+                  <path d="M250 19l35 2 18 18-9 30-28 12-25-15-4-27z" />
+                  <path d="M236 73l23 9 8 19-14 13-11 27-22 6-10 22-26 1-18 18-21-2-12 15-28-6-9-17 19-11 20-23 26-8 18-24 22-8 13-23 22-5z" />
+                  <path d="M103 162l29 0 15 13-13 15-36 5-19-13z" />
+                  <path d="M32 167l39-7 24 13-8 19-25 19-31-7-13-18z" />
+                  <path d="M16 210l8 5-5 8-9-3z" />
+                </g>
+                <g id="mapHistoryMarkers" class="map-history-markers"></g>
+                <g id="mapActiveMarker" class="map-active-marker hidden" aria-hidden="true">
+                  <circle class="map-marker-pulse" r="13"></circle>
+                  <circle class="map-marker-dot" r="5"></circle>
+                </g>
+              </svg>
+              <p class="location-map-note">位置も人口予想のヒント</p>
+            </aside>
           </div>
 
           <div class="button-row">

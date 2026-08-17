@@ -13,7 +13,8 @@ import { loadFirebaseConfig } from "./config-loader.js";
 import {
   DEFAULT_DRAW_PROFILE,
   DRAW_PROFILES,
-  MUNICIPALITIES
+  MUNICIPALITIES,
+  MUNICIPALITY_MAP_POINTS
 } from "./data/municipalities/municipalities.js";
 
 const MIN_PLAYERS = 2;
@@ -186,6 +187,10 @@ const els = {
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
+  mapLocationLabel: document.querySelector("#mapLocationLabel"),
+  mapDescription: document.querySelector("#mapDescription"),
+  mapHistoryMarkers: document.querySelector("#mapHistoryMarkers"),
+  mapActiveMarker: document.querySelector("#mapActiveMarker"),
   hitButton: document.querySelector("#hitButton"),
   standButton: document.querySelector("#standButton"),
   myStatus: document.querySelector("#myStatus"),
@@ -770,6 +775,7 @@ function renderRoom(room) {
       ? focusPlayer.lastRevealed.category
       : null;
   updateCandidateCard(revealCategory, isCandidateMasked);
+  updateLocationMap(candidate || focusPlayer?.lastRevealed || null, focusPlayer);
   updateTargetProgress(room, focusPlayer, target, focusPlayerId);
 
   els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
@@ -922,6 +928,33 @@ function renderHistory(player, label) {
     row.append(title, detail);
     els.myHistoryList.append(row);
   }
+}
+
+function updateLocationMap(location, player) {
+  els.mapHistoryMarkers.replaceChildren();
+
+  for (const item of player?.history || []) {
+    const point = MUNICIPALITY_MAP_POINTS[item.id];
+    if (!point) continue;
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    marker.setAttribute("cx", point[0]);
+    marker.setAttribute("cy", point[1]);
+    marker.setAttribute("r", "3");
+    marker.setAttribute("aria-hidden", "true");
+    els.mapHistoryMarkers.append(marker);
+  }
+
+  const point = location && MUNICIPALITY_MAP_POINTS[location.id];
+  els.mapActiveMarker.classList.toggle("hidden", !point);
+  if (!point) {
+    els.mapLocationLabel.textContent = "候補を待っています";
+    els.mapDescription.textContent = "候補の市区町村の位置をマーカーで表示します";
+    return;
+  }
+
+  els.mapActiveMarker.setAttribute("transform", `translate(${point[0]} ${point[1]})`);
+  els.mapLocationLabel.textContent = `${location.prefecture} ${location.name}`;
+  els.mapDescription.textContent = `${location.prefecture}${location.name}の位置にマーカーを表示しています`;
 }
 
 function flashEffectClass(effectClass) {

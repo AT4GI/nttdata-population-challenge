@@ -570,6 +570,13 @@ label input {
   text-shadow: 0 0 16px rgba(212, 175, 55, 0.22);
 }
 
+.candidate-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(230px, 0.95fr);
+  gap: 14px;
+  margin-bottom: 2px;
+}
+
 .candidate-box {
   position: relative;
   border: 1px solid var(--line);
@@ -584,6 +591,91 @@ label input {
   box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.08), inset 0 24px 48px rgba(0, 0, 0, 0.35);
   perspective: 900px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.location-map {
+  min-height: 220px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 70% 30%, rgba(79, 209, 197, 0.08), transparent 46%),
+    linear-gradient(180deg, rgba(15, 28, 20, 0.96), rgba(8, 17, 12, 0.98));
+  overflow: hidden;
+}
+
+.location-map-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.location-map-heading .label {
+  margin-bottom: 0;
+}
+
+.location-map-heading span {
+  color: var(--gold-bright);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.japan-map {
+  display: block;
+  width: 100%;
+  height: 158px;
+  margin: 2px auto 0;
+  filter: drop-shadow(0 7px 8px rgba(0, 0, 0, 0.42));
+}
+
+.japan-islands path {
+  fill: rgba(79, 209, 197, 0.11);
+  stroke: rgba(157, 176, 151, 0.85);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.map-history-markers circle {
+  fill: var(--gold-dark);
+  stroke: var(--gold-bright);
+  stroke-width: 1;
+  opacity: 0.72;
+}
+
+.map-marker-pulse {
+  fill: rgba(255, 91, 71, 0.16);
+  stroke: var(--danger-bright);
+  stroke-width: 1.5;
+  transform-origin: center;
+  animation: mapMarkerPulse 1.5s ease-out infinite;
+}
+
+.map-marker-dot {
+  fill: var(--danger-bright);
+  stroke: #fff6da;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 5px rgba(255, 91, 71, 0.9));
+}
+
+.location-map-note {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+@keyframes mapMarkerPulse {
+  0% {
+    opacity: 1;
+    transform: scale(0.45);
+  }
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
 }
 
 .candidate-box::before,
@@ -1550,6 +1642,14 @@ body.bust-shake .app-shell {
   .guide-grid,
   .game-grid {
     grid-template-columns: 1fr;
+  }
+
+  .candidate-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .location-map {
+    min-height: 205px;
   }
 
   .button-row button {
