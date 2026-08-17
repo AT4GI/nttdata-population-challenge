@@ -30,33 +30,33 @@ export const MUNICIPALITIES = [
   { id: "kanagawa-yokohama", name: "横浜市", prefecture: "神奈川県", population: 3772000, category: "ordinance_city", populationDate: "sample", sourceName: "仮データ", sourceUrl: "" }
 ];
 
-// Coordinates on the simplified 320 x 230 game map (not geographic GIS data).
+// Coordinates on the simplified 360 x 250 game map (not geographic GIS data).
 export const MUNICIPALITY_MAP_POINTS = {
-  "hokkaido-kamishihoro": [274, 49],
-  "nagano-obuse": [204, 137],
-  "yamanashi-fujikawaguchiko": [207, 157],
-  "shizuoka-atami": [215, 169],
-  "toyama-himi": [178, 137],
-  "ishikawa-nanao": [166, 133],
-  "yamaguchi-hagi": [83, 171],
-  "wakayama-tanabe": [145, 184],
-  "fukuoka-dazaifu": [53, 184],
-  "kyoto-maizuru": [145, 157],
-  "gifu-takayama": [183, 146],
-  "kagawa-marugame": [114, 178],
-  "nara-kashihara": [153, 176],
-  "hiroshima-onomichi": [101, 169],
-  "ehime-imabari": [101, 184],
-  "tokyo-mitaka": [228, 154],
-  "kanagawa-atsugi": [220, 163],
-  "nagasaki-sasebo": [31, 181],
-  "osaka-ibaraki": [151, 165],
-  "tokyo-hachioji": [224, 157],
-  "kumamoto-kumamoto": [47, 200],
-  "hiroshima-hiroshima": [91, 171],
-  "fukuoka-fukuoka": [48, 180],
-  "aichi-nagoya": [181, 164],
-  "kanagawa-yokohama": [226, 164]
+  "hokkaido-kamishihoro": [310, 48],
+  "nagano-obuse": [226, 166],
+  "yamanashi-fujikawaguchiko": [238, 191],
+  "shizuoka-atami": [244, 213],
+  "toyama-himi": [202, 170],
+  "ishikawa-nanao": [194, 173],
+  "yamaguchi-hagi": [78, 189],
+  "wakayama-tanabe": [168, 220],
+  "fukuoka-dazaifu": [54, 195],
+  "kyoto-maizuru": [162, 187],
+  "gifu-takayama": [209, 180],
+  "kagawa-marugame": [126, 231],
+  "nara-kashihara": [174, 211],
+  "hiroshima-onomichi": [113, 205],
+  "ehime-imabari": [116, 236],
+  "tokyo-mitaka": [260, 196],
+  "kanagawa-atsugi": [254, 211],
+  "nagasaki-sasebo": [31, 199],
+  "osaka-ibaraki": [177, 199],
+  "tokyo-hachioji": [254, 197],
+  "kumamoto-kumamoto": [49, 220],
+  "hiroshima-hiroshima": [101, 203],
+  "fukuoka-fukuoka": [49, 191],
+  "aichi-nagoya": [210, 206],
+  "kanagawa-yokohama": [262, 216]
 };
 
 export const DRAW_PROFILES = {

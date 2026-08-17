@@ -185,15 +185,45 @@
                 <p class="label">LOCATION HINT</p>
                 <span id="mapLocationLabel">候補を待っています</span>
               </div>
-              <svg id="japanMap" class="japan-map" viewBox="0 0 320 230" role="img" aria-labelledby="mapTitle mapDescription">
-                <title id="mapTitle">デフォルメ日本地図</title>
+              <svg id="japanMap" class="japan-map" viewBox="0 0 360 250" role="img" aria-labelledby="mapTitle mapDescription">
+                <title id="mapTitle">日本エリアマップ</title>
                 <desc id="mapDescription">候補の市区町村の位置をマーカーで表示します</desc>
-                <g class="japan-islands" aria-hidden="true">
-                  <path d="M250 19l35 2 18 18-9 30-28 12-25-15-4-27z" />
-                  <path d="M236 73l23 9 8 19-14 13-11 27-22 6-10 22-26 1-18 18-21-2-12 15-28-6-9-17 19-11 20-23 26-8 18-24 22-8 13-23 22-5z" />
-                  <path d="M103 162l29 0 15 13-13 15-36 5-19-13z" />
-                  <path d="M32 167l39-7 24 13-8 19-25 19-31-7-13-18z" />
-                  <path d="M16 210l8 5-5 8-9-3z" />
+                <g class="japan-regions" aria-hidden="true">
+                  <g class="map-region region-hokkaido" data-region="hokkaido">
+                    <path d="M277 12l48 3 22 24-9 39-38 14-31-22-3-34z" />
+                    <text x="307" y="55">北海道</text>
+                  </g>
+                  <g class="map-region region-tohoku" data-region="tohoku">
+                    <path d="M266 91l29 1 13 22-5 49-20 24-25-9 10-32-9-30z" />
+                    <text x="281" y="135">東北</text>
+                  </g>
+                  <g class="map-region region-kanto" data-region="kanto">
+                    <path d="M246 169l37 13 6 29-27 23-31-10 2-34z" />
+                    <text x="260" y="205">関東</text>
+                  </g>
+                  <g class="map-region region-chubu" data-region="chubu">
+                    <path d="M190 161l42-20 37 23-14 24-22 11-5 28-35-7-17-27z" />
+                    <text x="218" y="183">中部</text>
+                  </g>
+                  <g class="map-region region-kinki" data-region="kinki">
+                    <path d="M151 178l34-6 16 28-11 31-35-2-15-24z" />
+                    <text x="171" y="207">近畿</text>
+                  </g>
+                  <g class="map-region region-chugoku" data-region="chugoku">
+                    <path d="M72 177l67-3 19 25-19 22-67-4-14-21z" />
+                    <text x="108" y="201">中国</text>
+                  </g>
+                  <g class="map-region region-shikoku" data-region="shikoku">
+                    <path d="M98 224l54 0 12 16-23 8-49-5z" />
+                    <text x="128" y="240">四国</text>
+                  </g>
+                  <g class="map-region region-kyushu" data-region="kyushu">
+                    <path d="M24 179l35-10 27 20-9 35-25 22-31-15-10-29z" />
+                    <text x="51" y="208">九州</text>
+                  </g>
+                  <g class="map-region region-okinawa" data-region="okinawa">
+                    <path d="M8 232l10 3-4 10-10-3z" />
+                  </g>
                 </g>
                 <g id="mapHistoryMarkers" class="map-history-markers"></g>
                 <g id="mapActiveMarker" class="map-active-marker hidden" aria-hidden="true">
@@ -201,7 +231,7 @@
                   <circle class="map-marker-dot" r="5"></circle>
                 </g>
               </svg>
-              <p class="location-map-note">位置も人口予想のヒント</p>
+              <p class="location-map-note">地域と位置も人口予想のヒント</p>
             </aside>
           </div>
 
