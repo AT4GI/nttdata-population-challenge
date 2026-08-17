@@ -1,32 +1,49 @@
+body {
+  background-color: #0F172A;
+  color: #FFFFFF;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
+  font-family: "Shippori Mincho", "Noto Serif JP", serif;
+}
+
 :root {
   color-scheme: dark;
-  --bg-1: #060f0a;
-  --bg-2: #123423;
-  --panel: #16261d;
-  --panel-alt: #1c2e23;
-  --panel-glass: rgba(22, 38, 29, 0.86);
-  --ink: #f3ead2;
-  --muted: #9db097;
-  --line: rgba(212, 175, 55, 0.32);
-  --line-soft: rgba(212, 175, 55, 0.16);
-  --gold: #d4af37;
-  --gold-bright: #f5da7a;
-  --gold-dark: #8a6d1d;
-  --primary: #d4af37;
-  --primary-dark: #b9932a;
-  --primary-soft: rgba(212, 175, 55, 0.14);
-  --cyan: #4fd1c5;
-  --accent: #d4af37;
-  --danger: #c0392b;
-  --danger-bright: #ff5b47;
-  --success: #1f9463;
-  --success-bright: #37d38f;
-  --turn: var(--gold);
-  --idle: #4c5c50;
+  
+  /* 1. 背景とパネル（知的で深いネイビー。緑みはゼロです） */
+  --bg-1: #0F172A;
+  --bg-2: #1E293B;
+  --panel: #1e3a5f;
+  --panel-alt: #2a4d77;
+  --panel-glass: rgba(15, 23, 42, 0.86);
+  
+  /* 2. 文字の色（水色を排除し、すべて見やすい真っ白に変更） */
+  --ink: #FFFFFF;
+  --muted: #FFFFFF; /* サブの文字も真っ白でくっきりと表示させます */
+  
+  /* 3. アクセントカラー（爽やかで洗練されたライトブルー） */
+  --line: rgba(56, 189, 248, 0.32);
+  --line-soft: rgba(56, 189, 248, 0.16);
+  --gold: #38BDF8;
+  --gold-bright: #7DD3FC;
+  --gold-dark: #0284C7;
+  --primary: #38BDF8;
+  --primary-dark: #0284C7;
+  --primary-soft: rgba(56, 189, 248, 0.14);
+  --cyan: #38BDF8;
+  --accent: #38BDF8;
+  --turn: var(--primary);
+  
+  /* 4. システムカラー（残っていた深緑を洗練された色に上書き！） */
+  --danger: #e74c3c;
+  --danger-bright: #ff7675;
+  --success: #0ea5e9; /* 成功時の緑もブルー系に変更し統一感を演出 */
+  --success-bright: #38bdf8;
+  --idle: #334155; /* 深緑の原因だった待機色を、洗練されたスレートグレーに変更 */
   --shadow: rgba(0, 0, 0, 0.55);
-  --font-display: "Cinzel", "Yu Gothic UI", "Meiryo", serif;
+  
+  /* 5. フォント（信頼感のある明朝体） */
+  --font-display: "Shippori Mincho", "Noto Serif JP", "Cinzel", serif;
   --font-digital: "Orbitron", "Yu Gothic UI", "Meiryo", sans-serif;
-  --font-body: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-body: "Shippori Mincho", "Noto Serif JP", "Segoe UI", sans-serif;
   font-family: var(--font-body);
 }
 
@@ -34,22 +51,7 @@
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 18% -10%, rgba(212, 175, 55, 0.14), transparent 42%),
-    radial-gradient(circle at 82% 0%, rgba(79, 209, 197, 0.08), transparent 38%),
-    radial-gradient(ellipse at 50% 50%, var(--bg-2) 0%, var(--bg-1) 78%),
-    repeating-linear-gradient(
-      120deg,
-      rgba(255, 255, 255, 0.015) 0px,
-      rgba(255, 255, 255, 0.015) 2px,
-      transparent 2px,
-      transparent 5px
-    );
-  color: var(--ink);
-}
+
 
 button,
 input,
@@ -1560,4 +1562,48 @@ body.bust-shake .app-shell {
     grid-template-columns: minmax(80px, 108px) minmax(70px, 1fr) 38px;
     gap: 8px;
   }
+}/* =========================================
+   ここから下は、強制的に色を上書きする設定
+========================================= */
+
+/* ① タイトル部分を強制的に「真っ白」にする */
+#app-title,
+.title-area h1,
+.eyebrow,
+.title-area p {
+  color: #FFFFFF !important;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6) !important; /* 高級感のある影を追加 */
+}
+
+/* ② 背景を「画像」で強制的に上書きする */
+body, 
+main, 
+.app-shell,
+#app {
+  /* 保存した画像を背景に読み込む */
+ background-image: url("./bg-sky.png") !important;
+  
+  /* 画像を画面いっぱいに綺麗に広げるための魔法のコード4行 */
+  background-size: cover !important;        /* 画面の縦横比に合わせて隙間なく広げる */
+  background-position: center !important;   /* 画像の中心を基準にする */
+  background-repeat: no-repeat !important;  /* 画像をタイルのように繰り返さない */
+  background-attachment: fixed !important;  /* スクロールしても背景を動かさない */
+  
+  /* 画像が読み込まれるまでの予備としてネイビーを残しておく */
+  background-color: #0F172A !important;
+}
+
+/* ③ カードやパネルを、背景が透ける美しいガラス風にする */
+.panel, 
+.card,
+.modal,
+section {
+  /* 背景を半透明の深いブルー（透明度0.6）にする */
+  background: rgba(15, 23, 42, 0.6) !important;
+  
+  /* 背景にすりガラスのようなぼかし効果を入れる（Apple製品などでよく使われる技術です） */
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  
+  border-color: rgba(56, 189, 248, 0.4) !important; /* 枠線も少しだけ透けさせる */
 }
