@@ -169,6 +169,7 @@ const els = {
   rouletteWindow: document.querySelector("#rouletteWindow"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
   roomCode: document.querySelector("#roomCode"),
+  copyRoomCodeButton: document.querySelector("#copyRoomCodeButton"),
   roomState: document.querySelector("#roomState"),
   turnLabel: document.querySelector("#turnLabel"),
   capacityLabel: document.querySelector("#capacityLabel"),
@@ -245,6 +246,7 @@ els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
 els.goHomeButton.addEventListener("click", goHome);
+els.copyRoomCodeButton.addEventListener("click", copyRoomCode);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
 els.rematchButton.addEventListener("click", rematchRoom);
@@ -559,6 +561,29 @@ async function goHome() {
   } finally {
     window.location.reload();
   }
+}
+
+let copyRoomCodeTimeoutId = null;
+
+async function copyRoomCode() {
+  if (!currentRoomId || !navigator.clipboard) return;
+
+  try {
+    await navigator.clipboard.writeText(currentRoomId);
+  } catch (error) {
+    return;
+  }
+
+  els.copyRoomCodeButton.classList.add("copied");
+  els.copyRoomCodeButton.querySelector(".icon-copy").classList.add("hidden");
+  els.copyRoomCodeButton.querySelector(".icon-check").classList.remove("hidden");
+
+  if (copyRoomCodeTimeoutId) clearTimeout(copyRoomCodeTimeoutId);
+  copyRoomCodeTimeoutId = setTimeout(() => {
+    els.copyRoomCodeButton.classList.remove("copied");
+    els.copyRoomCodeButton.querySelector(".icon-copy").classList.remove("hidden");
+    els.copyRoomCodeButton.querySelector(".icon-check").classList.add("hidden");
+  }, 1500);
 }
 
 async function hit() {
