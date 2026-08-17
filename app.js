@@ -14,7 +14,7 @@ import {
   DEFAULT_DRAW_PROFILE,
   DRAW_PROFILES,
   MUNICIPALITIES,
-  MUNICIPALITY_MAP_POINTS
+  MUNICIPALITY_LOCATIONS
 } from "./data/municipalities/municipalities.js";
 
 const MIN_PLAYERS = 2;
@@ -44,17 +44,6 @@ const CATEGORY_SUITS = {
   mid_city: "♥",
   large_city: "♠",
   ordinance_city: "★"
-};
-const PREFECTURE_REGIONS = {
-  "北海道": "hokkaido",
-  "青森県": "tohoku", "岩手県": "tohoku", "宮城県": "tohoku", "秋田県": "tohoku", "山形県": "tohoku", "福島県": "tohoku",
-  "茨城県": "kanto", "栃木県": "kanto", "群馬県": "kanto", "埼玉県": "kanto", "千葉県": "kanto", "東京都": "kanto", "神奈川県": "kanto",
-  "新潟県": "chubu", "富山県": "chubu", "石川県": "chubu", "福井県": "chubu", "山梨県": "chubu", "長野県": "chubu", "岐阜県": "chubu", "静岡県": "chubu", "愛知県": "chubu",
-  "三重県": "kinki", "滋賀県": "kinki", "京都府": "kinki", "大阪府": "kinki", "兵庫県": "kinki", "奈良県": "kinki", "和歌山県": "kinki",
-  "鳥取県": "chugoku", "島根県": "chugoku", "岡山県": "chugoku", "広島県": "chugoku", "山口県": "chugoku",
-  "徳島県": "shikoku", "香川県": "shikoku", "愛媛県": "shikoku", "高知県": "shikoku",
-  "福岡県": "kyushu", "佐賀県": "kyushu", "長崎県": "kyushu", "熊本県": "kyushu", "大分県": "kyushu", "宮崎県": "kyushu", "鹿児島県": "kyushu",
-  "沖縄県": "okinawa"
 };
 const TIER_CLASSES = Object.keys(CATEGORY_LABELS).map((category) => `tier-${category}`);
 const CONFETTI_COLORS = ["#d4af37", "#f5da7a", "#37d38f", "#fff6da"];
@@ -199,9 +188,8 @@ const els = {
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
   mapLocationLabel: document.querySelector("#mapLocationLabel"),
-  mapDescription: document.querySelector("#mapDescription"),
-  mapHistoryMarkers: document.querySelector("#mapHistoryMarkers"),
-  mapActiveMarker: document.querySelector("#mapActiveMarker"),
+  japanMap: document.querySelector("#japanMap"),
+  mapFallbackMessage: document.querySelector("#mapFallbackMessage"),
   hitButton: document.querySelector("#hitButton"),
   standButton: document.querySelector("#standButton"),
   myStatus: document.querySelector("#myStatus"),
@@ -241,6 +229,9 @@ let lastProgressPlayerId = "";
 let audioCtx = null;
 let commentPending = false;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
+let locationMap = null;
+let locationMapMarker = null;
+let locationHistoryLayer = null;
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
@@ -942,33 +933,77 @@ function renderHistory(player, label) {
 }
 
 function updateLocationMap(location, player) {
-  els.mapHistoryMarkers.replaceChildren();
-  document.querySelectorAll(".map-region.active").forEach((region) => region.classList.remove("active"));
+  if (!initializeLocationMap()) return;
 
+  locationHistoryLayer.clearLayers();
   for (const item of player?.history || []) {
-    const point = MUNICIPALITY_MAP_POINTS[item.id];
-    if (!point) continue;
-    const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    marker.setAttribute("cx", point[0]);
-    marker.setAttribute("cy", point[1]);
-    marker.setAttribute("r", "3");
-    marker.setAttribute("aria-hidden", "true");
-    els.mapHistoryMarkers.append(marker);
+    const historyLocation = MUNICIPALITY_LOCATIONS[item.id];
+    if (!historyLocation) continue;
+    window.L.circleMarker(historyLocation, {
+      radius: 4,
+      color: "#f5da7a",
+      weight: 1,
+      fillColor: "#8a6d1d",
+      fillOpacity: 0.9,
+      interactive: false
+    }).addTo(locationHistoryLayer);
   }
 
-  const point = location && MUNICIPALITY_MAP_POINTS[location.id];
-  els.mapActiveMarker.classList.toggle("hidden", !point);
-  if (!point) {
+  const coordinates = location && MUNICIPALITY_LOCATIONS[location.id];
+  if (!coordinates) {
+    if (locationMapMarker) {
+      locationMap.removeLayer(locationMapMarker);
+      locationMapMarker = null;
+    }
     els.mapLocationLabel.textContent = "候補を待っています";
-    els.mapDescription.textContent = "候補の市区町村の位置をマーカーで表示します";
     return;
   }
 
-  els.mapActiveMarker.setAttribute("transform", `translate(${point[0]} ${point[1]})`);
-  const regionId = PREFECTURE_REGIONS[location.prefecture];
-  document.querySelector(`.map-region[data-region="${regionId}"]`)?.classList.add("active");
+  if (!locationMapMarker) {
+    locationMapMarker = window.L.marker(coordinates, {
+      icon: window.L.divIcon({
+        className: "game-location-marker",
+        html: '<span class="game-location-marker-pulse"></span><span class="game-location-marker-dot"></span>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      }),
+      interactive: false
+    }).addTo(locationMap);
+  } else {
+    locationMapMarker.setLatLng(coordinates);
+  }
+
+  locationMap.setView(coordinates, 7, { animate: false });
+  window.setTimeout(() => locationMap.invalidateSize(false), 0);
   els.mapLocationLabel.textContent = `${location.prefecture} ${location.name}`;
-  els.mapDescription.textContent = `${location.prefecture}${location.name}の位置にマーカーを表示しています`;
+  els.japanMap.setAttribute("aria-label", `${location.prefecture}${location.name}の位置にマーカーを表示しています`);
+}
+
+function initializeLocationMap() {
+  if (locationMap) return true;
+  if (!window.L || !els.japanMap) {
+    els.mapFallbackMessage?.classList.remove("hidden");
+    return false;
+  }
+
+  locationMap = window.L.map(els.japanMap, {
+    zoomControl: false,
+    attributionControl: true,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    tap: false
+  }).setView([36.2, 137.8], 4);
+
+  window.L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
+    minZoom: 5,
+    maxZoom: 18,
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'
+  }).addTo(locationMap);
+  locationHistoryLayer = window.L.layerGroup().addTo(locationMap);
+  return true;
 }
 
 function flashEffectClass(effectClass) {
