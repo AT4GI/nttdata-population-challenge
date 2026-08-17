@@ -7,6 +7,7 @@ import {
   push,
   set,
   update,
+  remove,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 import { loadFirebaseConfig } from "./config-loader.js";
@@ -173,6 +174,7 @@ const els = {
   capacityLabel: document.querySelector("#capacityLabel"),
   turnBanner: document.querySelector("#turnBanner"),
   startGameButton: document.querySelector("#startGameButton"),
+  goHomeButton: document.querySelector("#goHomeButton"),
   totalLabel: document.querySelector("#totalLabel"),
   hitCountLabel: document.querySelector("#hitCountLabel"),
   myTotal: document.querySelector("#myTotal"),
@@ -242,6 +244,7 @@ els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
+els.goHomeButton.addEventListener("click", goHome);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
 els.rematchButton.addEventListener("click", rematchRoom);
@@ -536,6 +539,26 @@ async function startGame() {
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
+}
+
+async function goHome() {
+  const roomId = currentRoomId;
+  if (!roomId) {
+    window.location.reload();
+    return;
+  }
+
+  els.goHomeButton.disabled = true;
+  try {
+    const room = await getCurrentRoom();
+    if (room && room.hostPlayerId === currentPlayerId) {
+      await remove(ref(db, `rooms/${roomId}`));
+    } else {
+      await remove(ref(db, `rooms/${roomId}/players/${currentPlayerId}`));
+    }
+  } finally {
+    window.location.reload();
+  }
 }
 
 async function hit() {
