@@ -25,6 +25,10 @@ const GAME_START_INTRO_MS = 3500;
 const PLAYER_COLOR_COUNT = 5;
 const MAX_BATTLE_COMMENTS = 50;
 const BAR_FILL_MS = 2000;
+const JAPAN_MAP_BOUNDS = [
+  [24, 122],
+  [46, 146]
+];
 const CPU_ACCURACY_SETS = {
   1: [0.75],
   2: [0.65, 0.5],
@@ -973,8 +977,10 @@ function updateLocationMap(location, player) {
     locationMapMarker.setLatLng(coordinates);
   }
 
-  locationMap.setView(coordinates, 7, { animate: false });
-  window.setTimeout(() => locationMap.invalidateSize(false), 0);
+  window.setTimeout(() => {
+    locationMap.invalidateSize(false);
+    locationMap.fitBounds(JAPAN_MAP_BOUNDS, { animate: false, padding: [4, 4] });
+  }, 0);
   els.mapLocationLabel.textContent = `${location.prefecture} ${location.name}`;
   els.japanMap.setAttribute("aria-label", `${location.prefecture}${location.name}の位置にマーカーを表示しています`);
 }
@@ -994,11 +1000,13 @@ function initializeLocationMap() {
     doubleClickZoom: false,
     boxZoom: false,
     keyboard: false,
-    tap: false
-  }).setView([36.2, 137.8], 4);
+    tap: false,
+    maxBounds: JAPAN_MAP_BOUNDS,
+    maxBoundsViscosity: 1
+  }).fitBounds(JAPAN_MAP_BOUNDS, { animate: false, padding: [4, 4] });
 
   window.L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
-    minZoom: 5,
+    minZoom: 3,
     maxZoom: 18,
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'
   }).addTo(locationMap);
