@@ -136,7 +136,18 @@
         <div class="panel room-panel">
           <div>
             <p class="label" id="roomCodeLabel">部屋ID</p>
-            <div class="room-code num-digital" id="roomCode">------</div>
+            <div class="room-code-row">
+              <div class="room-code num-digital" id="roomCode">------</div>
+              <button id="copyRoomCodeButton" type="button" class="icon-button" aria-label="部屋IDをコピー" title="部屋IDをコピー">
+                <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <svg class="icon-check hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </button>
+            </div>
           </div>
           <div>
             <p class="label">状態</p>
@@ -151,6 +162,7 @@
             <div class="state-text" id="capacityLabel">1 / 5人</div>
           </div>
           <button id="startGameButton" type="button" class="hidden">ゲーム開始</button>
+          <button id="goHomeButton" type="button" class="secondary">ホームに戻る</button>
         </div>
 
         <section class="panel play-panel" aria-labelledby="candidateTitle">

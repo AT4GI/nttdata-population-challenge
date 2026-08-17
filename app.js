@@ -7,6 +7,7 @@ import {
   push,
   set,
   update,
+  remove,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 import { loadFirebaseConfig } from "./config-loader.js";
@@ -168,11 +169,13 @@ const els = {
   rouletteWindow: document.querySelector("#rouletteWindow"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
   roomCode: document.querySelector("#roomCode"),
+  copyRoomCodeButton: document.querySelector("#copyRoomCodeButton"),
   roomState: document.querySelector("#roomState"),
   turnLabel: document.querySelector("#turnLabel"),
   capacityLabel: document.querySelector("#capacityLabel"),
   turnBanner: document.querySelector("#turnBanner"),
   startGameButton: document.querySelector("#startGameButton"),
+  goHomeButton: document.querySelector("#goHomeButton"),
   totalLabel: document.querySelector("#totalLabel"),
   hitCountLabel: document.querySelector("#hitCountLabel"),
   myTotal: document.querySelector("#myTotal"),
@@ -242,6 +245,8 @@ els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
+els.goHomeButton.addEventListener("click", goHome);
+els.copyRoomCodeButton.addEventListener("click", copyRoomCode);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
 els.rematchButton.addEventListener("click", rematchRoom);
@@ -536,6 +541,49 @@ async function startGame() {
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
+}
+
+async function goHome() {
+  const roomId = currentRoomId;
+  if (!roomId) {
+    window.location.reload();
+    return;
+  }
+
+  els.goHomeButton.disabled = true;
+  try {
+    const room = await getCurrentRoom();
+    if (room && room.hostPlayerId === currentPlayerId) {
+      await remove(ref(db, `rooms/${roomId}`));
+    } else {
+      await remove(ref(db, `rooms/${roomId}/players/${currentPlayerId}`));
+    }
+  } finally {
+    window.location.reload();
+  }
+}
+
+let copyRoomCodeTimeoutId = null;
+
+async function copyRoomCode() {
+  if (!currentRoomId || !navigator.clipboard) return;
+
+  try {
+    await navigator.clipboard.writeText(currentRoomId);
+  } catch (error) {
+    return;
+  }
+
+  els.copyRoomCodeButton.classList.add("copied");
+  els.copyRoomCodeButton.querySelector(".icon-copy").classList.add("hidden");
+  els.copyRoomCodeButton.querySelector(".icon-check").classList.remove("hidden");
+
+  if (copyRoomCodeTimeoutId) clearTimeout(copyRoomCodeTimeoutId);
+  copyRoomCodeTimeoutId = setTimeout(() => {
+    els.copyRoomCodeButton.classList.remove("copied");
+    els.copyRoomCodeButton.querySelector(".icon-copy").classList.remove("hidden");
+    els.copyRoomCodeButton.querySelector(".icon-check").classList.add("hidden");
+  }, 1500);
 }
 
 async function hit() {

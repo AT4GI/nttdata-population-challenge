@@ -439,6 +439,43 @@ label input {
   letter-spacing: 0.06em;
 }
 
+.room-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.icon-button:hover {
+  color: var(--ink);
+  border-color: var(--gold);
+  background: var(--primary-soft);
+}
+
+.icon-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.icon-button.copied {
+  color: var(--success-bright);
+  border-color: var(--success);
+}
+
 .state-text {
   font-weight: 800;
   font-family: var(--font-display);
