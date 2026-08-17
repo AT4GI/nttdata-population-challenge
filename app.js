@@ -26,7 +26,7 @@ const PLAYER_COLOR_COUNT = 5;
 const MAX_BATTLE_COMMENTS = 50;
 const BAR_FILL_MS = 2000;
 const JAPAN_MAP_BOUNDS = [
-  [24, 122],
+  [26, 127],
   [46, 146]
 ];
 const CPU_ACCURACY_SETS = {
@@ -1001,6 +1001,8 @@ function initializeLocationMap() {
     boxZoom: false,
     keyboard: false,
     tap: false,
+    zoomSnap: 0.25,
+    zoomDelta: 0.25,
     maxBounds: JAPAN_MAP_BOUNDS,
     maxBoundsViscosity: 1
   }).fitBounds(JAPAN_MAP_BOUNDS, { animate: false, padding: [4, 4] });
