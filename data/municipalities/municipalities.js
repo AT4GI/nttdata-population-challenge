@@ -2254,14 +2254,6 @@ export const DRAW_PROFILES = {
     major_city: 34,
     ordinance_city: 13
   },
-  "three-million-challenge": {
-    village_town: 3,
-    small_city: 7,
-    mid_city: 18,
-    large_city: 18,
-    major_city: 14,
-    ordinance_city: 40
-  },
   "ntt-shareholders": {
     village_town: 3,
     small_city: 7,
@@ -2269,6 +2261,14 @@ export const DRAW_PROFILES = {
     large_city: 17,
     major_city: 13,
     ordinance_city: 45
+  },
+  "ntt-east-residential-lines": {
+    village_town: 2,
+    small_city: 5,
+    mid_city: 10,
+    large_city: 13,
+    major_city: 10,
+    ordinance_city: 60
   }
 };
 

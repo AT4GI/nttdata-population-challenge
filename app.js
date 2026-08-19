@@ -117,20 +117,20 @@ const TARGETS = [
     difficulty: "高め"
   },
   {
-    id: "three-million-challenge",
-    label: "全国市区町村 300万人チャレンジ",
-    value: 3000000,
-    dateLabel: "2026年1月1日時点の全国市区町村データが対象",
-    sourceLabel: "総務省 住民基本台帳に基づく人口、人口動態及び世帯数調査",
-    difficulty: "特別",
-    isSpecial: true
-  },
-  {
     id: "ntt-shareholders",
     label: "NTT株式会社の株主数",
     value: 3386781,
     dateLabel: "2026年6月30日時点",
     sourceLabel: "NTT公式 株式の概要",
+    difficulty: "特別",
+    isSpecial: true
+  },
+  {
+    id: "ntt-east-residential-lines",
+    label: "NTT東日本 加入電話（住宅用）契約数",
+    value: 3606000,
+    dateLabel: "2026年3月末現在",
+    sourceLabel: "NTT東日本 2025年度期末サービス概況等",
     difficulty: "特別",
     isSpecial: true
   }
