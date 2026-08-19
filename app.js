@@ -48,6 +48,10 @@ const CATEGORY_SUITS = {
 const TIER_CLASSES = Object.keys(CATEGORY_LABELS).map((category) => `tier-${category}`);
 const CONFETTI_COLORS = ["#d4af37", "#f5da7a", "#37d38f", "#fff6da"];
 const SOUND_MUTED_KEY = "populationBlackjackSoundMuted";
+const BGM_STEP_SECONDS = 0.3;
+const BGM_LOOKAHEAD_SECONDS = 0.6;
+const BGM_BASS_NOTES = [55, 55, 65.41, 49];
+const BGM_ARPEGGIO_NOTES = [220, 261.63, 329.63, 392, 196, 246.94, 293.66, 369.99];
 const SFX_NOTES = {
   hit: [{ freq: 880, start: 0, duration: 0.12, type: "triangle" }],
   stand: [{ freq: 440, start: 0, duration: 0.18, type: "sine" }],
@@ -226,6 +230,11 @@ let gameStartIntroTimer = null;
 let gameStartIntroVisible = false;
 let lastProgressPlayerId = "";
 let audioCtx = null;
+let bgmGain = null;
+let bgmScheduler = null;
+let bgmNextStepAt = 0;
+let bgmStep = 0;
+let currentRoomStatus = "waiting";
 let commentPending = false;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
 
@@ -252,6 +261,7 @@ els.standButton.addEventListener("click", stand);
 els.rematchButton.addEventListener("click", rematchRoom);
 els.leaveRoomButton.addEventListener("click", () => window.location.reload());
 els.soundToggleButton.addEventListener("click", toggleSound);
+document.addEventListener("pointerdown", unlockAudio, { once: true });
 els.battleCommentSendButton.addEventListener("click", sendBattleComment);
 els.battleCommentInput.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.isComposing) return;
@@ -752,6 +762,8 @@ async function finishRoomIfNeeded() {
 }
 
 function renderRoom(room) {
+  currentRoomStatus = room.status || "waiting";
+  syncBgm();
   const players = room.players || {};
   const playerIds = getDisplayPlayerIds(room);
   const me = players[currentPlayerId];
@@ -1110,6 +1122,86 @@ function getAudioContext() {
   return audioCtx;
 }
 
+function unlockAudio() {
+  if (soundMuted) return;
+  try {
+    const ctx = getAudioContext();
+    if (ctx?.state === "suspended") void ctx.resume();
+  } catch (error) {
+    // Web Audioが使えない環境では無音でフォールバックする
+  }
+}
+
+function scheduleBgmNote(ctx, destination, frequency, start, duration, volume, type = "sine") {
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, start);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.04);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  oscillator.connect(gain).connect(destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.03);
+}
+
+function scheduleBgmStep(ctx, step, start) {
+  if (!bgmGain) return;
+
+  if (step % 4 === 0) {
+    const bassIndex = Math.floor(step / 4) % BGM_BASS_NOTES.length;
+    scheduleBgmNote(ctx, bgmGain, BGM_BASS_NOTES[bassIndex], start, 0.82, 0.22, "sine");
+  }
+
+  if (step % 2 === 0) {
+    const noteIndex = Math.floor(step / 2) % BGM_ARPEGGIO_NOTES.length;
+    scheduleBgmNote(ctx, bgmGain, BGM_ARPEGGIO_NOTES[noteIndex], start, 0.42, 0.055, "triangle");
+  }
+
+  if (step === 6 || step === 14) {
+    scheduleBgmNote(ctx, bgmGain, 880, start, 0.06, 0.018, "square");
+  }
+}
+
+function runBgmScheduler() {
+  if (!audioCtx || !bgmGain || soundMuted || currentRoomStatus !== "playing") return;
+  while (bgmNextStepAt < audioCtx.currentTime + BGM_LOOKAHEAD_SECONDS) {
+    scheduleBgmStep(audioCtx, bgmStep, bgmNextStepAt);
+    bgmStep = (bgmStep + 1) % 16;
+    bgmNextStepAt += BGM_STEP_SECONDS;
+  }
+}
+
+function startBgm() {
+  if (soundMuted || currentRoomStatus !== "playing" || bgmScheduler) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  bgmGain = ctx.createGain();
+  bgmGain.gain.setValueAtTime(0.055, ctx.currentTime);
+  bgmGain.connect(ctx.destination);
+  bgmStep = 0;
+  bgmNextStepAt = ctx.currentTime + 0.08;
+  runBgmScheduler();
+  bgmScheduler = window.setInterval(runBgmScheduler, 120);
+}
+
+function stopBgm() {
+  if (bgmScheduler) window.clearInterval(bgmScheduler);
+  bgmScheduler = null;
+  if (bgmGain && audioCtx) {
+    bgmGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    bgmGain.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.08);
+    const gainToDisconnect = bgmGain;
+    window.setTimeout(() => gainToDisconnect.disconnect(), 500);
+  }
+  bgmGain = null;
+}
+
+function syncBgm() {
+  if (!soundMuted && currentRoomStatus === "playing") startBgm();
+  else stopBgm();
+}
+
 function playTone(ctx, { freq, start, duration, type = "sine", volume = 0.16 }) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -1140,6 +1232,8 @@ function toggleSound() {
   soundMuted = !soundMuted;
   localStorage.setItem(SOUND_MUTED_KEY, soundMuted ? "1" : "0");
   updateSoundToggleButton();
+  if (!soundMuted) unlockAudio();
+  syncBgm();
 }
 
 function updateSoundToggleButton() {
