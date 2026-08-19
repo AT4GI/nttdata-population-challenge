@@ -30,35 +30,6 @@ export const MUNICIPALITIES = [
   { id: "kanagawa-yokohama", name: "横浜市", prefecture: "神奈川県", population: 3772000, category: "ordinance_city", populationDate: "sample", sourceName: "仮データ", sourceUrl: "" }
 ];
 
-// Approximate municipal-office coordinates used by the map display.
-export const MUNICIPALITY_LOCATIONS = {
-  "hokkaido-kamishihoro": [43.2325, 143.2962],
-  "nagano-obuse": [36.6979, 138.3120],
-  "yamanashi-fujikawaguchiko": [35.4973, 138.7551],
-  "shizuoka-atami": [35.0960, 139.0716],
-  "toyama-himi": [36.8567, 136.9880],
-  "ishikawa-nanao": [37.0431, 136.9675],
-  "yamaguchi-hagi": [34.4081, 131.3991],
-  "wakayama-tanabe": [33.7280, 135.3777],
-  "fukuoka-dazaifu": [33.5128, 130.5239],
-  "kyoto-maizuru": [35.4748, 135.3859],
-  "gifu-takayama": [36.1461, 137.2522],
-  "kagawa-marugame": [34.2896, 133.7977],
-  "nara-kashihara": [34.5094, 135.7925],
-  "hiroshima-onomichi": [34.4089, 133.2049],
-  "ehime-imabari": [34.0662, 132.9979],
-  "tokyo-mitaka": [35.6835, 139.5596],
-  "kanagawa-atsugi": [35.4431, 139.3625],
-  "nagasaki-sasebo": [33.1799, 129.7151],
-  "osaka-ibaraki": [34.8164, 135.5686],
-  "tokyo-hachioji": [35.6664, 139.3160],
-  "kumamoto-kumamoto": [32.8031, 130.7079],
-  "hiroshima-hiroshima": [34.3853, 132.4553],
-  "fukuoka-fukuoka": [33.5902, 130.4017],
-  "aichi-nagoya": [35.1815, 136.9066],
-  "kanagawa-yokohama": [35.4437, 139.6380]
-};
-
 export const DRAW_PROFILES = {
   "ntt-data-employees": {
     village_town: 15,

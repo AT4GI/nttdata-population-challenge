@@ -7,14 +7,14 @@ import {
   push,
   set,
   update,
+  remove,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 import { loadFirebaseConfig } from "./config-loader.js";
 import {
   DEFAULT_DRAW_PROFILE,
   DRAW_PROFILES,
-  MUNICIPALITIES,
-  MUNICIPALITY_LOCATIONS
+  MUNICIPALITIES
 } from "./data/municipalities/municipalities.js";
 
 const MIN_PLAYERS = 2;
@@ -25,10 +25,6 @@ const GAME_START_INTRO_MS = 3500;
 const PLAYER_COLOR_COUNT = 5;
 const MAX_BATTLE_COMMENTS = 50;
 const BAR_FILL_MS = 2000;
-const JAPAN_MAP_BOUNDS = [
-  [26, 127],
-  [46, 146]
-];
 const CPU_ACCURACY_SETS = {
   1: [0.75],
   2: [0.65, 0.5],
@@ -173,11 +169,13 @@ const els = {
   rouletteWindow: document.querySelector("#rouletteWindow"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
   roomCode: document.querySelector("#roomCode"),
+  copyRoomCodeButton: document.querySelector("#copyRoomCodeButton"),
   roomState: document.querySelector("#roomState"),
   turnLabel: document.querySelector("#turnLabel"),
   capacityLabel: document.querySelector("#capacityLabel"),
   turnBanner: document.querySelector("#turnBanner"),
   startGameButton: document.querySelector("#startGameButton"),
+  goHomeButton: document.querySelector("#goHomeButton"),
   totalLabel: document.querySelector("#totalLabel"),
   hitCountLabel: document.querySelector("#hitCountLabel"),
   myTotal: document.querySelector("#myTotal"),
@@ -191,9 +189,6 @@ const els = {
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
-  mapLocationLabel: document.querySelector("#mapLocationLabel"),
-  japanMap: document.querySelector("#japanMap"),
-  mapFallbackMessage: document.querySelector("#mapFallbackMessage"),
   hitButton: document.querySelector("#hitButton"),
   standButton: document.querySelector("#standButton"),
   myStatus: document.querySelector("#myStatus"),
@@ -233,9 +228,6 @@ let lastProgressPlayerId = "";
 let audioCtx = null;
 let commentPending = false;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
-let locationMap = null;
-let locationMapMarker = null;
-let locationHistoryLayer = null;
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
@@ -253,6 +245,8 @@ els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
+els.goHomeButton.addEventListener("click", goHome);
+els.copyRoomCodeButton.addEventListener("click", copyRoomCode);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
 els.rematchButton.addEventListener("click", rematchRoom);
@@ -549,6 +543,49 @@ async function startGame() {
   });
 }
 
+async function goHome() {
+  const roomId = currentRoomId;
+  if (!roomId) {
+    window.location.reload();
+    return;
+  }
+
+  els.goHomeButton.disabled = true;
+  try {
+    const room = await getCurrentRoom();
+    if (room && room.hostPlayerId === currentPlayerId) {
+      await remove(ref(db, `rooms/${roomId}`));
+    } else {
+      await remove(ref(db, `rooms/${roomId}/players/${currentPlayerId}`));
+    }
+  } finally {
+    window.location.reload();
+  }
+}
+
+let copyRoomCodeTimeoutId = null;
+
+async function copyRoomCode() {
+  if (!currentRoomId || !navigator.clipboard) return;
+
+  try {
+    await navigator.clipboard.writeText(currentRoomId);
+  } catch (error) {
+    return;
+  }
+
+  els.copyRoomCodeButton.classList.add("copied");
+  els.copyRoomCodeButton.querySelector(".icon-copy").classList.add("hidden");
+  els.copyRoomCodeButton.querySelector(".icon-check").classList.remove("hidden");
+
+  if (copyRoomCodeTimeoutId) clearTimeout(copyRoomCodeTimeoutId);
+  copyRoomCodeTimeoutId = setTimeout(() => {
+    els.copyRoomCodeButton.classList.remove("copied");
+    els.copyRoomCodeButton.querySelector(".icon-copy").classList.remove("hidden");
+    els.copyRoomCodeButton.querySelector(".icon-check").classList.add("hidden");
+  }, 1500);
+}
+
 async function hit() {
   if (actionPending) return;
   actionPending = true;
@@ -781,7 +818,6 @@ function renderRoom(room) {
       ? focusPlayer.lastRevealed.category
       : null;
   updateCandidateCard(revealCategory, isCandidateMasked);
-  updateLocationMap(candidate || focusPlayer?.lastRevealed || null, focusPlayer);
   updateTargetProgress(room, focusPlayer, target, focusPlayerId);
 
   els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
@@ -934,86 +970,6 @@ function renderHistory(player, label) {
     row.append(title, detail);
     els.myHistoryList.append(row);
   }
-}
-
-function updateLocationMap(location, player) {
-  if (!initializeLocationMap()) return;
-
-  locationHistoryLayer.clearLayers();
-  for (const item of player?.history || []) {
-    const historyLocation = MUNICIPALITY_LOCATIONS[item.id];
-    if (!historyLocation) continue;
-    window.L.circleMarker(historyLocation, {
-      radius: 4,
-      color: "#f5da7a",
-      weight: 1,
-      fillColor: "#8a6d1d",
-      fillOpacity: 0.9,
-      interactive: false
-    }).addTo(locationHistoryLayer);
-  }
-
-  const coordinates = location && MUNICIPALITY_LOCATIONS[location.id];
-  if (!coordinates) {
-    if (locationMapMarker) {
-      locationMap.removeLayer(locationMapMarker);
-      locationMapMarker = null;
-    }
-    els.mapLocationLabel.textContent = "候補を待っています";
-    return;
-  }
-
-  if (!locationMapMarker) {
-    locationMapMarker = window.L.marker(coordinates, {
-      icon: window.L.divIcon({
-        className: "game-location-marker",
-        html: '<span class="game-location-marker-pulse"></span><span class="game-location-marker-dot"></span>',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
-      }),
-      interactive: false
-    }).addTo(locationMap);
-  } else {
-    locationMapMarker.setLatLng(coordinates);
-  }
-
-  window.setTimeout(() => {
-    locationMap.invalidateSize(false);
-    locationMap.fitBounds(JAPAN_MAP_BOUNDS, { animate: false, padding: [4, 4] });
-  }, 0);
-  els.mapLocationLabel.textContent = `${location.prefecture} ${location.name}`;
-  els.japanMap.setAttribute("aria-label", `${location.prefecture}${location.name}の位置にマーカーを表示しています`);
-}
-
-function initializeLocationMap() {
-  if (locationMap) return true;
-  if (!window.L || !els.japanMap) {
-    els.mapFallbackMessage?.classList.remove("hidden");
-    return false;
-  }
-
-  locationMap = window.L.map(els.japanMap, {
-    zoomControl: false,
-    attributionControl: true,
-    dragging: false,
-    scrollWheelZoom: false,
-    doubleClickZoom: false,
-    boxZoom: false,
-    keyboard: false,
-    tap: false,
-    zoomSnap: 0.25,
-    zoomDelta: 0.25,
-    maxBounds: JAPAN_MAP_BOUNDS,
-    maxBoundsViscosity: 1
-  }).fitBounds(JAPAN_MAP_BOUNDS, { animate: false, padding: [4, 4] });
-
-  window.L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
-    minZoom: 3,
-    maxZoom: 18,
-    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'
-  }).addTo(locationMap);
-  locationHistoryLayer = window.L.layerGroup().addTo(locationMap);
-  return true;
 }
 
 function flashEffectClass(effectClass) {
