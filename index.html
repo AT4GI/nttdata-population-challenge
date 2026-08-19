@@ -43,6 +43,14 @@
               <small>TARGETの人数を隠して対戦し、結果画面で発表します</small>
             </span>
           </label>
+          <label class="mode-toggle">
+            <input id="createItemModeCheckbox" type="checkbox" class="mode-toggle-input">
+            <span class="mode-toggle-track" aria-hidden="true"><span class="mode-toggle-thumb"></span></span>
+            <span class="mode-toggle-text">
+              <strong>アイテムモード</strong>
+              <small>参加者それぞれに1個ずつランダムでアイテムが配られ、自分の番に1回だけ使えます</small>
+            </span>
+          </label>
           <div class="button-row">
             <button id="createRoomButton" type="button">部屋を作る</button>
             <button id="backFromCreateButton" type="button" class="secondary">戻る</button>
@@ -95,6 +103,14 @@
               <small>TARGETの人数を隠して対戦し、結果画面で発表します</small>
             </span>
           </label>
+          <label class="mode-toggle">
+            <input id="cpuItemModeCheckbox" type="checkbox" class="mode-toggle-input">
+            <span class="mode-toggle-track" aria-hidden="true"><span class="mode-toggle-thumb"></span></span>
+            <span class="mode-toggle-text">
+              <strong>アイテムモード</strong>
+              <small>あなたにランダムで1個アイテムが配られ、自分の番に1回だけ使えます（CPUは使いません）</small>
+            </span>
+          </label>
           <div class="button-row">
             <button id="startCpuRoomButton" type="button">CPU戦を始める</button>
             <button id="backFromCpuButton" type="button" class="secondary">戻る</button>
@@ -111,6 +127,7 @@
               <li>HITすると人口が加算され、TARGETを超えるとBUST、ぴったりならJUSTです。</li>
               <li>BUSTした人はその時点で負け確定です。ゲームは続き、全員がSTAND / BUST / JUSTになったら、BUSTしていない人の中でTARGETに一番近い人が勝ちです。</li>
               <li>「伏せモード」を選ぶと、TARGETの人数を非公開にしたまま対戦できます。正解の人数は結果画面で発表されます。</li>
+              <li>「アイテムモード」を選ぶと、開始時に1人1個ランダムでアイテムが配られます。自分の番に1回だけ使えます。</li>
             </ul>
           </section>
           <section class="guide-block" aria-labelledby="inviteTitle">
@@ -196,6 +213,18 @@
             <button id="standButton" type="button" class="secondary" disabled>STAND</button>
           </div>
           <p id="myStatus" class="message"></p>
+
+          <section id="itemPanel" class="item-panel hidden" aria-labelledby="itemPanelLabel">
+            <p class="label" id="itemPanelLabel">アイテム</p>
+            <p id="itemName" class="item-name"></p>
+            <p id="itemDescription" class="item-description"></p>
+            <button id="useItemButton" type="button" class="secondary">使う</button>
+            <div id="itemTargetPicker" class="item-target-picker hidden">
+              <p class="item-target-picker-label">対象を選んでください</p>
+              <div id="itemTargetList" class="item-target-list"></div>
+              <button id="cancelItemTargetButton" type="button" class="secondary">キャンセル</button>
+            </div>
+          </section>
 
           <section class="history-block" aria-labelledby="historyTitle">
             <h2 id="historyTitle">これまでの累積</h2>

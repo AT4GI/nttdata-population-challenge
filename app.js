@@ -149,6 +149,82 @@ const statusLabels = {
   just: "JUST"
 };
 
+// weightが大きいほど排出されやすい。他プレイヤーを直接妨害する攻撃系アイテムほどweightを低くしている。
+const ITEM_CATALOG = [
+  {
+    id: "card-swap",
+    label: "カード交換",
+    description: "表示中の候補市区町村を1回だけ引き直します。",
+    rarity: "コモン",
+    weight: 25,
+    requiresTarget: false
+  },
+  {
+    id: "small-boost",
+    label: "微増",
+    description: "自分の現在人口に3,000人を加算します。",
+    rarity: "コモン",
+    weight: 20,
+    requiresTarget: false
+  },
+  {
+    id: "target-boost-5pct",
+    label: "目標ブースト",
+    description: "自分の現在人口にTARGETの5%を加算します。",
+    rarity: "アンコモン",
+    weight: 15,
+    requiresTarget: false
+  },
+  {
+    id: "shield",
+    label: "シールド",
+    description: "発動後、次に自分がBUSTする場面を1回だけ無効化し、直前の人口でSTAND扱いにします。",
+    rarity: "アンコモン",
+    weight: 12,
+    requiresTarget: false
+  },
+  {
+    id: "steal-10pct",
+    label: "人口削減",
+    description: "指定した相手の現在人口を10%削ります。",
+    rarity: "レア",
+    weight: 8,
+    requiresTarget: true
+  },
+  {
+    id: "swap-totals",
+    label: "総取っ替え",
+    description: "自分と指定した相手の現在人口を入れ替えます。",
+    rarity: "レア",
+    weight: 6,
+    requiresTarget: true
+  },
+  {
+    id: "force-plus-10k",
+    label: "強制加算1万",
+    description: "指定した相手の現在人口に1万人を強制的に加算します。TARGETを超えるとBUSTします。",
+    rarity: "レア",
+    weight: 6,
+    requiresTarget: true
+  },
+  {
+    id: "force-plus-30k",
+    label: "強制加算3万",
+    description: "指定した相手の現在人口に3万人を強制的に加算します。TARGETを超えるとBUSTします。",
+    rarity: "ウルトラレア",
+    weight: 3,
+    requiresTarget: true
+  },
+  {
+    id: "reset-all",
+    label: "総リセット",
+    description: "進行中の全員の現在人口・HIT回数・履歴を0に戻します（自分も対象です）。",
+    rarity: "ウルトラレア",
+    weight: 2,
+    requiresTarget: false
+  }
+];
+
 const els = {
   setupView: document.querySelector("#setupView"),
   setupModeView: document.querySelector("#setupModeView"),
@@ -176,6 +252,8 @@ const els = {
   cpuTargetSelect: document.querySelector("#cpuTargetSelect"),
   createHideTargetCheckbox: document.querySelector("#createHideTargetCheckbox"),
   cpuHideTargetCheckbox: document.querySelector("#cpuHideTargetCheckbox"),
+  createItemModeCheckbox: document.querySelector("#createItemModeCheckbox"),
+  cpuItemModeCheckbox: document.querySelector("#cpuItemModeCheckbox"),
   targetRoulette: document.querySelector("#targetRoulette"),
   rouletteWindow: document.querySelector("#rouletteWindow"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
@@ -209,6 +287,13 @@ const els = {
   gameStartIntroRule: document.querySelector("#gameStartIntroRule"),
   gameStartIntroProfile: document.querySelector("#gameStartIntroProfile"),
   playersList: document.querySelector("#playersList"),
+  itemPanel: document.querySelector("#itemPanel"),
+  itemName: document.querySelector("#itemName"),
+  itemDescription: document.querySelector("#itemDescription"),
+  useItemButton: document.querySelector("#useItemButton"),
+  itemTargetPicker: document.querySelector("#itemTargetPicker"),
+  itemTargetList: document.querySelector("#itemTargetList"),
+  cancelItemTargetButton: document.querySelector("#cancelItemTargetButton"),
   battleCommentsList: document.querySelector("#battleCommentsList"),
   battleCommentInput: document.querySelector("#battleCommentInput"),
   battleCommentSendButton: document.querySelector("#battleCommentSendButton"),
@@ -277,6 +362,24 @@ els.goHomeButton.addEventListener("click", goHome);
 els.copyRoomCodeButton.addEventListener("click", copyRoomCode);
 els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
+els.useItemButton.addEventListener("click", () => {
+  const itemDef = getItemDefinition(els.useItemButton.dataset.itemId);
+  if (!itemDef) return;
+  if (itemDef.requiresTarget) {
+    els.itemTargetPicker.classList.remove("hidden");
+  } else {
+    useItem(null);
+  }
+});
+els.cancelItemTargetButton.addEventListener("click", () => {
+  els.itemTargetPicker.classList.add("hidden");
+});
+els.itemTargetList.addEventListener("click", (event) => {
+  const row = event.target.closest(".item-target-row");
+  if (!row) return;
+  els.itemTargetPicker.classList.add("hidden");
+  useItem(row.dataset.playerId);
+});
 els.rematchButton.addEventListener("click", rematchRoom);
 els.leaveRoomButton.addEventListener("click", () => window.location.reload());
 els.shareResultButton.addEventListener("click", copyShareLink);
@@ -416,6 +519,7 @@ async function createRoomWithTarget(target) {
       roomMode: "online",
       ...makeRoomTargetPayload(target),
       hideTarget: els.createHideTargetCheckbox.checked,
+      itemMode: els.createItemModeCheckbox.checked,
       status: "waiting",
       maxPlayers: MAX_PLAYERS,
       turnIndex: null,
@@ -457,8 +561,12 @@ async function createCpuRoom(selectedTarget = null) {
     const cpuProfiles = makeCpuProfiles(cpuCount);
     const cpuPlayerIds = cpuProfiles.map((_, index) => `cpu_${index + 1}`);
     const playerOrder = [currentPlayerId, ...cpuPlayerIds];
+    const itemMode = els.cpuItemModeCheckbox.checked;
     const players = {
-      [currentPlayerId]: makePlayer(getCpuPlayerName(), "active", { type: "human" })
+      [currentPlayerId]: makePlayer(getCpuPlayerName(), "active", {
+        type: "human",
+        item: itemMode ? assignRandomItem() : null
+      })
     };
 
     for (const [index, cpuId] of cpuPlayerIds.entries()) {
@@ -477,6 +585,7 @@ async function createCpuRoom(selectedTarget = null) {
       roomMode: "cpu",
       ...makeRoomTargetPayload(target),
       hideTarget: els.cpuHideTargetCheckbox.checked,
+      itemMode,
       status: "playing",
       maxPlayers: MAX_PLAYERS,
       turnIndex: 0,
@@ -571,6 +680,9 @@ async function startGame() {
     };
     for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
+      if (room.itemMode && players[playerId]?.type === "human") {
+        updates[`players/${playerId}/item`] = assignRandomItem();
+      }
     }
     updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(players[playerOrder[0]].drawn || {}, getRoomTarget(room).value, 0, 0);
 
@@ -671,6 +783,21 @@ async function stand() {
   }
 }
 
+async function useItem(targetPlayerId) {
+  if (actionPending) return;
+  actionPending = true;
+  try {
+    await runGameAction(async () => {
+      const room = await getCurrentRoom();
+      if (!room || !canTakeTurn(room, currentPlayerId)) return;
+
+      await applyItemAction(room, currentPlayerId, targetPlayerId || null);
+    });
+  } finally {
+    actionPending = false;
+  }
+}
+
 async function rematchRoom() {
   await runGameAction(async () => {
     const room = await getCurrentRoom();
@@ -690,6 +817,7 @@ async function rematchRoom() {
     };
 
     playerOrder.forEach((playerId, index) => {
+      const player = room.players?.[playerId];
       Object.assign(updates, prefixPlayerUpdate(playerId, {
         total: 0,
         hitCount: 0,
@@ -698,6 +826,8 @@ async function rematchRoom() {
         history: [],
         lastRevealed: null,
         lastAction: null,
+        shieldActive: false,
+        item: room.itemMode && player?.type === "human" ? assignRandomItem() : null,
         candidate: index === 0 ? pickCandidate({}, target.value, 0, 0) : null
       }));
     });
@@ -735,6 +865,142 @@ async function applyPlayerAction(room, playerId, action) {
   }
 }
 
+async function applyItemAction(room, playerId, targetPlayerId) {
+  const player = room.players?.[playerId];
+  if (!player || !canPlay(player) || getCurrentTurnPlayerId(room) !== playerId || room.turnAdvancing) return;
+  if (!player.item || player.item.used) return;
+
+  const effectUpdates = buildItemEffectUpdates(room, playerId, targetPlayerId);
+  if (!effectUpdates) return;
+
+  effectUpdates.turnAdvancing = true;
+  await update(ref(db, `rooms/${currentRoomId}`), effectUpdates);
+  playSfx("tick");
+  await wait(BAR_FILL_MS);
+
+  const freshRoom = await getCurrentRoom();
+  if (!freshRoom) return;
+
+  const progressUpdates = buildRoomProgressUpdates(freshRoom, playerId);
+  progressUpdates.turnAdvancing = false;
+  const shareSnapshot = progressUpdates.shareSnapshot;
+  delete progressUpdates.shareSnapshot;
+
+  await wait(400);
+  await update(ref(db, `rooms/${currentRoomId}`), progressUpdates);
+  if (shareSnapshot) {
+    await set(ref(db, `results/${progressUpdates.shareId}`), shareSnapshot);
+  }
+}
+
+// アイテムIDごとに効果を計算し、players/{id}/... 形式のフラットな更新オブジェクトを返す。
+// 複数プレイヤーにまたがる効果（対象への攻撃、全員リセット）もこの1オブジェクトにまとめて
+// 1回のupdate()で送る。
+function buildItemEffectUpdates(room, playerId, targetPlayerId) {
+  const player = room.players?.[playerId];
+  if (!player || !player.item || player.item.used) return null;
+
+  const itemDef = getItemDefinition(player.item.id);
+  if (!itemDef) return null;
+
+  const targetPlayer = targetPlayerId ? room.players?.[targetPlayerId] : null;
+  if (itemDef.requiresTarget && (!targetPlayerId || !targetPlayer || targetPlayerId === playerId)) return null;
+
+  const target = getRoomTarget(room).value;
+  const updates = {};
+  updates[`players/${playerId}/item`] = { id: itemDef.id, used: true };
+
+  switch (itemDef.id) {
+    case "card-swap": {
+      updates[`players/${playerId}/candidate`] = pickCandidate(player.drawn || {}, target, player.total || 0, player.hitCount || 0);
+      break;
+    }
+    case "small-boost": {
+      applyPlayerFieldUpdates(updates, playerId, resolveTotalChange(room, player, (player.total || 0) + 3000));
+      break;
+    }
+    case "target-boost-5pct": {
+      applyPlayerFieldUpdates(updates, playerId, resolveTotalChange(room, player, (player.total || 0) + Math.round(target * 0.05)));
+      break;
+    }
+    case "shield": {
+      updates[`players/${playerId}/shieldActive`] = true;
+      break;
+    }
+    case "steal-10pct": {
+      const amount = Math.round((targetPlayer.total || 0) * 0.1);
+      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, (targetPlayer.total || 0) - amount));
+      break;
+    }
+    case "swap-totals": {
+      applyPlayerFieldUpdates(updates, playerId, resolveTotalChange(room, player, targetPlayer.total || 0));
+      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, player.total || 0));
+      break;
+    }
+    case "force-plus-10k": {
+      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, (targetPlayer.total || 0) + 10000));
+      break;
+    }
+    case "force-plus-30k": {
+      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, (targetPlayer.total || 0) + 30000));
+      break;
+    }
+    case "reset-all": {
+      for (const id of getStartedPlayerIds(room)) {
+        const activePlayer = room.players?.[id];
+        if (!activePlayer || activePlayer.status !== "active") continue;
+        updates[`players/${id}/total`] = 0;
+        updates[`players/${id}/hitCount`] = 0;
+        updates[`players/${id}/drawn`] = {};
+        updates[`players/${id}/history`] = [];
+        updates[`players/${id}/lastRevealed`] = null;
+      }
+      break;
+    }
+    default:
+      return null;
+  }
+
+  updates[`players/${playerId}/lastAction`] = targetPlayer
+    ? { type: "item", itemId: itemDef.id, itemLabel: itemDef.label, targetName: targetPlayer.name || "参加者" }
+    : { type: "item", itemId: itemDef.id, itemLabel: itemDef.label };
+
+  return updates;
+}
+
+// アイテムで人口が変化した結果、BUST/JUSTになるかを判定する。シールド発動中なら
+// BUSTを1回だけ無効化し、発動前の人口に据え置く。すでに終了しているプレイヤーの
+// 状態は上書きしない（bustした人を蒸し返さない）が、active/standのプレイヤーは
+// 攻撃アイテムで新たにbust/justへ転じうる。
+function resolveTotalChange(room, player, nextTotal) {
+  const target = getRoomTarget(room).value;
+  const clampedTotal = Math.max(0, nextTotal);
+  const canTransition = player.status === "active" || player.status === "stand";
+  const hasShield = player.item?.id === "shield" && player.shieldActive;
+
+  if (clampedTotal > target && hasShield && canTransition) {
+    return { total: player.total || 0, shieldActive: false };
+  }
+
+  const result = { total: clampedTotal };
+  if (canTransition) {
+    if (clampedTotal > target) {
+      result.status = "bust";
+      result.finishedAt = serverTimestamp();
+    } else if (clampedTotal === target) {
+      result.status = "just";
+      result.finishedAt = serverTimestamp();
+    }
+  }
+  return result;
+}
+
+function applyPlayerFieldUpdates(updates, playerId, fields) {
+  for (const [key, value] of Object.entries(fields)) {
+    updates[`players/${playerId}/${key}`] = value;
+  }
+}
+
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -749,8 +1015,25 @@ function buildHitPayload(room, player) {
   const roomTarget = getRoomTarget(room);
   const candidate = player.candidate || pickCandidate(player.drawn || {}, roomTarget.value, player.total || 0, player.hitCount || 0);
   const nextTotal = (player.total || 0) + candidate.population;
-  const drawn = { ...(player.drawn || {}), [candidate.id]: true };
   const target = roomTarget.value;
+
+  if (nextTotal > target && player.shieldActive) {
+    return {
+      status: "stand",
+      shieldActive: false,
+      candidate: null,
+      hitCount: (player.hitCount || 0) + 1,
+      lastAction: {
+        type: "shield-block",
+        municipality: candidate.name,
+        prefecture: candidate.prefecture,
+        population: candidate.population
+      },
+      finishedAt: serverTimestamp()
+    };
+  }
+
+  const drawn = { ...(player.drawn || {}), [candidate.id]: true };
   const status = nextTotal > target ? "bust" : nextTotal === target ? "just" : "active";
   const historyItem = {
     id: candidate.id,
@@ -891,12 +1174,54 @@ function renderRoom(room) {
   els.standButton.disabled = !canTakeTurn(room, currentPlayerId);
 
   renderHistory(focusPlayer, focusLabel);
+  renderItemPanel(room, me);
+  renderItemTargetOptions(players, playerIds);
   renderPlayersList(room, players, playerIds);
   renderBattleComments(room);
 
   renderResult(room, players);
   document.body.classList.toggle("modal-open", (room.status === "finished" && Boolean(room.result)) || gameStartIntroVisible);
   scheduleCpuTurn(room);
+}
+
+function renderItemPanel(room, me) {
+  if (!els.itemPanel) return;
+
+  const item = me?.item;
+  const itemDef = item ? getItemDefinition(item.id) : null;
+  const shouldShow = Boolean(room.itemMode && itemDef && !item.used);
+
+  els.itemPanel.classList.toggle("hidden", !shouldShow);
+  if (!shouldShow) {
+    els.itemTargetPicker.classList.add("hidden");
+    return;
+  }
+
+  const isMyTurn = canTakeTurn(room, currentPlayerId);
+  els.itemName.textContent = `${itemDef.label}（${itemDef.rarity}）`;
+  els.itemDescription.textContent = itemDef.description;
+  els.useItemButton.disabled = !isMyTurn;
+  els.useItemButton.dataset.itemId = itemDef.id;
+
+  if (!isMyTurn) els.itemTargetPicker.classList.add("hidden");
+}
+
+function renderItemTargetOptions(players, playerIds) {
+  if (!els.itemTargetList) return;
+  els.itemTargetList.innerHTML = "";
+
+  for (const playerId of playerIds) {
+    if (playerId === currentPlayerId) continue;
+    const player = players[playerId];
+    if (!player) continue;
+
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "item-target-row";
+    row.dataset.playerId = playerId;
+    row.textContent = `${player.name || "参加者"}（${formatNumber(player.total || 0)}人 / ${statusLabels[player.status] || "待機中"}）`;
+    els.itemTargetList.append(row);
+  }
 }
 
 function renderResult(room, players) {
@@ -1057,6 +1382,7 @@ function renderPlayersList(room, players, playerIds) {
     if (playerId === currentPlayerId) playerBadges.push("あなた");
     if (player.type === "cpu") playerBadges.push("CPU");
     if (playerId === turnPlayerId && room.status === "playing") playerBadges.push("TURN");
+    if (room.itemMode && player.item && !player.item.used) playerBadges.push("ITEM");
     title.textContent = `${player.name || "参加者"}${playerBadges.length > 0 ? `（${playerBadges.join(" / ")}）` : ""}`;
 
     const meta = document.createElement("span");
@@ -1367,6 +1693,12 @@ function buildLastActionText(player) {
     const resultLabel = action.status === "bust" ? "BUST" : action.status === "just" ? "JUST" : "HIT";
     return `直前：${resultLabel} ${action.prefecture} ${action.municipality} +${formatNumber(action.population)}人`;
   }
+  if (action.type === "shield-block") return `直前：シールド発動！BUSTを回避（${action.municipality}）`;
+  if (action.type === "item") {
+    return action.targetName
+      ? `直前：アイテム『${action.itemLabel}』を${action.targetName}に使用`
+      : `直前：アイテム『${action.itemLabel}』を使用`;
+  }
   return "";
 }
 
@@ -1613,8 +1945,24 @@ function makePlayer(name, status, options = {}) {
     drawn: {},
     candidate: null,
     lastRevealed: null,
+    item: options.item || null,
+    shieldActive: false,
     joinedAt: serverTimestamp()
   };
+}
+
+function assignRandomItem() {
+  const totalWeight = ITEM_CATALOG.reduce((sum, item) => sum + item.weight, 0);
+  let threshold = Math.random() * totalWeight;
+  for (const item of ITEM_CATALOG) {
+    threshold -= item.weight;
+    if (threshold <= 0) return { id: item.id, used: false };
+  }
+  return { id: ITEM_CATALOG[ITEM_CATALOG.length - 1].id, used: false };
+}
+
+function getItemDefinition(itemId) {
+  return ITEM_CATALOG.find((item) => item.id === itemId) || null;
 }
 
 function pickCandidate(drawn, targetValue, currentTotal, hitCount) {

@@ -1225,6 +1225,64 @@ label input {
   font-size: 0.78rem;
 }
 
+.item-panel {
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(16, 27, 20, 0.85));
+  padding: 14px;
+  margin-top: 16px;
+}
+
+.item-name {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--gold-bright);
+}
+
+.item-description {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.item-target-picker {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.item-target-picker-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.item-target-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.item-target-row {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(16, 27, 20, 0.85);
+  color: var(--ink);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.item-target-row:hover {
+  border-color: var(--gold);
+  background: var(--primary-soft);
+}
+
 .history-block {
   border-top: 1px solid var(--line-soft);
   margin-top: 18px;
