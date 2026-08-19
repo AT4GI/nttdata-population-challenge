@@ -212,7 +212,15 @@ const els = {
   rematchButton: document.querySelector("#rematchButton"),
   rematchWaitingNote: document.querySelector("#rematchWaitingNote"),
   leaveRoomButton: document.querySelector("#leaveRoomButton"),
-  soundToggleButton: document.querySelector("#soundToggleButton")
+  shareResultButton: document.querySelector("#shareResultButton"),
+  soundToggleButton: document.querySelector("#soundToggleButton"),
+  shareView: document.querySelector("#shareView"),
+  shareResultTitle: document.querySelector("#shareResultTitle"),
+  shareResultTarget: document.querySelector("#shareResultTarget"),
+  shareResultDetail: document.querySelector("#shareResultDetail"),
+  shareResultRanking: document.querySelector("#shareResultRanking"),
+  shareResultMessage: document.querySelector("#shareResultMessage"),
+  sharePlayButton: document.querySelector("#sharePlayButton")
 };
 
 let db = null;
@@ -237,11 +245,15 @@ let bgmStep = 0;
 let currentRoomStatus = "waiting";
 let commentPending = false;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
+let shareResultTimeoutId = null;
+const sharedResultId = new URLSearchParams(window.location.search).get("share");
+const SHARE_RESULT_BUTTON_LABEL = els.shareResultButton?.textContent || "共有リンクをコピー";
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
 disableSetup(true);
 updateSoundToggleButton();
+if (sharedResultId) showShareView();
 initializeFirebase();
 
 els.selectCreateModeButton.addEventListener("click", () => showSetupMode("create"));
@@ -260,6 +272,10 @@ els.hitButton.addEventListener("click", hit);
 els.standButton.addEventListener("click", stand);
 els.rematchButton.addEventListener("click", rematchRoom);
 els.leaveRoomButton.addEventListener("click", () => window.location.reload());
+els.shareResultButton.addEventListener("click", copyShareLink);
+els.sharePlayButton.addEventListener("click", () => {
+  window.location.href = window.location.pathname;
+});
 els.soundToggleButton.addEventListener("click", toggleSound);
 document.addEventListener("pointerdown", unlockAudio, { once: true });
 els.battleCommentSendButton.addEventListener("click", sendBattleComment);
@@ -360,9 +376,11 @@ async function initializeFirebase() {
     appReady = true;
     setSetupMessage("");
     disableSetup(false);
+    if (sharedResultId) await loadSharedResult(sharedResultId);
   } catch (error) {
     setSetupMessage(error.message);
     disableSetup(true);
+    if (sharedResultId) showShareError(error.message);
   }
 }
 
@@ -596,6 +614,26 @@ async function copyRoomCode() {
   }, 1500);
 }
 
+async function copyShareLink() {
+  const shareId = els.resultPanel.dataset.shareId;
+  if (!shareId || !navigator.clipboard) return;
+
+  const url = `${window.location.origin}${window.location.pathname}?share=${encodeURIComponent(shareId)}`;
+
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch (error) {
+    return;
+  }
+
+  els.shareResultButton.textContent = "コピーしました！";
+
+  if (shareResultTimeoutId) clearTimeout(shareResultTimeoutId);
+  shareResultTimeoutId = setTimeout(() => {
+    els.shareResultButton.textContent = SHARE_RESULT_BUTTON_LABEL;
+  }, 1500);
+}
+
 async function hit() {
   if (actionPending) return;
   actionPending = true;
@@ -680,9 +718,14 @@ async function applyPlayerAction(room, playerId, action) {
 
   const progressUpdates = buildRoomProgressUpdates({ ...room, players: nextPlayers }, playerId);
   progressUpdates.turnAdvancing = false;
+  const shareSnapshot = progressUpdates.shareSnapshot;
+  delete progressUpdates.shareSnapshot;
 
   await wait(getPostEffectDelay(action, payload.status));
   await update(ref(db, `rooms/${currentRoomId}`), progressUpdates);
+  if (shareSnapshot) {
+    await set(ref(db, `results/${progressUpdates.shareId}`), shareSnapshot);
+  }
 }
 
 function wait(ms) {
@@ -754,11 +797,16 @@ async function finishRoomIfNeeded() {
   const players = playerIds.map((id) => [id, room.players?.[id]]).filter(([, player]) => player);
   if (players.length < MIN_PLAYERS || !players.every(([, player]) => isFinished(player.status))) return;
 
+  const result = judge(players, getRoomTarget(room).value);
+  const { shareId, snapshot } = buildResultSnapshot(room, result);
+
   await update(ref(db, `rooms/${currentRoomId}`), {
     status: "finished",
-    result: judge(players, getRoomTarget(room).value),
+    result,
+    shareId,
     finishedAt: serverTimestamp()
   });
+  await set(ref(db, `results/${shareId}`), snapshot);
 }
 
 function renderRoom(room) {
@@ -851,6 +899,8 @@ function renderResult(room, players) {
   const isHost = room.hostPlayerId === currentPlayerId;
   els.rematchButton.classList.toggle("hidden", !(shouldShow && isHost));
   els.rematchWaitingNote.classList.toggle("hidden", !(shouldShow && !isHost));
+  els.resultPanel.dataset.shareId = shouldShow ? room.shareId || "" : "";
+  els.shareResultButton.disabled = !shouldShow || !room.shareId;
   if (!shouldShow) {
     lastResultKey = "";
     return;
@@ -920,6 +970,65 @@ function renderResultRanking(room, players, result, winnerIds) {
 
     item.append(rank, name, detail);
     els.resultRanking.append(item);
+  });
+}
+
+function showShareView() {
+  els.setupView.classList.add("hidden");
+  els.gameView.classList.add("hidden");
+  els.shareView.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+async function loadSharedResult(shareId) {
+  try {
+    const snapshot = await get(ref(db, `results/${shareId}`));
+    if (!snapshot.exists()) {
+      showShareError("この結果は見つかりませんでした。リンクが正しいかご確認ください。");
+      return;
+    }
+    renderSharedResult(snapshot.val());
+  } catch (error) {
+    showShareError(`結果の読み込みに失敗しました: ${error.message}`);
+  }
+}
+
+function showShareError(message) {
+  els.shareResultTitle.textContent = "結果を表示できません";
+  els.shareResultTarget.textContent = "";
+  els.shareResultDetail.textContent = "";
+  els.shareResultRanking.innerHTML = "";
+  els.shareResultMessage.textContent = message;
+  els.shareResultMessage.classList.remove("hidden");
+}
+
+function renderSharedResult(data) {
+  els.shareResultMessage.classList.add("hidden");
+  els.shareResultTitle.textContent = "RESULT";
+
+  const target = data.target || {};
+  els.shareResultTarget.textContent = `TARGET：${target.label || "不明"} ${formatNumber(target.value || 0)}人`;
+  els.shareResultDetail.textContent = data.reason || "";
+
+  els.shareResultRanking.innerHTML = "";
+  const players = Array.isArray(data.players) ? data.players : [];
+  players.forEach((player) => {
+    const item = document.createElement("div");
+    item.className = "result-row";
+    if (player.isWinner) item.classList.add("winner");
+
+    const rank = document.createElement("span");
+    rank.className = "result-rank";
+    rank.textContent = player.isWinner ? "🏆" : `${player.rank}位`;
+
+    const name = document.createElement("strong");
+    name.textContent = player.name || "参加者";
+
+    const detail = document.createElement("span");
+    detail.textContent = `${formatNumber(player.total || 0)}人（${statusLabels[player.status] || "終了"} / 差${formatNumber(player.diff || 0)}人）`;
+
+    item.append(rank, name, detail);
+    els.shareResultRanking.append(item);
   });
 }
 
@@ -1352,15 +1461,73 @@ function judge(players, target) {
   };
 }
 
+// Independent from rooms/{roomId}: a rematch overwrites the room in place,
+// so the shared link must point at a frozen copy keyed by this match's
+// roomId + decidedAt, not at the live room state.
+function buildResultSnapshot(room, result) {
+  const target = getRoomTarget(room);
+  const shareId = `${room.roomId}_${result.decidedAt}`;
+  const winnerIds = result.winnerPlayerIds || [];
+  const playersMap = room.players || {};
+
+  const rows = (result.playerIds || [])
+    .map((id) => ({ id, player: playersMap[id] }))
+    .filter((row) => row.player)
+    .map((row) => ({ ...row, diff: Math.abs(target.value - (row.player.total || 0)) }));
+
+  rows.sort((a, b) => {
+    const aBust = a.player.status === "bust";
+    const bBust = b.player.status === "bust";
+    if (aBust !== bBust) return aBust ? 1 : -1;
+    return a.diff - b.diff;
+  });
+
+  const players = rows.map((row, index) => ({
+    id: row.id,
+    name: row.player.name || "参加者",
+    type: row.player.type || "human",
+    total: row.player.total || 0,
+    hitCount: row.player.hitCount || 0,
+    status: row.player.status || "active",
+    diff: row.diff,
+    rank: index + 1,
+    isWinner: winnerIds.includes(row.id)
+  }));
+
+  return {
+    shareId,
+    snapshot: {
+      shareId,
+      roomId: room.roomId,
+      createdAt: serverTimestamp(),
+      decidedAt: result.decidedAt,
+      reason: result.reason,
+      target: {
+        id: target.id,
+        label: target.label,
+        value: target.value,
+        dateLabel: target.dateLabel,
+        sourceLabel: target.sourceLabel,
+        difficulty: target.difficulty
+      },
+      players
+    }
+  };
+}
+
 function buildRoomProgressUpdates(room, actedPlayerId) {
   const playerIds = getStartedPlayerIds(room);
   const players = playerIds.map((id) => [id, room.players?.[id]]).filter(([, player]) => player);
 
   if (players.length >= MIN_PLAYERS && players.every(([, player]) => isFinished(player.status))) {
+    const result = judge(players, getRoomTarget(room).value);
+    const { shareId, snapshot } = buildResultSnapshot(room, result);
     return {
       status: "finished",
-      result: judge(players, getRoomTarget(room).value),
-      finishedAt: serverTimestamp()
+      result,
+      shareId,
+      finishedAt: serverTimestamp(),
+      shareSnapshot: snapshot
     };
   }
 
