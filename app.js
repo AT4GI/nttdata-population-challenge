@@ -264,6 +264,8 @@ const els = {
   capacityLabel: document.querySelector("#capacityLabel"),
   turnBanner: document.querySelector("#turnBanner"),
   startGameButton: document.querySelector("#startGameButton"),
+  readyButton: document.querySelector("#readyButton"),
+  readyStatusText: document.querySelector("#readyStatusText"),
   goHomeButton: document.querySelector("#goHomeButton"),
   totalLabel: document.querySelector("#totalLabel"),
   hitCountLabel: document.querySelector("#hitCountLabel"),
@@ -358,6 +360,7 @@ els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
+els.readyButton.addEventListener("click", toggleReady);
 els.goHomeButton.addEventListener("click", goHome);
 els.copyRoomCodeButton.addEventListener("click", copyRoomCode);
 els.hitButton.addEventListener("click", hit);
@@ -668,6 +671,10 @@ async function startGame() {
     const playerOrder = getPlayerOrder({ ...room, players });
     if (playerOrder.length < MIN_PLAYERS) {
       els.myStatus.textContent = `${MIN_PLAYERS}人以上そろうと開始できます。`;
+      return;
+    }
+    if (!playerOrder.every((playerId) => players[playerId]?.ready)) {
+      els.myStatus.textContent = "全員が「準備OK」を押すと開始できます。";
       return;
     }
 
@@ -1132,7 +1139,28 @@ function renderRoom(room) {
   els.gameView.classList.toggle("my-turn", isMyTurn);
   els.gameView.classList.toggle("other-turn", isPlaying && !isMyTurn);
   renderDrawProfileNotice(room, target);
-  els.startGameButton.classList.toggle("hidden", !(isHost && room.status === "waiting" && playerIds.length >= MIN_PLAYERS));
+
+  const isWaiting = room.status === "waiting";
+  const enoughPlayers = playerIds.length >= MIN_PLAYERS;
+  const readyCount = playerIds.filter((id) => players[id]?.ready).length;
+  const allReady = playerIds.length > 0 && readyCount === playerIds.length;
+
+  els.startGameButton.classList.toggle("hidden", !(isHost && isWaiting && enoughPlayers));
+  els.startGameButton.disabled = !allReady;
+
+  els.readyButton.classList.toggle("hidden", !isWaiting);
+  if (isWaiting && me) {
+    els.readyButton.textContent = me.ready ? "準備OK済み（取り消す）" : "準備OK";
+    els.readyButton.classList.toggle("secondary", !me.ready);
+  }
+
+  els.readyStatusText.textContent = !isWaiting
+    ? "-"
+    : !enoughPlayers
+      ? `${MIN_PLAYERS}人以上で開始できます`
+      : allReady
+        ? "全員の準備が完了しました"
+        : `${readyCount} / ${playerIds.length}人がOK`;
 
   if (room.status !== "finished" && !room.turnAdvancing && playerIds.length >= MIN_PLAYERS && playerIds.every((id) => isFinished(players[id].status))) {
     finishRoomIfNeeded();
@@ -1383,6 +1411,7 @@ function renderPlayersList(room, players, playerIds) {
     if (player.type === "cpu") playerBadges.push("CPU");
     if (playerId === turnPlayerId && room.status === "playing") playerBadges.push("TURN");
     if (room.itemMode && player.item && !player.item.used) playerBadges.push("ITEM");
+    if (room.status === "waiting") playerBadges.push(player.ready ? "OK" : "未確認");
     title.textContent = `${player.name || "参加者"}${playerBadges.length > 0 ? `（${playerBadges.join(" / ")}）` : ""}`;
 
     const meta = document.createElement("span");
@@ -1947,8 +1976,19 @@ function makePlayer(name, status, options = {}) {
     lastRevealed: null,
     item: options.item || null,
     shieldActive: false,
+    ready: false,
     joinedAt: serverTimestamp()
   };
+}
+
+async function toggleReady() {
+  await runGameAction(async () => {
+    const room = await getCurrentRoom();
+    if (!room || room.status !== "waiting") return;
+    const me = room.players?.[currentPlayerId];
+    if (!me) return;
+    await update(ref(db, `rooms/${currentRoomId}/players/${currentPlayerId}`), { ready: !me.ready });
+  });
 }
 
 function assignRandomItem() {
@@ -2283,29 +2323,57 @@ function getAdaptiveDrawBands(targetValue) {
   const underShare = hasUnder && hasOver ? 1 - OVER_TARGET_DRAW_RATE : hasUnder ? 1 : 0;
   const overShare = hasUnder && hasOver ? OVER_TARGET_DRAW_RATE : hasOver ? 1 : 0;
 
-  const rows = [];
+  const bands = [];
 
   if (hasUnder) {
     const totalWeight = sumDrawWeight(underItems, 0, target, reference);
     for (const band of splitDrawBands(underItems, 0, target, reference, totalWeight, 0)) {
       const percent = totalWeight > 0 ? (band.weight / totalWeight) * underShare * 100 : 0;
       if (percent <= 0) continue;
-      rows.push({ label: buildDrawBandLabel(band.lo, band.hi, false), percent });
+      bands.push({ lo: band.lo, hi: band.hi, percent, isOpenUpper: false });
     }
   }
 
   if (hasOver) {
     const upperBound = maxPopulation + 1;
     const totalWeight = sumDrawWeight(overItems, target, upperBound, reference);
-    const bands = splitDrawBands(overItems, target, upperBound, reference, totalWeight, 0);
-    bands.forEach((band, index) => {
+    const overBands = splitDrawBands(overItems, target, upperBound, reference, totalWeight, 0);
+    overBands.forEach((band, index) => {
       const percent = totalWeight > 0 ? (band.weight / totalWeight) * overShare * 100 : 0;
       if (percent <= 0) return;
-      rows.push({ label: buildDrawBandLabel(band.lo, band.hi, index === bands.length - 1), percent });
+      bands.push({ lo: band.lo, hi: band.hi, percent, isOpenUpper: index === overBands.length - 1 });
     });
   }
 
-  return rows;
+  return collapseZeroDisplayBands(bands).map((band) => ({
+    label: buildDrawBandLabel(band.lo, band.hi, band.isOpenUpper),
+    percent: band.percent
+  }));
+}
+
+// 表示上「0%」（四捨五入で0になる）帯が末尾に連続する場合、1件ずつ並べず
+// 「◯万人以上」の1行にまとめて0%として表示する。
+function collapseZeroDisplayBands(bands) {
+  let cutIndex = bands.length;
+  for (let i = bands.length - 1; i >= 0; i -= 1) {
+    if (Math.round(bands[i].percent) !== 0) break;
+    cutIndex = i;
+  }
+
+  if (cutIndex >= bands.length) return bands;
+
+  const kept = bands.slice(0, cutIndex);
+  const collapsed = bands.slice(cutIndex);
+  const mergedPercent = collapsed.reduce((sum, band) => sum + band.percent, 0);
+
+  kept.push({
+    lo: collapsed[0].lo,
+    hi: collapsed[collapsed.length - 1].hi,
+    percent: mergedPercent,
+    isOpenUpper: true
+  });
+
+  return kept;
 }
 
 function makeCpuProfiles(cpuCount) {

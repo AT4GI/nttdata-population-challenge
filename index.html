@@ -136,7 +136,7 @@
               <li>1人目が表示名を入れて「部屋を作る」を押します。</li>
               <li>表示された部屋IDを友達に共有します。</li>
               <li>友達は同じURLを開き、表示名と部屋IDを入れて参加します。</li>
-              <li>2人以上そろったら、ホストが「ゲーム開始」を押します。</li>
+              <li>2人以上そろい、参加者全員が「準備OK」を押すと、ホストが「ゲーム開始」を押せるようになります。</li>
             </ol>
           </section>
           <section class="guide-block" aria-labelledby="cpuTitle">
@@ -178,7 +178,12 @@
             <p class="label">プレイ人数</p>
             <div class="state-text" id="capacityLabel">1 / 5人</div>
           </div>
-          <button id="startGameButton" type="button" class="hidden">ゲーム開始</button>
+          <div>
+            <p class="label">準備状況</p>
+            <div class="state-text" id="readyStatusText">-</div>
+          </div>
+          <button id="readyButton" type="button" class="secondary hidden">準備OK</button>
+          <button id="startGameButton" type="button" class="hidden" disabled>ゲーム開始</button>
           <button id="goHomeButton" type="button" class="secondary">ホームに戻る</button>
         </div>
 
