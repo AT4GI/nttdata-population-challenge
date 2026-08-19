@@ -691,6 +691,16 @@ label input {
   color: #ffc94d;
 }
 
+.candidate-box.tier-major_city {
+  border-color: #ef5da8;
+  box-shadow: inset 0 0 0 1px rgba(239, 93, 168, 0.28), inset 0 24px 48px rgba(0, 0, 0, 0.35), 0 0 26px rgba(239, 93, 168, 0.18);
+}
+
+.candidate-box.tier-major_city::before,
+.candidate-box.tier-major_city::after {
+  color: #ffa8d6;
+}
+
 .candidate-box.tier-ordinance_city {
   border-color: #bfe9ff;
   box-shadow: inset 0 0 0 1px rgba(191, 233, 255, 0.3), inset 0 24px 48px rgba(0, 0, 0, 0.35), 0 0 30px rgba(191, 233, 255, 0.22);

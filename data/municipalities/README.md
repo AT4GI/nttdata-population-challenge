@@ -27,5 +27,6 @@
 - `village_town`: 5万人未満
 - `small_city`: 5万人以上10万人未満
 - `mid_city`: 10万人以上20万人未満
-- `large_city`: 20万人以上70万人未満
+- `large_city`: 20万人以上30万人未満
+- `major_city`: 30万人以上70万人未満
 - `ordinance_city`: 70万人以上

@@ -35,7 +35,8 @@ const CATEGORY_LABELS = {
   village_town: "5万人未満",
   small_city: "5万〜10万人未満",
   mid_city: "10万〜20万人未満",
-  large_city: "20万〜70万人未満",
+  large_city: "20万〜30万人未満",
+  major_city: "30万〜70万人未満",
   ordinance_city: "70万人以上"
 };
 const CATEGORY_SUITS = {
@@ -43,6 +44,7 @@ const CATEGORY_SUITS = {
   small_city: "♦",
   mid_city: "♥",
   large_city: "♠",
+  major_city: "✦",
   ordinance_city: "★"
 };
 const TIER_CLASSES = Object.keys(CATEGORY_LABELS).map((category) => `tier-${category}`);
@@ -118,8 +120,8 @@ const TARGETS = [
     id: "three-million-challenge",
     label: "全国市区町村 300万人チャレンジ",
     value: 3000000,
-    dateLabel: "全国市区町村データ拡張後向け",
-    sourceLabel: "e-Stat 住民基本台帳人口で調整予定",
+    dateLabel: "2026年1月1日時点の全国市区町村データが対象",
+    sourceLabel: "総務省 住民基本台帳に基づく人口、人口動態及び世帯数調査",
     difficulty: "特別",
     isSpecial: true
   },
