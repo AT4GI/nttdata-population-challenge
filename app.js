@@ -32,10 +32,10 @@ const CPU_ACCURACY_SETS = {
   4: [0.65, 0.5, 0.45, 0.45]
 };
 const CATEGORY_LABELS = {
-  village_town: "0〜5万人",
-  small_city: "5万〜10万人",
-  mid_city: "10万〜30万人",
-  large_city: "30万〜70万人",
+  village_town: "5万人未満",
+  small_city: "5万〜10万人未満",
+  mid_city: "10万〜20万人未満",
+  large_city: "20万〜70万人未満",
   ordinance_city: "70万人以上"
 };
 const CATEGORY_SUITS = {
