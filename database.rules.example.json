@@ -3,6 +3,10 @@
     "rooms": {
       ".read": true,
       ".write": true
+    },
+    "results": {
+      ".read": true,
+      ".write": true
     }
   }
 }

@@ -238,12 +238,27 @@
             <p id="resultDetail"></p>
             <div id="resultRanking" class="result-ranking"></div>
             <div class="button-row result-actions">
+              <button id="shareResultButton" type="button" class="secondary">共有リンクをコピー</button>
               <button id="rematchButton" type="button" class="hidden">もう一戦する</button>
               <button id="leaveRoomButton" type="button" class="secondary">トップに戻る</button>
             </div>
             <p id="rematchWaitingNote" class="message hidden">ホストが再戦を選ぶとゲームが始まります。</p>
           </div>
         </section>
+      </section>
+
+      <section id="shareView" class="panel result-panel hidden" aria-labelledby="shareResultTitle">
+        <div class="result-card">
+          <p class="label">RESULT SHARE</p>
+          <h2 id="shareResultTitle" class="num-digital">読み込み中...</h2>
+          <p id="shareResultTarget"></p>
+          <p id="shareResultDetail"></p>
+          <div id="shareResultRanking" class="result-ranking"></div>
+          <p id="shareResultMessage" class="message hidden"></p>
+          <div class="button-row result-actions">
+            <button id="sharePlayButton" type="button">このゲームで遊ぶ</button>
+          </div>
+        </div>
       </section>
     </main>
 
