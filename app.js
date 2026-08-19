@@ -11,16 +11,21 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 import { loadFirebaseConfig } from "./config-loader.js";
-import {
-  DEFAULT_DRAW_PROFILE,
-  DRAW_PROFILES,
-  MUNICIPALITIES
-} from "./data/municipalities/municipalities.js";
+import { MUNICIPALITIES } from "./data/municipalities/municipalities.js";
 
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const CPU_THINK_DELAY_MS = 1000;
 const OVER_TARGET_DRAW_RATE = 0.01;
+// 「TARGET÷この数」に近い人口ほど引きやすくする。3なら平均3ターン程度でTARGET付近に届く見込み。
+const DRAW_REFERENCE_TURNS = 3;
+// 参照値からの対数距離に対する減衰の強さ。大きいほど参照値から離れた人口が出にくくなる。
+const DRAW_DECAY_RATE = 4;
+// 「人口カード構成」表示で、1つの帯の割合がこれを超えたら細分化する。
+const DRAW_BAND_SHARE_CAP = 0.25;
+const DRAW_BAND_MAX_DEPTH = 5;
+// 帯を分割するときに使う「キリのいい」区切り単位（人）。帯の幅に対して十分細かいものを自動選択する。
+const DRAW_BAND_LADDER = [10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000];
 const GAME_START_INTRO_MS = 3500;
 const PLAYER_COLOR_COUNT = 5;
 const MAX_BATTLE_COMMENTS = 50;
@@ -465,7 +470,7 @@ async function createCpuRoom(selectedTarget = null) {
       });
     }
 
-    players[playerOrder[0]].candidate = pickCandidate(players[playerOrder[0]].drawn || {}, target.id, target.value);
+    players[playerOrder[0]].candidate = pickCandidate(players[playerOrder[0]].drawn || {}, target.value, 0, 0);
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
@@ -567,7 +572,7 @@ async function startGame() {
     for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
     }
-    updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(players[playerOrder[0]].drawn || {}, room.targetId, getRoomTarget(room).value);
+    updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(players[playerOrder[0]].drawn || {}, getRoomTarget(room).value, 0, 0);
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
@@ -693,7 +698,7 @@ async function rematchRoom() {
         history: [],
         lastRevealed: null,
         lastAction: null,
-        candidate: index === 0 ? pickCandidate({}, target.id, target.value) : null
+        candidate: index === 0 ? pickCandidate({}, target.value, 0, 0) : null
       }));
     });
 
@@ -742,7 +747,7 @@ function getPostEffectDelay(action, status) {
 
 function buildHitPayload(room, player) {
   const roomTarget = getRoomTarget(room);
-  const candidate = player.candidate || pickCandidate(player.drawn || {}, room.targetId, roomTarget.value);
+  const candidate = player.candidate || pickCandidate(player.drawn || {}, roomTarget.value, player.total || 0, player.hitCount || 0);
   const nextTotal = (player.total || 0) + candidate.population;
   const drawn = { ...(player.drawn || {}), [candidate.id]: true };
   const target = roomTarget.value;
@@ -1418,7 +1423,7 @@ function decideCpuAction(room, cpuPlayer) {
 function getIdealCpuAction(room, cpuPlayer) {
   const target = getRoomTarget(room).value;
   const currentTotal = cpuPlayer.total || 0;
-  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {}, room.targetId, target);
+  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {}, target, currentTotal, cpuPlayer.hitCount || 0);
   const nextTotal = currentTotal + candidate.population;
   const currentDiff = Math.abs(target - currentTotal);
   const nextDiff = Math.abs(target - nextTotal);
@@ -1541,7 +1546,7 @@ function buildRoomProgressUpdates(room, actedPlayerId) {
   const nextPlayer = room.players?.[nextPlayerId];
   if (nextPlayer && canPlay(nextPlayer) && !nextPlayer.candidate) {
     const target = getRoomTarget(room);
-    updates[`players/${nextPlayerId}/candidate`] = pickCandidate(nextPlayer.drawn || {}, room.targetId, target.value);
+    updates[`players/${nextPlayerId}/candidate`] = pickCandidate(nextPlayer.drawn || {}, target.value, nextPlayer.total || 0, nextPlayer.hitCount || 0);
   }
 
   return updates;
@@ -1612,45 +1617,57 @@ function makePlayer(name, status, options = {}) {
   };
 }
 
-function pickCandidate(drawn, targetId, targetValue) {
+function pickCandidate(drawn, targetValue, currentTotal, hitCount) {
   const available = MUNICIPALITIES.filter((item) => !drawn[item.id]);
   const pool = available.length > 0 ? available : MUNICIPALITIES;
-  return pickWeightedCandidate(pool, targetId, targetValue);
+  return pickWeightedCandidate(pool, targetValue, currentTotal, hitCount);
 }
 
-function pickWeightedCandidate(pool, targetId, targetValue) {
+function pickWeightedCandidate(pool, targetValue, currentTotal, hitCount) {
   const target = Number(targetValue || 0);
-  const underTargetPool = target > 0 ? pool.filter((item) => item.population <= target) : pool;
-  const overTargetPool = target > 0 ? pool.filter((item) => item.population > target) : [];
+  // 「TARGET以下=安全」ではなく「残り枠(TARGET-現在人口)以下=安全」で判定する。
+  // 現在人口を無視すると、終盤でも安全枠に大きなカードが残り続けてバーストが激増する。
+  const remaining = target - (currentTotal || 0);
+  const underTargetPool = remaining > 0 ? pool.filter((item) => item.population <= remaining) : [];
+  const overTargetPool = remaining > 0 ? pool.filter((item) => item.population > remaining) : pool;
+  const reference = getDrawReferencePopulation(target, currentTotal || 0, hitCount || 0);
 
   if (underTargetPool.length > 0 && overTargetPool.length > 0) {
-    return pickByCategoryWeight(Math.random() < OVER_TARGET_DRAW_RATE ? overTargetPool : underTargetPool, targetId);
+    return pickByPopulationWeight(Math.random() < OVER_TARGET_DRAW_RATE ? overTargetPool : underTargetPool, reference);
   }
 
-  return pickByCategoryWeight(underTargetPool.length > 0 ? underTargetPool : pool, targetId);
+  return pickByPopulationWeight(underTargetPool.length > 0 ? underTargetPool : pool, reference);
 }
 
-function pickByCategoryWeight(pool, targetId) {
-  const profile = DRAW_PROFILES[targetId] || DEFAULT_DRAW_PROFILE;
-  const categoryGroups = Object.keys(CATEGORY_LABELS)
-    .map((category) => ({
-      category,
-      items: pool.filter((item) => item.category === category),
-      weight: Number(profile[category] ?? DEFAULT_DRAW_PROFILE[category] ?? 0)
-    }))
-    .filter((entry) => entry.items.length > 0);
-  const totalWeight = categoryGroups.reduce((sum, entry) => sum + Math.max(0, entry.weight), 0);
+// 残り枠(TARGET-現在人口)÷残りターン数 に近い人口ほど引きやすくする基準値。
+// TARGETそのものに寄せると1枚で決着してしまい、残り枠を無視すると終盤も大味な
+// カードばかりになるため、進行に応じて基準値が縮んでいくようにしている。
+function getDrawReferencePopulation(targetValue, currentTotal, hitCount) {
+  const remaining = Math.max(1, targetValue - currentTotal);
+  const remainingTurns = Math.max(1, DRAW_REFERENCE_TURNS - hitCount);
+  return remaining / remainingTurns;
+}
+
+function populationDrawWeight(population, reference) {
+  const logDistance = Math.abs(Math.log(Math.max(1, population)) - Math.log(reference));
+  return Math.exp(-DRAW_DECAY_RATE * logDistance);
+}
+
+function pickByPopulationWeight(pool, reference) {
+  if (pool.length === 0) return null;
+
+  const weights = pool.map((item) => populationDrawWeight(item.population, reference));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
 
   if (totalWeight <= 0) return pool[Math.floor(Math.random() * pool.length)];
 
   let threshold = Math.random() * totalWeight;
-  for (const entry of categoryGroups) {
-    threshold -= Math.max(0, entry.weight);
-    if (threshold <= 0) return entry.items[Math.floor(Math.random() * entry.items.length)];
+  for (let i = 0; i < pool.length; i += 1) {
+    threshold -= weights[i];
+    if (threshold <= 0) return pool[i];
   }
 
-  const lastGroup = categoryGroups[categoryGroups.length - 1];
-  return lastGroup.items[Math.floor(Math.random() * lastGroup.items.length)];
+  return pool[pool.length - 1];
 }
 
 function getPlayerName(inputEl, defaultName) {
@@ -1812,7 +1829,7 @@ function hideGameStartIntro(immediate) {
 function renderDrawProfile(container, target, options = {}) {
   if (!container) return;
 
-  const rows = getEffectiveDrawRows(target.id, target.value);
+  const rows = getAdaptiveDrawBands(target.value);
   container.innerHTML = "";
 
   const title = document.createElement("h3");
@@ -1851,37 +1868,96 @@ function renderDrawProfile(container, target, options = {}) {
   container.append(title, note, list);
 }
 
-function getEffectiveDrawRows(targetId, targetValue) {
-  const target = Number(targetValue || 0);
-  const profile = DRAW_PROFILES[targetId] || DEFAULT_DRAW_PROFILE;
-  const categories = Object.keys(CATEGORY_LABELS);
-  const underWeights = Object.fromEntries(categories.map((category) => [category, 0]));
-  const overWeights = Object.fromEntries(categories.map((category) => [category, 0]));
+function formatManValue(value) {
+  const man = value / 10000;
+  return Number.isInteger(man) ? `${man}` : man.toFixed(1);
+}
 
-  for (const category of categories) {
-    const categoryItems = MUNICIPALITIES.filter((item) => item.category === category);
-    const underItems = categoryItems.filter((item) => target <= 0 || item.population <= target);
-    const overItems = categoryItems.filter((item) => target > 0 && item.population > target);
-    const weight = Number(profile[category] ?? DEFAULT_DRAW_PROFILE[category] ?? 0);
-    if (underItems.length > 0) underWeights[category] = weight;
-    if (overItems.length > 0) overWeights[category] = weight;
+function buildDrawBandLabel(lo, hi, isOpenUpper) {
+  if (isOpenUpper) return `${formatManValue(lo)}万人以上`;
+  if (lo <= 0) return `${formatManValue(hi)}万人未満`;
+  return `${formatManValue(lo)}万〜${formatManValue(hi)}万人未満`;
+}
+
+// 帯の幅に対して十分細かい「キリのいい」区切り単位を選ぶ。
+function niceBandUnit(width) {
+  const candidates = DRAW_BAND_LADDER.filter((unit) => unit <= width / 3);
+  return candidates.length > 0 ? candidates[candidates.length - 1] : DRAW_BAND_LADDER[0];
+}
+
+function niceBandMidpoint(lo, hi) {
+  const unit = niceBandUnit(hi - lo);
+  return Math.round((lo + hi) / 2 / unit) * unit;
+}
+
+function sumDrawWeight(items, lo, hi, reference) {
+  let sum = 0;
+  for (const item of items) {
+    if (item.population >= lo && item.population < hi) {
+      sum += populationDrawWeight(item.population, reference);
+    }
+  }
+  return sum;
+}
+
+// [lo, hi) の割合がDRAW_BAND_SHARE_CAPを超える限り、キリのいい数字で再帰的に分割する。
+function splitDrawBands(items, lo, hi, reference, totalWeight, depth) {
+  const weight = sumDrawWeight(items, lo, hi, reference);
+  const share = totalWeight > 0 ? weight / totalWeight : 0;
+
+  if (share <= DRAW_BAND_SHARE_CAP || depth >= DRAW_BAND_MAX_DEPTH || hi - lo <= 10000) {
+    return [{ lo, hi, weight }];
   }
 
-  const underTotal = Object.values(underWeights).reduce((sum, value) => sum + value, 0);
-  const overTotal = Object.values(overWeights).reduce((sum, value) => sum + value, 0);
-  const hasUnderAndOver = underTotal > 0 && overTotal > 0;
-  const underShare = hasUnderAndOver ? 100 - OVER_TARGET_DRAW_RATE * 100 : underTotal > 0 ? 100 : 0;
-  const overShare = hasUnderAndOver ? OVER_TARGET_DRAW_RATE * 100 : underTotal > 0 ? 0 : 100;
+  const mid = niceBandMidpoint(lo, hi);
+  if (mid <= lo || mid >= hi) return [{ lo, hi, weight }];
 
-  return categories.map((category) => {
-    const underPercent = underTotal > 0 ? (underWeights[category] / underTotal) * underShare : 0;
-    const overPercent = overTotal > 0 ? (overWeights[category] / overTotal) * overShare : 0;
-    return {
-      category,
-      label: CATEGORY_LABELS[category],
-      percent: underPercent + overPercent
-    };
-  });
+  return [
+    ...splitDrawBands(items, lo, mid, reference, totalWeight, depth + 1),
+    ...splitDrawBands(items, mid, hi, reference, totalWeight, depth + 1)
+  ];
+}
+
+// 「人口カード構成」表示用に、TARGETに応じて毎回キリのいい帯を組み立て直す。
+// ゲーム開始直後(現在人口0・0ターン目)を代表値として、その時点の抽選確率を表示する。
+// 内側の区切りはniceBandMidpointで丸めるが、TARGET以下/超の境界だけは実際のTARGET値を使う。
+function getAdaptiveDrawBands(targetValue) {
+  const target = Number(targetValue || 0);
+  if (target <= 0 || MUNICIPALITIES.length === 0) return [];
+
+  const reference = getDrawReferencePopulation(target, 0, 0);
+  const underItems = MUNICIPALITIES.filter((item) => item.population <= target);
+  const overItems = MUNICIPALITIES.filter((item) => item.population > target);
+  const maxPopulation = MUNICIPALITIES.reduce((max, item) => Math.max(max, item.population), target);
+
+  const hasUnder = underItems.length > 0;
+  const hasOver = overItems.length > 0;
+  const underShare = hasUnder && hasOver ? 1 - OVER_TARGET_DRAW_RATE : hasUnder ? 1 : 0;
+  const overShare = hasUnder && hasOver ? OVER_TARGET_DRAW_RATE : hasOver ? 1 : 0;
+
+  const rows = [];
+
+  if (hasUnder) {
+    const totalWeight = sumDrawWeight(underItems, 0, target, reference);
+    for (const band of splitDrawBands(underItems, 0, target, reference, totalWeight, 0)) {
+      const percent = totalWeight > 0 ? (band.weight / totalWeight) * underShare * 100 : 0;
+      if (percent <= 0) continue;
+      rows.push({ label: buildDrawBandLabel(band.lo, band.hi, false), percent });
+    }
+  }
+
+  if (hasOver) {
+    const upperBound = maxPopulation + 1;
+    const totalWeight = sumDrawWeight(overItems, target, upperBound, reference);
+    const bands = splitDrawBands(overItems, target, upperBound, reference, totalWeight, 0);
+    bands.forEach((band, index) => {
+      const percent = totalWeight > 0 ? (band.weight / totalWeight) * overShare * 100 : 0;
+      if (percent <= 0) return;
+      rows.push({ label: buildDrawBandLabel(band.lo, band.hi, index === bands.length - 1), percent });
+    });
+  }
+
+  return rows;
 }
 
 function makeCpuProfiles(cpuCount) {

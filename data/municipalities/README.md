@@ -15,14 +15,14 @@
 - `prefecture`: 都道府県
 - `municipality`: 市区町村名
 - `population`: 人口。半角数字、カンマなし
-- `category`: 抽選重みに使う人口帯
+- `category`: 対戦画面でのカード枠の色・記号（見た目）に使う人口帯。排出確率の計算には使わない（`population`とTARGETの数値から自動計算される）
 - `populationDate`: 人口の時点
 - `sourceName`: 出典名
 - `sourceUrl`: 出典URL
 
 ## カテゴリ
 
-カテゴリはゲームバランス用の人口帯です。あとで人口値から再分類できます。
+カテゴリはカード見た目用の人口帯です。あとで人口値から再分類できます。排出確率には影響しません（仕組みはトップの `README.md` の「排出確率の仕組み」を参照）。
 
 - `village_town`: 5万人未満
 - `small_city`: 5万人以上10万人未満

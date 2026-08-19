@@ -122,7 +122,7 @@ Firebase CLIは前提にしていません。
 - `app.js`: ゲーム処理とFirebase連携
 - `data/municipalities/`: 市区町村人口カードのデータ
 - `data/municipalities/municipalities.csv`: 収集・確認用の市区町村人口CSV
-- `data/municipalities/municipalities.js`: アプリが読み込む人口カードと抽選重み
+- `data/municipalities/municipalities.js`: アプリが読み込む人口カードのデータ（排出確率はTARGETから自動計算するため、このファイルには含まない）
 - `config-loader.js`: Firebase設定の実行時読み込み
 - `firebase-config.example.js`: Firebase設定ファイルのテンプレート
 - `firebase-config.js`: Firebaseプロジェクト設定（ローカル作成、Git管理対象外）
@@ -233,7 +233,7 @@ CPU戦を試す場合は、トップ画面で「CPU戦をする」を選びま�
 
 人口カードは `data/municipalities/` に分離しています。全国の市区町村2,220件（総務省「住民基本台帳に基づく人口、人口動態及び世帯数調査」令和8年1月1日現在）を収録しています。政令指定都市の区や東京都特別区も個別の1件として含まれます。
 
-カテゴリはゲームバランス用の人口帯です。
+`category` は対戦画面でのカード枠の色・記号（見た目）を決める人口帯で、下記の排出確率の計算には使いません。
 
 | category | 人口帯 |
 | --- | --- |
@@ -244,13 +244,19 @@ CPU戦を試す場合は、トップ画面で「CPU戦をする」を選びま�
 | `major_city` | 30万人以上70万人未満 |
 | `ordinance_city` | 70万人以上 |
 
-TARGETごとの排出確率は、カードごとではなくカテゴリごとの重みで調整します。たとえば `NTT DATAグループ社員数` は `mid_city` を出やすくし、`NTT株式会社の株主数` は `ordinance_city` を出やすくしています。
+### 排出確率の仕組み
 
-`large_city` と `major_city` は、6つのTARGETのうち4つ（NTT DATAグループ社員数〜東京都江東区人口）がまたがる帯です。もともとは20万〜70万人未満をひとつの `large_city` として扱っていましたが、TARGETごとの駆け引きの解像度を上げるため30万人で二分割しています。
+TARGETごとに排出表を手作りするのではなく、市区町村1件ごとの人口とTARGETとの近さから毎回自動計算しています。
+
+1. 基準値 = (TARGET − 現在人口) ÷ 残りターン数の目安（既定3ターン）を計算する
+2. 基準値に人口が近い市区町村ほど引きやすくなる（対数距離に対する指数関数で減衰）
+3. 「現在人口に足してもTARGETを超えない人口」から99%、「超えてしまう人口」から1%の確率で選ぶ
+
+現在人口とHIT回数から基準値を毎ターン計算し直すため、序盤は大きめ、終盤は細かい人口のカードが出やすくなります。新しいTARGETを数値だけ追加しても、この計算式がそのまま働くので、TARGETごとの排出比率を個別に作り直す必要はありません。事前画面の「人口カード構成」も、この計算からTARGETごとに毎回キリのいい数字で組み立て直しています。
 
 ### 人口データの更新方法
 
-`data/municipalities/municipalities.csv` が収集・確認用の元データ、`data/municipalities/municipalities.js` がアプリの読み込む配信用データです。より新しい時点の統計に更新する場合は、同じ列構成（詳細は `data/municipalities/README.md`）でCSVを作り直し、`municipalities.js` の `MUNICIPALITIES` 配列を差し替えてください。`DRAW_PROFILES` / `DEFAULT_DRAW_PROFILE`（カテゴリ別の抽選重み）はデータの差し替えと独立しているため、通常はそのままで問題ありません。
+`data/municipalities/municipalities.csv` が収集・確認用の元データ、`data/municipalities/municipalities.js` がアプリの読み込む配信用データです。より新しい時点の統計に更新する場合は、同じ列構成（詳細は `data/municipalities/README.md`）でCSVを作り直し、`municipalities.js` の `MUNICIPALITIES` 配列を差し替えてください。排出確率はTARGETの数値と各市区町村の `population` から自動計算されるため、データを差し替えても排出比率を個別に調整する必要はありません。
 
 CSVでは最低限、次の列を埋めます。
 
