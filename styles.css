@@ -871,6 +871,66 @@ label input {
   font-size: clamp(1rem, 2vw, 1.2rem);
 }
 
+.game-start-intro-actions {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.game-start-intro-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.game-start-confirmation-list {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 8px;
+}
+
+.game-start-confirmation-player {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.game-start-confirmation-player.confirmed {
+  border-color: var(--gold);
+  background: var(--primary-soft);
+}
+
+.game-start-confirmation-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.game-start-confirmation-state {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.game-start-confirmation-player.confirmed .game-start-confirmation-state {
+  color: var(--gold-bright);
+}
+
+.game-start-intro-actions button {
+  min-width: 160px;
+}
+
 @keyframes introBackdropIn {
   from {
     opacity: 0;
