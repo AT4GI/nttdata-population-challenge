@@ -26,7 +26,6 @@ const DRAW_BAND_SHARE_CAP = 0.25;
 const DRAW_BAND_MAX_DEPTH = 5;
 // 帯を分割するときに使う「キリのいい」区切り単位（人）。帯の幅に対して十分細かいものを自動選択する。
 const DRAW_BAND_LADDER = [10000, 20000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000];
-const GAME_START_INTRO_MS = 3500;
 const PLAYER_COLOR_COUNT = 5;
 const MAX_BATTLE_COMMENTS = 50;
 const BAR_FILL_MS = 2000;
@@ -288,6 +287,9 @@ const els = {
   gameStartIntro: document.querySelector("#gameStartIntro"),
   gameStartIntroRule: document.querySelector("#gameStartIntroRule"),
   gameStartIntroProfile: document.querySelector("#gameStartIntroProfile"),
+  gameStartIntroStatus: document.querySelector("#gameStartIntroStatus"),
+  gameStartIntroConfirmationList: document.querySelector("#gameStartIntroConfirmationList"),
+  gameStartIntroOkButton: document.querySelector("#gameStartIntroOkButton"),
   playersList: document.querySelector("#playersList"),
   itemPanel: document.querySelector("#itemPanel"),
   itemName: document.querySelector("#itemName"),
@@ -328,7 +330,7 @@ let rouletteTimer = null;
 let lastProfileRoomKey = "";
 let lastResultKey = "";
 let actionPending = false;
-let gameStartIntroTimer = null;
+let gameStartIntroHideTimer = null;
 let gameStartIntroVisible = false;
 let lastProgressPlayerId = "";
 let audioCtx = null;
@@ -337,6 +339,7 @@ let bgmScheduler = null;
 let bgmNextStepAt = 0;
 let bgmStep = 0;
 let currentRoomStatus = "waiting";
+let currentRoomCanPlay = false;
 let commentPending = false;
 let soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
 let shareResultTimeoutId = null;
@@ -361,6 +364,7 @@ els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
 els.readyButton.addEventListener("click", toggleReady);
+els.gameStartIntroOkButton.addEventListener("click", confirmGameStart);
 els.goHomeButton.addEventListener("click", goHome);
 els.copyRoomCodeButton.addEventListener("click", copyRoomCode);
 els.hitButton.addEventListener("click", hit);
@@ -590,6 +594,8 @@ async function createCpuRoom(selectedTarget = null) {
       hideTarget: els.cpuHideTargetCheckbox.checked,
       itemMode,
       status: "playing",
+      startConfirmationRequired: true,
+      startConfirmations: null,
       maxPlayers: MAX_PLAYERS,
       turnIndex: 0,
       turnAdvancing: false,
@@ -680,6 +686,8 @@ async function startGame() {
 
     const updates = {
       status: "playing",
+      startConfirmationRequired: true,
+      startConfirmations: null,
       startedAt: serverTimestamp(),
       turnIndex: 0,
       playerOrder,
@@ -814,6 +822,8 @@ async function rematchRoom() {
     const playerOrder = getPlayerOrder(room);
     const updates = {
       status: "playing",
+      startConfirmationRequired: true,
+      startConfirmations: null,
       result: null,
       turnIndex: 0,
       turnAdvancing: false,
@@ -1108,6 +1118,7 @@ async function finishRoomIfNeeded() {
 
 function renderRoom(room) {
   currentRoomStatus = room.status || "waiting";
+  currentRoomCanPlay = room.status === "playing" && areGameStartConfirmationsComplete(room);
   syncBgm();
   const players = room.players || {};
   const playerIds = getDisplayPlayerIds(room);
@@ -1125,14 +1136,21 @@ function renderRoom(room) {
   const hideTarget = isTargetHidden(room);
   const targetDisplay = hideTarget ? "？？？？？？人" : `${formatNumber(target.value)}人`;
 
-  els.roomState.textContent = room.status === "finished" ? "終了" : room.status === "playing" ? "ゲーム開始" : "待機中";
+  const isStartConfirming = room.status === "playing" && !areGameStartConfirmationsComplete(room);
+  els.roomState.textContent = room.status === "finished" ? "終了" : isStartConfirming ? "開始確認中" : room.status === "playing" ? "ゲーム開始" : "待機中";
   els.capacityLabel.textContent = room.status === "waiting" ? `${playerIds.length}人参加中` : `${playerIds.length}人プレイ`;
-  els.turnLabel.textContent = room.status === "playing" ? (room.turnAdvancing ? "結果確認中" : `${turnPlayer?.name || "不明"}さんの番`) : "開始前";
-  els.turnBanner.textContent = room.status === "playing"
-    ? room.turnAdvancing
-      ? `${turnPlayer?.name || "不明"}さんの結果を確認中… / TARGET ${targetDisplay}`
-      : `${turnPlayer?.name || "不明"}さんのターン / TARGET ${targetDisplay}`
-    : `ゲーム開始前 / TARGET ${targetDisplay}`;
+  els.turnLabel.textContent = isStartConfirming
+    ? "全員のOK待ち"
+    : room.status === "playing"
+      ? (room.turnAdvancing ? "結果確認中" : `${turnPlayer?.name || "不明"}さんの番`)
+      : "開始前";
+  els.turnBanner.textContent = isStartConfirming
+    ? `全員のOK待ち / TARGET ${targetDisplay}`
+    : room.status === "playing"
+      ? room.turnAdvancing
+        ? `${turnPlayer?.name || "不明"}さんの結果を確認中… / TARGET ${targetDisplay}`
+        : `${turnPlayer?.name || "不明"}さんのターン / TARGET ${targetDisplay}`
+      : `ゲーム開始前 / TARGET ${targetDisplay}`;
   els.roomCodeLabel.textContent = room.status === "waiting" ? "部屋ID" : "共有用 部屋ID";
   els.roomCode.classList.toggle("compact", room.status !== "waiting");
   els.roomPanel.classList.toggle("hidden", room.status !== "waiting");
@@ -1635,7 +1653,7 @@ function scheduleBgmStep(ctx, step, start) {
 }
 
 function runBgmScheduler() {
-  if (!audioCtx || !bgmGain || soundMuted || currentRoomStatus !== "playing") return;
+  if (!audioCtx || !bgmGain || soundMuted || !currentRoomCanPlay) return;
   while (bgmNextStepAt < audioCtx.currentTime + BGM_LOOKAHEAD_SECONDS) {
     scheduleBgmStep(audioCtx, bgmStep, bgmNextStepAt);
     bgmStep = (bgmStep + 1) % 16;
@@ -1644,7 +1662,7 @@ function runBgmScheduler() {
 }
 
 function startBgm() {
-  if (soundMuted || currentRoomStatus !== "playing" || bgmScheduler) return;
+  if (soundMuted || !currentRoomCanPlay || bgmScheduler) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   bgmGain = ctx.createGain();
@@ -1669,7 +1687,7 @@ function stopBgm() {
 }
 
 function syncBgm() {
-  if (!soundMuted && currentRoomStatus === "playing") startBgm();
+  if (!soundMuted && currentRoomCanPlay) startBgm();
   else stopBgm();
 }
 
@@ -1931,7 +1949,11 @@ function getNextTurnIndex(room, actedPlayerId) {
 }
 
 function canTakeTurn(room, playerId) {
-  return room?.status === "playing" && !room.turnAdvancing && canPlay(room.players?.[playerId]) && getCurrentTurnPlayerId(room) === playerId;
+  return room?.status === "playing"
+    && areGameStartConfirmationsComplete(room)
+    && !room.turnAdvancing
+    && canPlay(room.players?.[playerId])
+    && getCurrentTurnPlayerId(room) === playerId;
 }
 
 function getCurrentTurnPlayerId(room) {
@@ -1988,6 +2010,29 @@ async function toggleReady() {
     const me = room.players?.[currentPlayerId];
     if (!me) return;
     await update(ref(db, `rooms/${currentRoomId}/players/${currentPlayerId}`), { ready: !me.ready });
+  });
+}
+
+function getGameStartConfirmationPlayerIds(room) {
+  if (room?.startConfirmationRequired !== true) return [];
+  return getStartedPlayerIds(room).filter((playerId) => room.players?.[playerId]?.type !== "cpu");
+}
+
+function areGameStartConfirmationsComplete(room) {
+  if (room?.startConfirmationRequired !== true) return true;
+  const playerIds = getGameStartConfirmationPlayerIds(room);
+  if (playerIds.length === 0) return true;
+  return playerIds.every((playerId) => room.startConfirmations?.[playerId] === true);
+}
+
+async function confirmGameStart() {
+  await runGameAction(async () => {
+    const room = await getCurrentRoom();
+    if (!room || room.status !== "playing" || room.startConfirmationRequired !== true) return;
+    if (!getGameStartConfirmationPlayerIds(room).includes(currentPlayerId)) return;
+    if (room.startConfirmations?.[currentPlayerId] === true) return;
+
+    await set(ref(db, `rooms/${currentRoomId}/startConfirmations/${currentPlayerId}`), true);
   });
 }
 
@@ -2167,8 +2212,10 @@ function renderDrawProfileNotice(room, target) {
     if (profileKey !== lastProfileRoomKey) {
       lastProfileRoomKey = profileKey;
       renderDrawProfile(els.drawProfileText, target);
-      showGameStartIntro(room, target);
+      renderDrawProfile(els.gameStartIntroProfile, target);
+      renderGameStartIntroRule(room, target);
     }
+    syncGameStartIntro(room);
     return;
   }
 
@@ -2177,14 +2224,61 @@ function renderDrawProfileNotice(room, target) {
   hideGameStartIntro(true);
 }
 
-function showGameStartIntro(room, target) {
-  if (!els.gameStartIntro || !els.gameStartIntroProfile) return;
-  renderDrawProfile(els.gameStartIntroProfile, target);
-  renderGameStartIntroRule(room, target);
-  window.clearTimeout(gameStartIntroTimer);
+function syncGameStartIntro(room) {
+  if (!els.gameStartIntro || !els.gameStartIntroOkButton || !els.gameStartIntroStatus) return;
+
+  if (room.startConfirmationRequired !== true || areGameStartConfirmationsComplete(room)) {
+    if (gameStartIntroVisible) hideGameStartIntro(false);
+    return;
+  }
+
+  const playerIds = getGameStartConfirmationPlayerIds(room);
+  const confirmedCount = playerIds.filter((playerId) => room.startConfirmations?.[playerId] === true).length;
+  const meConfirmed = room.startConfirmations?.[currentPlayerId] === true;
+  const canConfirm = playerIds.includes(currentPlayerId);
+
+  els.gameStartIntroStatus.textContent = meConfirmed
+    ? `あなたはOK済みです。ほかの参加者を待っています（${confirmedCount} / ${playerIds.length}人）`
+    : `${confirmedCount} / ${playerIds.length}人がOK`;
+  renderGameStartConfirmationList(room, playerIds);
+  els.gameStartIntroOkButton.textContent = meConfirmed ? "OK済み" : "OK";
+  els.gameStartIntroOkButton.disabled = !canConfirm || meConfirmed;
+
+  showGameStartIntro();
+}
+
+function renderGameStartConfirmationList(room, playerIds) {
+  if (!els.gameStartIntroConfirmationList) return;
+
+  els.gameStartIntroConfirmationList.replaceChildren();
+
+  for (const playerId of playerIds) {
+    const player = room.players?.[playerId];
+    if (!player) continue;
+
+    const confirmed = room.startConfirmations?.[playerId] === true;
+    const row = document.createElement("div");
+    row.className = `game-start-confirmation-player ${confirmed ? "confirmed" : "waiting"}`;
+
+    const name = document.createElement("span");
+    name.className = "game-start-confirmation-name";
+    name.textContent = `${player.name || "参加者"}${playerId === currentPlayerId ? "（あなた）" : ""}`;
+
+    const status = document.createElement("span");
+    status.className = "game-start-confirmation-state";
+    status.textContent = confirmed ? "✓ OK" : "待機中";
+
+    row.append(name, status);
+    els.gameStartIntroConfirmationList.append(row);
+  }
+}
+
+function showGameStartIntro() {
+  if (!els.gameStartIntro) return;
+  window.clearTimeout(gameStartIntroHideTimer);
+  gameStartIntroHideTimer = null;
   els.gameStartIntro.classList.remove("hidden", "fade-out");
   gameStartIntroVisible = true;
-  gameStartIntroTimer = window.setTimeout(() => hideGameStartIntro(false), GAME_START_INTRO_MS);
 }
 
 function renderGameStartIntroRule(room, target) {
@@ -2199,8 +2293,8 @@ function renderGameStartIntroRule(room, target) {
 
 function hideGameStartIntro(immediate) {
   if (!els.gameStartIntro) return;
-  window.clearTimeout(gameStartIntroTimer);
-  gameStartIntroTimer = null;
+  window.clearTimeout(gameStartIntroHideTimer);
+  gameStartIntroHideTimer = null;
   gameStartIntroVisible = false;
   if (els.gameStartIntro.classList.contains("hidden")) return;
 
@@ -2211,7 +2305,11 @@ function hideGameStartIntro(immediate) {
   }
 
   els.gameStartIntro.classList.add("fade-out");
-  window.setTimeout(() => els.gameStartIntro.classList.add("hidden"), 450);
+  gameStartIntroHideTimer = window.setTimeout(() => {
+    els.gameStartIntro.classList.add("hidden");
+    els.gameStartIntro.classList.remove("fade-out");
+    gameStartIntroHideTimer = null;
+  }, 450);
 }
 
 function renderDrawProfile(container, target, options = {}) {
@@ -2448,6 +2546,9 @@ function buildMyStatus(player, room) {
   if (player.status === "just") return "JUST：TARGETと完全一致";
   if (player.status === "stand") return hideTarget ? "STAND：結果を待っています" : `STAND：TARGETまで${formatNumber(target - player.total)}人`;
   if (player.status === "active") {
+    if (room.status === "playing" && !areGameStartConfirmationsComplete(room)) {
+      return "全員のOKを待っています。";
+    }
     if (room.status === "playing" && getCurrentTurnPlayerId(room) !== currentPlayerId) {
       const turnPlayer = room.players?.[getCurrentTurnPlayerId(room)];
       return hideTarget

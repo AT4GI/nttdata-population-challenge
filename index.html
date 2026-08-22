@@ -137,12 +137,13 @@
               <li>表示された部屋IDを友達に共有します。</li>
               <li>友達は同じURLを開き、表示名と部屋IDを入れて参加します。</li>
               <li>2人以上そろい、参加者全員が「準備OK」を押すと、ホストが「ゲーム開始」を押せるようになります。</li>
+              <li>人口カード構成を確認し、参加者全員が「OK」を押すとゲームが始まります。</li>
             </ol>
           </section>
           <section class="guide-block" aria-labelledby="cpuTitle">
             <h2 id="cpuTitle">一人で遊ぶ</h2>
             <ul>
-              <li>CPU戦では、CPU人数を1〜4人から選んですぐに始められます。</li>
+              <li>CPU戦では、CPU人数を1〜4人から選び、人口カード構成を確認して「OK」を押すと始まります。</li>
               <li>CPUは自分の番になると、少し考えてから自動でHITかSTANDを選びます。</li>
             </ul>
           </section>
@@ -305,6 +306,11 @@
         <p class="label">GAME START</p>
         <p id="gameStartIntroRule" class="game-start-intro-rule"></p>
         <div id="gameStartIntroProfile"></div>
+        <div class="game-start-intro-actions">
+          <p id="gameStartIntroStatus" class="game-start-intro-status">参加者の確認を待っています。</p>
+          <div id="gameStartIntroConfirmationList" class="game-start-confirmation-list" aria-live="polite"></div>
+          <button id="gameStartIntroOkButton" type="button">OK</button>
+        </div>
       </div>
     </div>
 
