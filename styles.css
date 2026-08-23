@@ -2,7 +2,7 @@ body {
   background-color: #0F172A;
   color: #FFFFFF;
   text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
-  font-family: "Shippori Mincho", "Noto Serif JP", serif;
+  font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
 }
 
 :root {
@@ -40,10 +40,10 @@ body {
   --idle: #334155; /* 深緑の原因だった待機色を、洗練されたスレートグレーに変更 */
   --shadow: rgba(0, 0, 0, 0.55);
 
-  /* 5. フォント（信頼感のある明朝体） */
-  --font-display: "Shippori Mincho", "Noto Serif JP", "Cinzel", serif;
-  --font-digital: "Orbitron", "Yu Gothic UI", "Meiryo", sans-serif;
-  --font-body: "Shippori Mincho", "Noto Serif JP", "Segoe UI", sans-serif;
+  /* 5. フォント（端末を問わず読みやすいゴシック体＋等幅数字） */
+  --font-display: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-digital: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  --font-body: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
   font-family: var(--font-body);
 }
 
