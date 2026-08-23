@@ -12,6 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 import { loadFirebaseConfig } from "./config-loader.js";
 import { MUNICIPALITIES } from "./data/municipalities/municipalities.js";
+import { MUNICIPALITY_MAP_POINTS, PREFECTURE_MAPS } from "./data/maps/prefecture-map-data.js";
 
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
@@ -277,6 +278,7 @@ const els = {
   candidateBox: document.querySelector("#candidateBox"),
   confettiLayer: document.querySelector("#confettiLayer"),
   burstFlash: document.querySelector("#burstFlash"),
+  candidateMapSlot: document.querySelector("#candidateMapSlot"),
   candidateTierLabel: document.querySelector("#candidateTierLabel"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
@@ -1216,6 +1218,7 @@ function renderRoom(room) {
       ? focusPlayer.lastRevealed.category
       : null;
   updateCandidateCard(revealCategory, isCandidateMasked);
+  updateCandidateMap(isCandidateMasked ? candidate : focusPlayer?.lastRevealed || null);
   updateTargetProgress(room, focusPlayer, target, focusPlayerId);
 
   els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
@@ -1535,6 +1538,44 @@ function updateCandidateCard(category, masked) {
     if (els.candidateTierLabel) els.candidateTierLabel.textContent = "STANDBY";
   }
   els.candidateBox.classList.toggle("masked", masked);
+}
+
+function updateCandidateMap(candidate) {
+  if (!els.candidateMapSlot) return;
+  const municipalityCode = candidate?.id?.slice(0, 5);
+  const prefectureCode = municipalityCode?.slice(0, 2);
+  const map = prefectureCode ? PREFECTURE_MAPS[prefectureCode] : null;
+  const point = municipalityCode ? MUNICIPALITY_MAP_POINTS[municipalityCode] : null;
+
+  els.candidateMapSlot.replaceChildren();
+  els.candidateMapSlot.classList.toggle("has-map", Boolean(map && point));
+  if (!map || !point) return;
+
+  const svgNamespace = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNamespace, "svg");
+  svg.setAttribute("viewBox", map.viewBox);
+  svg.setAttribute("role", "presentation");
+  svg.classList.add("candidate-prefecture-map");
+
+  const outline = document.createElementNS(svgNamespace, "path");
+  outline.setAttribute("d", map.path);
+  outline.setAttribute("fill-rule", "evenodd");
+  outline.classList.add("candidate-prefecture-outline");
+
+  const pointHalo = document.createElementNS(svgNamespace, "circle");
+  pointHalo.setAttribute("cx", point[0]);
+  pointHalo.setAttribute("cy", point[1]);
+  pointHalo.setAttribute("r", "7");
+  pointHalo.classList.add("candidate-map-point-halo");
+
+  const pointCore = document.createElementNS(svgNamespace, "circle");
+  pointCore.setAttribute("cx", point[0]);
+  pointCore.setAttribute("cy", point[1]);
+  pointCore.setAttribute("r", "3.2");
+  pointCore.classList.add("candidate-map-point");
+
+  svg.append(outline, pointHalo, pointCore);
+  els.candidateMapSlot.append(svg);
 }
 
 function updateTargetProgress(room, player, target, playerId) {
