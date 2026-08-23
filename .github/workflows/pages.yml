@@ -35,7 +35,7 @@ jobs:
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
         run: |
           mkdir site
-          cp index.html styles.css app.js config-loader.js site/
+          cp index.html styles.css app.js config-loader.js bg-sky.png site/
           cp -R data site/
           node <<'NODE'
           const fs = require("node:fs");
