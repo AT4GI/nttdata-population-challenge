@@ -296,7 +296,7 @@ FIREBASE_APP_ID
 
 3. `main` ブランチへpushするか、Actionsから `Deploy GitHub Pages` を手動実行します。
 
-ワークフローはデプロイ時にだけ `firebase-config.js` を生成し、`index.html`、`styles.css`、`app.js`、`config-loader.js` と一緒にPagesへアップロードします。Secretsが不足している場合、デプロイは失敗します。
+ワークフローはデプロイ時にだけ `firebase-config.js` を生成し、`index.html`、`styles.css`、`app.js`、`config-loader.js`、`bg-sky.png` と一緒にPagesへアップロードします。Secretsが不足している場合、デプロイは失敗します。
 
 GitHub Pagesで公開した場合も、Firebase Realtime Database RulesはFirebase Console側で設定してください。GitHub Actions SecretsにはFirebase Webアプリ設定値だけを入れ、サービスアカウント鍵や秘密鍵は入れないでください。
 
