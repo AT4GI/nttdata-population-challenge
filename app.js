@@ -54,6 +54,7 @@ const CATEGORY_SUITS = {
 const TIER_CLASSES = Object.keys(CATEGORY_LABELS).map((category) => `tier-${category}`);
 const CONFETTI_COLORS = ["#d4af37", "#f5da7a", "#37d38f", "#fff6da"];
 const SOUND_MUTED_KEY = "populationBlackjackSoundMuted";
+const BGM_MASTER_VOLUME = 0.22;
 const BGM_STEP_SECONDS = 0.3;
 const BGM_LOOKAHEAD_SECONDS = 0.6;
 const BGM_BASS_NOTES = [55, 55, 65.41, 49];
@@ -1616,6 +1617,7 @@ function unlockAudio() {
   try {
     const ctx = getAudioContext();
     if (ctx?.state === "suspended") void ctx.resume();
+    syncBgm();
   } catch (error) {
     // Web Audioが使えない環境では無音でフォールバックする
   }
@@ -1653,7 +1655,7 @@ function scheduleBgmStep(ctx, step, start) {
 }
 
 function runBgmScheduler() {
-  if (!audioCtx || !bgmGain || soundMuted || !currentRoomCanPlay) return;
+  if (!audioCtx || !bgmGain || soundMuted || !shouldPlayBgm()) return;
   while (bgmNextStepAt < audioCtx.currentTime + BGM_LOOKAHEAD_SECONDS) {
     scheduleBgmStep(audioCtx, bgmStep, bgmNextStepAt);
     bgmStep = (bgmStep + 1) % 16;
@@ -1662,11 +1664,11 @@ function runBgmScheduler() {
 }
 
 function startBgm() {
-  if (soundMuted || !currentRoomCanPlay || bgmScheduler) return;
+  if (soundMuted || !shouldPlayBgm() || bgmScheduler) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   bgmGain = ctx.createGain();
-  bgmGain.gain.setValueAtTime(0.055, ctx.currentTime);
+  bgmGain.gain.setValueAtTime(BGM_MASTER_VOLUME, ctx.currentTime);
   bgmGain.connect(ctx.destination);
   bgmStep = 0;
   bgmNextStepAt = ctx.currentTime + 0.08;
@@ -1687,8 +1689,13 @@ function stopBgm() {
 }
 
 function syncBgm() {
-  if (!soundMuted && currentRoomCanPlay) startBgm();
+  if (!soundMuted && shouldPlayBgm()) startBgm();
   else stopBgm();
+}
+
+function shouldPlayBgm() {
+  const isHomeVisible = !els.setupView.classList.contains("hidden");
+  return !sharedResultId && (isHomeVisible || currentRoomCanPlay);
 }
 
 function playTone(ctx, { freq, start, duration, type = "sine", volume = 0.16 }) {
