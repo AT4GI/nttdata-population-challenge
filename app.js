@@ -277,6 +277,7 @@ const els = {
   candidateBox: document.querySelector("#candidateBox"),
   confettiLayer: document.querySelector("#confettiLayer"),
   burstFlash: document.querySelector("#burstFlash"),
+  candidateTierLabel: document.querySelector("#candidateTierLabel"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
@@ -1528,8 +1529,10 @@ function updateCandidateCard(category, masked) {
   if (category && CATEGORY_LABELS[category]) {
     els.candidateBox.classList.add(`tier-${category}`);
     els.candidateBox.dataset.suit = CATEGORY_SUITS[category] || "";
+    if (els.candidateTierLabel) els.candidateTierLabel.textContent = CATEGORY_LABELS[category];
   } else {
     els.candidateBox.dataset.suit = "";
+    if (els.candidateTierLabel) els.candidateTierLabel.textContent = "STANDBY";
   }
   els.candidateBox.classList.toggle("masked", masked);
 }
