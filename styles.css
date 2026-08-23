@@ -612,18 +612,102 @@ label input {
 
 .candidate-box {
   position: relative;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  min-height: 220px;
-  padding: 26px 24px;
+  isolation: isolate;
+  border: 1px solid rgba(56, 189, 248, 0.52);
+  border-radius: 18px;
+  min-height: 260px;
+  padding: 28px;
   display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(130px, 0.75fr);
+  gap: 24px;
   align-content: center;
   background:
-    radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.08), transparent 55%),
-    linear-gradient(180deg, #182a20, #0e1b14);
-  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.08), inset 0 24px 48px rgba(0, 0, 0, 0.35);
+    linear-gradient(rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.18), transparent 34%),
+    radial-gradient(circle at 92% 82%, rgba(168, 85, 247, 0.14), transparent 38%),
+    linear-gradient(145deg, rgba(10, 35, 63, 0.98), rgba(5, 18, 36, 0.98));
+  background-size: 28px 28px, 28px 28px, auto, auto, auto;
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 211, 252, 0.08),
+    inset 0 24px 60px rgba(56, 189, 248, 0.04),
+    0 18px 44px rgba(2, 8, 23, 0.38),
+    0 0 24px rgba(56, 189, 248, 0.08);
   perspective: 900px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.candidate-box::selection {
+  background: rgba(56, 189, 248, 0.35);
+}
+
+.candidate-card-copy {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  align-self: center;
+}
+
+.candidate-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.candidate-card-meta .label {
+  margin: 0;
+  color: #bae6fd;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+}
+
+.candidate-tier-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: rgba(14, 165, 233, 0.1);
+  color: #e0f2fe;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.candidate-map-slot {
+  position: relative;
+  z-index: 1;
+  min-height: 176px;
+  align-self: center;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 38% 38%, rgba(56, 189, 248, 0.14) 0 2px, transparent 3px),
+    radial-gradient(circle at 65% 62%, rgba(192, 132, 252, 0.13) 0 2px, transparent 3px),
+    linear-gradient(135deg, rgba(56, 189, 248, 0.055), rgba(168, 85, 247, 0.035));
+}
+
+.candidate-map-slot::before,
+.candidate-map-slot::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(125, 211, 252, 0.12);
+  border-radius: 46% 54% 58% 42%;
+  transform: rotate(-14deg);
+}
+
+.candidate-map-slot::before {
+  inset: 22% 16%;
+}
+
+.candidate-map-slot::after {
+  inset: 34% 27%;
+  border-color: rgba(192, 132, 252, 0.13);
+  transform: rotate(18deg);
 }
 
 .candidate-box::before,
@@ -639,15 +723,14 @@ label input {
 
 .candidate-box::before {
   content: attr(data-suit);
-  top: 12px;
-  left: 14px;
+  z-index: 3;
+  top: 16px;
+  right: 18px;
+  left: auto;
 }
 
 .candidate-box::after {
-  content: attr(data-suit);
-  bottom: 12px;
-  right: 14px;
-  transform: rotate(180deg);
+  display: none;
 }
 
 .candidate-box[data-suit]:not([data-suit=""])::before,
@@ -755,21 +838,36 @@ label input {
 }
 
 .candidate-box h2 {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-family: var(--font-display);
-  font-size: clamp(1.8rem, 5vw, 3.2rem);
-  line-height: 1.1;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0.02em;
   color: var(--ink);
+  text-shadow: 0 0 24px rgba(125, 211, 252, 0.16);
 }
 
 .candidate-box p {
   margin-bottom: 8px;
 }
 
+.candidate-prefecture {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .unknown {
-  color: var(--gold);
+  width: fit-content;
+  margin: 22px 0 0 !important;
+  border-top: 1px solid rgba(125, 211, 252, 0.25);
+  padding-top: 14px;
+  color: #7dd3fc;
+  font-size: clamp(1rem, 2.3vw, 1.3rem);
   font-weight: 700;
   font-family: var(--font-digital);
+  letter-spacing: 0.025em;
 }
 
 .players-panel h2,
@@ -1937,12 +2035,40 @@ body {
 
   .candidate-box {
     min-height: 180px;
-    padding: 22px 18px;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    gap: 14px;
+    padding: 20px 18px;
   }
 
   .candidate-box h2 {
     font-size: clamp(1.5rem, 8vw, 2.35rem);
     overflow-wrap: anywhere;
+  }
+
+  .candidate-card-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 16px;
+  }
+
+  .candidate-card-meta .label {
+    font-size: 0.62rem;
+  }
+
+  .candidate-map-slot {
+    min-height: 140px;
+    border-radius: 12px;
+  }
+
+  .candidate-prefecture {
+    font-size: 0.8rem;
+  }
+
+  .unknown {
+    margin-top: 16px !important;
+    padding-top: 10px;
+    font-size: 0.92rem;
   }
 
   .button-row {
@@ -2020,6 +2146,26 @@ body {
 
   .score-row {
     grid-template-columns: 1fr 0.55fr;
+  }
+
+  .candidate-box {
+    grid-template-columns: 1fr;
+    min-height: 220px;
+  }
+
+  .candidate-card-copy {
+    padding-right: 42px;
+  }
+
+  .candidate-map-slot {
+    position: absolute;
+    z-index: 0;
+    top: 18px;
+    right: 14px;
+    bottom: 18px;
+    width: 38%;
+    min-height: 0;
+    opacity: 0.42;
   }
 
   .draw-profile-row,

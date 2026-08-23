@@ -208,10 +208,16 @@
           </div>
 
           <div class="candidate-box" id="candidateBox">
-            <p class="label" id="candidateTitle">次の市区町村</p>
-            <h2 id="candidateName">待機中</h2>
-            <p id="candidatePrefecture">2人以上そろったら開始できます</p>
-            <p class="unknown" id="candidatePopulation">人口：?????</p>
+            <div class="candidate-card-copy">
+              <div class="candidate-card-meta">
+                <p class="label" id="candidateTitle">CITY DATA / 次の市区町村</p>
+                <span class="candidate-tier-label" id="candidateTierLabel">STANDBY</span>
+              </div>
+              <h2 id="candidateName">待機中</h2>
+              <p class="candidate-prefecture" id="candidatePrefecture">2人以上そろったら開始できます</p>
+              <p class="unknown" id="candidatePopulation">人口：?????</p>
+            </div>
+            <div class="candidate-map-slot" aria-hidden="true"></div>
           </div>
 
           <div class="button-row">
