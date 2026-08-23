@@ -1773,3 +1773,261 @@ section {
 
   border-color: rgba(56, 189, 248, 0.4) !important; /* 枠線も少しだけ透けさせる */
 }
+
+/* =========================================
+   画面サイズ別レイアウト
+========================================= */
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* PC: 横幅を活かしてゲーム盤と説明を見渡せるようにする */
+@media (min-width: 1100px) {
+  .app-shell {
+    width: min(1240px, calc(100% - 64px));
+    padding: 40px 0;
+  }
+
+  .setup-panel {
+    max-width: none;
+  }
+
+  .setup-form,
+  .target-roulette {
+    max-width: 560px;
+  }
+
+  .game-grid {
+    grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.85fr);
+    gap: 20px;
+  }
+
+  .panel {
+    padding: 24px;
+  }
+}
+
+/* タブレット: 説明は2列、ゲーム部分は縦並びにする */
+@media (min-width: 761px) and (max-width: 1099px) {
+  .app-shell {
+    width: min(100% - 40px, 920px);
+  }
+
+  .setup-panel {
+    max-width: none;
+  }
+
+  .guide-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guide-block:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .game-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-panel,
+  .play-panel,
+  .players-panel,
+  .draw-profile-bottom,
+  .result-panel {
+    grid-column: 1;
+  }
+}
+
+/* スマホ: 余白と文字を最適化し、操作要素を1列にそろえる */
+@media (max-width: 760px) {
+  .app-shell {
+    width: calc(100% - 24px);
+    padding: 18px 0 28px;
+  }
+
+  body.in-room .app-shell {
+    padding-top: 12px;
+  }
+
+  .title-area {
+    margin: 34px 0 16px;
+  }
+
+  h1 {
+    font-size: clamp(1.65rem, 8.5vw, 2.35rem);
+    line-height: 1.2;
+  }
+
+  .eyebrow {
+    font-size: 0.68rem;
+  }
+
+  .panel {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .setup-panel,
+  .setup-form,
+  .target-roulette {
+    width: 100%;
+    max-width: none;
+  }
+
+  .setup-choice-grid {
+    gap: 10px;
+  }
+
+  .setup-choice-grid button {
+    min-height: 56px;
+  }
+
+  .guide-grid {
+    gap: 12px;
+  }
+
+  .guide-block {
+    padding: 14px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .room-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 12px;
+  }
+
+  .room-panel > div:first-child,
+  .room-panel > button {
+    grid-column: 1 / -1;
+  }
+
+  .room-code {
+    font-size: clamp(1.5rem, 8vw, 2rem);
+  }
+
+  .state-text {
+    font-size: 0.92rem;
+    overflow-wrap: anywhere;
+  }
+
+  .score-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .score,
+  .hit-count {
+    font-size: clamp(1.65rem, 9vw, 2.4rem);
+  }
+
+  .candidate-box {
+    min-height: 180px;
+    padding: 22px 18px;
+  }
+
+  .candidate-box h2 {
+    font-size: clamp(1.5rem, 8vw, 2.35rem);
+    overflow-wrap: anywhere;
+  }
+
+  .button-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .button-row button,
+  .result-actions button {
+    width: 100%;
+    min-height: 50px;
+  }
+
+  .battle-comments-compose {
+    grid-template-columns: 1fr;
+  }
+
+  .battle-comments-compose button {
+    width: 100%;
+  }
+
+  .history-row,
+  .result-row {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .result-panel:not(.hidden),
+  .game-start-intro {
+    align-items: flex-start;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .result-card,
+  .game-start-intro-card {
+    max-width: 100%;
+    max-height: calc(100dvh - 24px);
+    padding: 22px 16px;
+    border-radius: 14px;
+  }
+
+  .game-start-intro-card .draw-profile-row,
+  .draw-profile-row {
+    grid-template-columns: minmax(70px, 96px) minmax(60px, 1fr) 34px;
+    gap: 6px;
+  }
+
+  .sound-toggle {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* 幅の狭いスマホでも情報がはみ出さないようにする */
+@media (max-width: 390px) {
+  .app-shell {
+    width: calc(100% - 16px);
+  }
+
+  .panel {
+    padding: 13px;
+  }
+
+  .room-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .room-panel > div,
+  .room-panel > button {
+    grid-column: 1;
+  }
+
+  .score-row {
+    grid-template-columns: 1fr 0.55fr;
+  }
+
+  .draw-profile-row,
+  .game-start-intro-card .draw-profile-row {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-profile-value {
+    text-align: left;
+  }
+}
