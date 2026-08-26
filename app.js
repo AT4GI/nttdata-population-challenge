@@ -1419,7 +1419,34 @@ function renderPlayersList(room, players, playerIds) {
   els.playersList.innerHTML = "";
   const turnPlayerId = getCurrentTurnPlayerId(room);
 
-  for (const playerId of playerIds) {
+  const target = getRoomTarget(room).value;
+
+// 表示用の配列だけコピーする
+const displayPlayerIds = [...playerIds];
+
+// ゲーム開始後はリアルタイム順位順に並べる
+if (room.status !== "waiting") {
+  displayPlayerIds.sort((aId, bId) => {
+    const a = players[aId];
+    const b = players[bId];
+
+    const aBust = a?.status === "bust";
+    const bBust = b?.status === "bust";
+
+    // BUSTしたプレイヤーは下
+    if (aBust !== bBust) {
+      return aBust ? 1 : -1;
+    }
+
+    // TARGETとの差が小さいプレイヤーを上
+    const aDiff = Math.abs(target - (a?.total || 0));
+    const bDiff = Math.abs(target - (b?.total || 0));
+
+    return aDiff - bDiff;
+  });
+}
+
+  for (const playerId of displayPlayerIds) {
     const player = players[playerId];
     if (!player) continue;
 
