@@ -199,6 +199,14 @@ const ITEM_CATALOG = [
     id: "force-plus-10k",
     label: "強制加算1万",
     description: "指定した相手の現在人口に1万人を強制的に加算します。TARGETを超えるとBUSTします。",
+    rarity: "ノーマル",
+    weight: 10,
+    requiresTarget: true
+  },
+  {
+    id: "force-plus-50k",
+    label: "強制加算5万",
+    description: "指定した相手の現在人口に5万人を強制的に加算します。TARGETを超えるとBUSTします。",
     rarity: "レア",
     weight: 6,
     requiresTarget: true
@@ -1022,6 +1030,15 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       if (defense.applied) {
         const victim = room.players?.[defense.targetId];
         applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 10000));
+      }
+      break;
+    }
+    case "force-plus-50k": {
+      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      lastActionAlreadySet = true;
+      if (defense.applied) {
+        const victim = room.players?.[defense.targetId];
+        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 50000));
       }
       break;
     }
