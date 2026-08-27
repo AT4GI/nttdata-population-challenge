@@ -157,7 +157,7 @@ const ITEM_CATALOG = [
     label: "カード交換",
     description: "表示中の候補市区町村を1回だけ引き直します。",
     rarity: "コモン",
-    weight: 25,
+    weight: 20,
     requiresTarget: false
   },
   {
@@ -165,23 +165,40 @@ const ITEM_CATALOG = [
     label: "微増",
     description: "自分の現在人口に3,000人を加算します。",
     rarity: "コモン",
-    weight: 20,
+    weight: 18,
     requiresTarget: false
+  },
+  {
+    id: "scout",
+    label: "偵察",
+    description: "表示中の候補の人口をHITする前に確認できます。ターンは消費しません。",
+    rarity: "アンコモン",
+    weight: 14,
+    requiresTarget: false,
+    instant: true
   },
   {
     id: "target-boost-5pct",
     label: "目標ブースト",
     description: "自分の現在人口にTARGETの5%を加算します。",
     rarity: "アンコモン",
-    weight: 15,
+    weight: 13,
     requiresTarget: false
   },
   {
-    id: "shield",
-    label: "シールド",
-    description: "発動後、次に自分がBUSTする場面を1回だけ無効化し、直前の人口でSTAND扱いにします。",
+    id: "double-next",
+    label: "2倍",
+    description: "次に自分が獲得する市区町村の人口を2倍にします。",
     rarity: "アンコモン",
-    weight: 12,
+    weight: 10,
+    requiresTarget: false
+  },
+  {
+    id: "barrier",
+    label: "バリア",
+    description: "発動後、次に自分へ使われる妨害アイテムを1回だけ無効化します。",
+    rarity: "アンコモン",
+    weight: 10,
     requiresTarget: false
   },
   {
@@ -189,7 +206,7 @@ const ITEM_CATALOG = [
     label: "人口削減",
     description: "指定した相手の現在人口を10%削ります。",
     rarity: "レア",
-    weight: 8,
+    weight: 7,
     requiresTarget: true
   },
   {
@@ -209,6 +226,22 @@ const ITEM_CATALOG = [
     requiresTarget: true
   },
   {
+    id: "halve-next",
+    label: "半減",
+    description: "指定した相手が次に獲得する市区町村の人口を半分にします。",
+    rarity: "レア",
+    weight: 6,
+    requiresTarget: true
+  },
+  {
+    id: "reflect",
+    label: "リフレクト",
+    description: "発動後、次に自分へ使われる妨害アイテムの効果を発動者自身に跳ね返します。",
+    rarity: "レア",
+    weight: 5,
+    requiresTarget: false
+  },
+  {
     id: "force-plus-30k",
     label: "強制加算3万",
     description: "指定した相手の現在人口に3万人を強制的に加算します。TARGETを超えるとBUSTします。",
@@ -219,7 +252,7 @@ const ITEM_CATALOG = [
   {
     id: "reset-all",
     label: "総リセット",
-    description: "進行中の全員の現在人口・HIT回数・履歴を0に戻します（自分も対象です）。",
+    description: "STAND・BUST・JUST済みの人も含めて全員の現在人口・HIT回数・履歴を0に戻し、再びプレイ中にします（自分も対象です）。",
     rarity: "ウルトラレア",
     weight: 2,
     requiresTarget: false
@@ -295,6 +328,7 @@ const els = {
   gameStartIntroConfirmationList: document.querySelector("#gameStartIntroConfirmationList"),
   gameStartIntroOkButton: document.querySelector("#gameStartIntroOkButton"),
   playersList: document.querySelector("#playersList"),
+  itemGuideList: document.querySelector("#itemGuideList"),
   itemPanel: document.querySelector("#itemPanel"),
   itemName: document.querySelector("#itemName"),
   itemDescription: document.querySelector("#itemDescription"),
@@ -352,6 +386,7 @@ const SHARE_RESULT_BUTTON_LABEL = els.shareResultButton?.textContent || "共有�
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
+renderItemGuide();
 disableSetup(true);
 updateSoundToggleButton();
 if (sharedResultId) showShareView();
@@ -847,7 +882,10 @@ async function rematchRoom() {
         history: [],
         lastRevealed: null,
         lastAction: null,
-        shieldActive: false,
+        barrierActive: false,
+        reflectActive: false,
+        nextHitMultiplier: null,
+        scoutRevealedCandidateId: null,
         item: room.itemMode && player?.type === "human" ? assignRandomItem() : null,
         candidate: index === 0 ? pickCandidate({}, target.value, 0, 0) : null
       }));
@@ -891,8 +929,18 @@ async function applyItemAction(room, playerId, targetPlayerId) {
   if (!player || !canPlay(player) || getCurrentTurnPlayerId(room) !== playerId || room.turnAdvancing) return;
   if (!player.item || player.item.used) return;
 
+  const itemDef = getItemDefinition(player.item.id);
+  if (!itemDef) return;
+
   const effectUpdates = buildItemEffectUpdates(room, playerId, targetPlayerId);
   if (!effectUpdates) return;
+
+  // 偵察のようにターンを消費しないアイテムは、ターン進行を挟まずその場で確定する。
+  if (itemDef.instant) {
+    await update(ref(db, `rooms/${currentRoomId}`), effectUpdates);
+    playSfx("tick");
+    return;
+  }
 
   effectUpdates.turnAdvancing = true;
   await update(ref(db, `rooms/${currentRoomId}`), effectUpdates);
@@ -931,9 +979,16 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
   const updates = {};
   updates[`players/${playerId}/item`] = { id: itemDef.id, used: true };
 
+  let lastActionAlreadySet = false;
+
   switch (itemDef.id) {
     case "card-swap": {
       updates[`players/${playerId}/candidate`] = pickCandidate(player.drawn || {}, target, player.total || 0, player.hitCount || 0);
+      break;
+    }
+    case "scout": {
+      if (!player.candidate) return null;
+      updates[`players/${playerId}/scoutRevealedCandidateId`] = player.candidate.id;
       break;
     }
     case "small-boost": {
@@ -944,37 +999,76 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       applyPlayerFieldUpdates(updates, playerId, resolveTotalChange(room, player, (player.total || 0) + Math.round(target * 0.05)));
       break;
     }
-    case "shield": {
-      updates[`players/${playerId}/shieldActive`] = true;
+    case "double-next": {
+      updates[`players/${playerId}/nextHitMultiplier`] = 2;
+      break;
+    }
+    case "barrier": {
+      updates[`players/${playerId}/barrierActive`] = true;
+      break;
+    }
+    case "reflect": {
+      updates[`players/${playerId}/reflectActive`] = true;
       break;
     }
     case "steal-10pct": {
-      const amount = Math.round((targetPlayer.total || 0) * 0.1);
-      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, (targetPlayer.total || 0) - amount));
+      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      lastActionAlreadySet = true;
+      if (defense.applied) {
+        const victim = room.players?.[defense.targetId];
+        const amount = Math.round((victim.total || 0) * 0.1);
+        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) - amount));
+      }
       break;
     }
     case "swap-totals": {
-      applyPlayerFieldUpdates(updates, playerId, resolveTotalChange(room, player, targetPlayer.total || 0));
-      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, player.total || 0));
+      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      lastActionAlreadySet = true;
+      if (defense.applied) {
+        const casterPlayer = room.players?.[defense.casterId];
+        const victimPlayer = room.players?.[defense.targetId];
+        applyPlayerFieldUpdates(updates, defense.casterId, resolveTotalChange(room, casterPlayer, victimPlayer.total || 0));
+        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victimPlayer, casterPlayer.total || 0));
+      }
       break;
     }
     case "force-plus-10k": {
-      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, (targetPlayer.total || 0) + 10000));
+      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      lastActionAlreadySet = true;
+      if (defense.applied) {
+        const victim = room.players?.[defense.targetId];
+        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 10000));
+      }
       break;
     }
     case "force-plus-30k": {
-      applyPlayerFieldUpdates(updates, targetPlayerId, resolveTotalChange(room, targetPlayer, (targetPlayer.total || 0) + 30000));
+      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      lastActionAlreadySet = true;
+      if (defense.applied) {
+        const victim = room.players?.[defense.targetId];
+        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 30000));
+      }
+      break;
+    }
+    case "halve-next": {
+      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      lastActionAlreadySet = true;
+      if (defense.applied) {
+        updates[`players/${defense.targetId}/nextHitMultiplier`] = 0.5;
+      }
       break;
     }
     case "reset-all": {
       for (const id of getStartedPlayerIds(room)) {
-        const activePlayer = room.players?.[id];
-        if (!activePlayer || activePlayer.status !== "active") continue;
+        if (!room.players?.[id]) continue;
         updates[`players/${id}/total`] = 0;
         updates[`players/${id}/hitCount`] = 0;
         updates[`players/${id}/drawn`] = {};
         updates[`players/${id}/history`] = [];
         updates[`players/${id}/lastRevealed`] = null;
+        updates[`players/${id}/status`] = "active";
+        updates[`players/${id}/finishedAt`] = null;
+        updates[`players/${id}/candidate`] = null;
       }
       break;
     }
@@ -982,26 +1076,22 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       return null;
   }
 
-  updates[`players/${playerId}/lastAction`] = targetPlayer
-    ? { type: "item", itemId: itemDef.id, itemLabel: itemDef.label, targetName: targetPlayer.name || "参加者" }
-    : { type: "item", itemId: itemDef.id, itemLabel: itemDef.label };
+  if (!lastActionAlreadySet) {
+    updates[`players/${playerId}/lastAction`] = targetPlayer
+      ? { type: "item", itemId: itemDef.id, itemLabel: itemDef.label, targetName: targetPlayer.name || "参加者" }
+      : { type: "item", itemId: itemDef.id, itemLabel: itemDef.label };
+  }
 
   return updates;
 }
 
-// アイテムで人口が変化した結果、BUST/JUSTになるかを判定する。シールド発動中なら
-// BUSTを1回だけ無効化し、発動前の人口に据え置く。すでに終了しているプレイヤーの
-// 状態は上書きしない（bustした人を蒸し返さない）が、active/standのプレイヤーは
-// 攻撃アイテムで新たにbust/justへ転じうる。
+// アイテムで人口が変化した結果、BUST/JUSTになるかを判定する。すでに終了している
+// プレイヤーの状態は上書きしない（bustした人を蒸し返さない）が、active/standの
+// プレイヤーは攻撃アイテムで新たにbust/justへ転じうる。
 function resolveTotalChange(room, player, nextTotal) {
   const target = getRoomTarget(room).value;
   const clampedTotal = Math.max(0, nextTotal);
   const canTransition = player.status === "active" || player.status === "stand";
-  const hasShield = player.item?.id === "shield" && player.shieldActive;
-
-  if (clampedTotal > target && hasShield && canTransition) {
-    return { total: player.total || 0, shieldActive: false };
-  }
 
   const result = { total: clampedTotal };
   if (canTransition) {
@@ -1014,6 +1104,48 @@ function resolveTotalChange(room, player, nextTotal) {
     }
   }
   return result;
+}
+
+function isBarrierActive(player) {
+  return Boolean(player?.item?.id === "barrier" && player.barrierActive);
+}
+
+function isReflectActive(player) {
+  return Boolean(player?.item?.id === "reflect" && player.reflectActive);
+}
+
+// 攻撃系アイテムの発動前に、対象がバリア／リフレクトを持っていないか確認する。
+// バリア: 効果を完全に無効化し、対象のバリアを消費する。
+// リフレクト: 効果の対象を発動者自身にすり替え、対象のリフレクトを消費する。
+// どちらも無ければ、通常どおり発動者→対象の効果として扱う。
+function resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef) {
+  if (isBarrierActive(targetPlayer)) {
+    updates[`players/${targetPlayerId}/barrierActive`] = false;
+    updates[`players/${playerId}/lastAction`] = {
+      type: "item-blocked",
+      itemLabel: itemDef.label,
+      targetName: targetPlayer.name || "参加者"
+    };
+    return { applied: false };
+  }
+
+  if (isReflectActive(targetPlayer)) {
+    updates[`players/${targetPlayerId}/reflectActive`] = false;
+    updates[`players/${playerId}/lastAction`] = {
+      type: "item-reflected",
+      itemLabel: itemDef.label,
+      targetName: targetPlayer.name || "参加者"
+    };
+    return { applied: true, casterId: targetPlayerId, targetId: playerId };
+  }
+
+  updates[`players/${playerId}/lastAction`] = {
+    type: "item",
+    itemId: itemDef.id,
+    itemLabel: itemDef.label,
+    targetName: targetPlayer.name || "参加者"
+  };
+  return { applied: true, casterId: playerId, targetId: targetPlayerId };
 }
 
 function applyPlayerFieldUpdates(updates, playerId, fields) {
@@ -1035,24 +1167,10 @@ function getPostEffectDelay(action, status) {
 function buildHitPayload(room, player) {
   const roomTarget = getRoomTarget(room);
   const candidate = player.candidate || pickCandidate(player.drawn || {}, roomTarget.value, player.total || 0, player.hitCount || 0);
-  const nextTotal = (player.total || 0) + candidate.population;
+  const multiplier = player.nextHitMultiplier || 1;
+  const appliedPopulation = Math.round(candidate.population * multiplier);
+  const nextTotal = (player.total || 0) + appliedPopulation;
   const target = roomTarget.value;
-
-  if (nextTotal > target && player.shieldActive) {
-    return {
-      status: "stand",
-      shieldActive: false,
-      candidate: null,
-      hitCount: (player.hitCount || 0) + 1,
-      lastAction: {
-        type: "shield-block",
-        municipality: candidate.name,
-        prefecture: candidate.prefecture,
-        population: candidate.population
-      },
-      finishedAt: serverTimestamp()
-    };
-  }
 
   const drawn = { ...(player.drawn || {}), [candidate.id]: true };
   const status = nextTotal > target ? "bust" : nextTotal === target ? "just" : "active";
@@ -1063,6 +1181,21 @@ function buildHitPayload(room, player) {
     population: candidate.population,
     totalAfter: nextTotal
   };
+  const lastAction = {
+    type: "hit",
+    municipality: candidate.name,
+    prefecture: candidate.prefecture,
+    population: candidate.population,
+    totalAfter: nextTotal,
+    status
+  };
+  if (multiplier !== 1) {
+    historyItem.multiplier = multiplier;
+    historyItem.appliedPopulation = appliedPopulation;
+    lastAction.multiplier = multiplier;
+    lastAction.appliedPopulation = appliedPopulation;
+  }
+
   const payload = {
     total: nextTotal,
     hitCount: (player.hitCount || 0) + 1,
@@ -1070,14 +1203,9 @@ function buildHitPayload(room, player) {
     drawn,
     history: [...(player.history || []), historyItem],
     lastRevealed: candidate,
-    lastAction: {
-      type: "hit",
-      municipality: candidate.name,
-      prefecture: candidate.prefecture,
-      population: candidate.population,
-      totalAfter: nextTotal,
-      status
-    },
+    lastAction,
+    nextHitMultiplier: null,
+    scoutRevealedCandidateId: null,
     updatedAt: serverTimestamp()
   };
 
@@ -1201,7 +1329,12 @@ function renderRoom(room) {
   if (isCandidateMasked) {
     els.candidateName.textContent = candidate.name;
     els.candidatePrefecture.textContent = `${focusLabel}の候補 / ${candidate.prefecture}`;
-    els.candidatePopulation.textContent = focusPlayerId === currentPlayerId ? "人口：?????" : "選択待ち";
+    const isScouted = focusPlayerId === currentPlayerId && focusPlayer?.scoutRevealedCandidateId === candidate.id;
+    els.candidatePopulation.textContent = focusPlayerId !== currentPlayerId
+      ? "選択待ち"
+      : isScouted
+        ? `人口：${formatNumber(candidate.population)}人（偵察済み）`
+        : "人口：?????";
   } else if (focusPlayer?.lastRevealed) {
     els.candidateName.textContent = focusPlayer.lastRevealed.name;
     els.candidatePrefecture.textContent = `${focusPlayer.lastRevealed.prefecture} / ${formatNumber(focusPlayer.lastRevealed.population)}人`;
@@ -1816,14 +1949,16 @@ function buildLastActionText(player) {
   if (action.type === "stand") return "直前：STAND";
   if (action.type === "hit") {
     const resultLabel = action.status === "bust" ? "BUST" : action.status === "just" ? "JUST" : "HIT";
-    return `直前：${resultLabel} ${action.prefecture} ${action.municipality} +${formatNumber(action.population)}人`;
+    const multiplierNote = action.multiplier ? `（×${action.multiplier} 適用後+${formatNumber(action.appliedPopulation)}人）` : "";
+    return `直前：${resultLabel} ${action.prefecture} ${action.municipality} +${formatNumber(action.population)}人${multiplierNote}`;
   }
-  if (action.type === "shield-block") return `直前：シールド発動！BUSTを回避（${action.municipality}）`;
   if (action.type === "item") {
     return action.targetName
       ? `直前：アイテム『${action.itemLabel}』を${action.targetName}に使用`
       : `直前：アイテム『${action.itemLabel}』を使用`;
   }
+  if (action.type === "item-blocked") return `直前：${action.targetName}のバリアに『${action.itemLabel}』を防がれた`;
+  if (action.type === "item-reflected") return `直前：${action.targetName}に『${action.itemLabel}』を跳ね返された`;
   return "";
 }
 
@@ -2075,7 +2210,10 @@ function makePlayer(name, status, options = {}) {
     candidate: null,
     lastRevealed: null,
     item: options.item || null,
-    shieldActive: false,
+    barrierActive: false,
+    reflectActive: false,
+    nextHitMultiplier: null,
+    scoutRevealedCandidateId: null,
     ready: false,
     joinedAt: serverTimestamp()
   };
@@ -2208,6 +2346,41 @@ function populateTargetSelects() {
 
 function makeTargetOption(target) {
   return `<option value="${target.id}">${target.label}</option>`;
+}
+
+const ITEM_RARITY_CLASSES = {
+  コモン: "rarity-common",
+  アンコモン: "rarity-uncommon",
+  レア: "rarity-rare",
+  ウルトラレア: "rarity-ultra-rare"
+};
+
+function renderItemGuide() {
+  if (!els.itemGuideList) return;
+  els.itemGuideList.innerHTML = "";
+
+  for (const itemDef of ITEM_CATALOG) {
+    const card = document.createElement("div");
+    card.className = "item-guide-card";
+
+    const head = document.createElement("div");
+    head.className = "item-guide-card-head";
+
+    const name = document.createElement("strong");
+    name.textContent = itemDef.label;
+
+    const rarity = document.createElement("span");
+    rarity.className = `item-guide-rarity ${ITEM_RARITY_CLASSES[itemDef.rarity] || "rarity-common"}`;
+    rarity.textContent = itemDef.rarity;
+
+    head.append(name, rarity);
+
+    const description = document.createElement("p");
+    description.textContent = itemDef.description;
+
+    card.append(head, description);
+    els.itemGuideList.append(card);
+  }
 }
 
 function getSelectedTarget(targetId) {

@@ -396,6 +396,84 @@ label input {
   margin-top: 8px;
 }
 
+.item-guide {
+  margin-top: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: rgba(18, 30, 22, 0.7);
+  padding: 16px;
+}
+
+.item-guide h2 {
+  margin-bottom: 6px;
+  font-size: 1.1rem;
+  font-family: var(--font-display);
+  color: var(--gold-bright);
+}
+
+.item-guide-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.item-guide-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.item-guide-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(16, 27, 20, 0.85);
+  padding: 10px 12px;
+}
+
+.item-guide-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.item-guide-card strong {
+  font-family: var(--font-display);
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.item-guide-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.item-guide-rarity {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.item-guide-rarity.rarity-common {
+  color: var(--muted);
+}
+
+.item-guide-rarity.rarity-uncommon {
+  color: #9fb3ac;
+}
+
+.item-guide-rarity.rarity-rare {
+  color: var(--gold-bright);
+}
+
+.item-guide-rarity.rarity-ultra-rare {
+  color: #ef5da8;
+}
+
 .game-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
