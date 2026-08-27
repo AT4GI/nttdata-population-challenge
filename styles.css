@@ -639,6 +639,26 @@ label input {
   background: linear-gradient(90deg, #a13d63, #ff8fc0);
 }
 
+.target-progress.player-5 .target-progress-fill {
+  background: linear-gradient(90deg, #1f7a4d, #6ee7a0);
+}
+
+.target-progress.player-6 .target-progress-fill {
+  background: linear-gradient(90deg, #a3231f, #ff8a80);
+}
+
+.target-progress.player-7 .target-progress-fill {
+  background: linear-gradient(90deg, #3730a3, #a5b4fc);
+}
+
+.target-progress.player-8 .target-progress-fill {
+  background: linear-gradient(90deg, #92600a, #ffd166);
+}
+
+.target-progress.player-9 .target-progress-fill {
+  background: linear-gradient(90deg, #0e7490, #67e8f9);
+}
+
 .target-progress.near .target-progress-fill {
   background: linear-gradient(90deg, var(--gold), var(--success-bright));
   animation: progressPulse 0.9s ease-in-out infinite;
@@ -1409,6 +1429,22 @@ label input {
   font-size: 0.88rem;
 }
 
+/* 参加者ごとに左端のアクセント色を変え、目標人口バーの色とひと目で対応づける。 */
+.player-row {
+  border-left-width: 4px;
+}
+
+.player-row.player-0 { border-left-color: var(--gold-bright); }
+.player-row.player-1 { border-left-color: #4fd1c5; }
+.player-row.player-2 { border-left-color: #b794f4; }
+.player-row.player-3 { border-left-color: #ffb066; }
+.player-row.player-4 { border-left-color: #ff8fc0; }
+.player-row.player-5 { border-left-color: #6ee7a0; }
+.player-row.player-6 { border-left-color: #ff8a80; }
+.player-row.player-7 { border-left-color: #a5b4fc; }
+.player-row.player-8 { border-left-color: #ffd166; }
+.player-row.player-9 { border-left-color: #67e8f9; }
+
 .battle-comments {
   border-top: 1px solid var(--line-soft);
   margin-top: 18px;
@@ -1796,6 +1832,37 @@ label input {
   pointer-events: none;
   z-index: 90;
   overflow: hidden;
+}
+
+.population-popup {
+  position: absolute;
+  transform: translate(-50%, -30%);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(1.3rem, 3.4vw, 2rem);
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.75), 0 0 22px rgba(255, 176, 0, 0.5), 0 2px 0 rgba(70, 40, 0, 0.6);
+  white-space: nowrap;
+  animation: populationPopupFloat 1.3s cubic-bezier(0.16, 0.84, 0.32, 1) forwards;
+}
+
+@keyframes populationPopupFloat {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(0.75);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -65%) scale(1.1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -125%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -155%) scale(0.95);
+  }
 }
 
 .modal-open {

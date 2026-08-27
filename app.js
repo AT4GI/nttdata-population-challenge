@@ -23,7 +23,7 @@ const DRAW_BUCKET_COUNT = 10;
 const DRAW_REFERENCE_TURNS = 3;
 // TARGETを超える人口が出る確率（残りの95%は10段階に均等配分）。
 const DRAW_OVER_TARGET_RATE = 0.05;
-const PLAYER_COLOR_COUNT = 5;
+const PLAYER_COLOR_COUNT = 10;
 const MAX_BATTLE_COMMENTS = 50;
 const BAR_FILL_MS = 2000;
 const CPU_ACCURACY_SETS = {
@@ -897,7 +897,7 @@ async function applyPlayerAction(room, playerId, action) {
   revealUpdates.turnAdvancing = true;
 
   await update(ref(db, `rooms/${currentRoomId}`), revealUpdates);
-  triggerImmediateEffect(action);
+  triggerImmediateEffect(action, action === "hit" ? payload.total - (player.total || 0) : 0);
 
   // Let the population bar visibly crawl up to (or past) the target before
   // the bust/just effect fires, instead of flashing the result instantly.
@@ -1588,6 +1588,7 @@ if (room.status !== "waiting") {
     item.className = "player-row";
     if (playerId === currentPlayerId) item.classList.add("me");
     if (playerId === turnPlayerId && room.status === "playing") item.classList.add("current-turn");
+    setPlayerColorClass(item, room, playerId);
 
     const title = document.createElement("strong");
     const playerBadges = [];
@@ -1648,7 +1649,7 @@ function flashEffectClass(effectClass) {
   }, 1200);
 }
 
-function triggerImmediateEffect(action) {
+function triggerImmediateEffect(action, addedPopulation) {
   flashEffectClass(action === "hit" ? "action-hit" : "action-stand");
   playSfx(action === "hit" ? "hit" : "stand");
 
@@ -1660,6 +1661,25 @@ function triggerImmediateEffect(action) {
       els.candidatePopulation.classList.remove("pop-flash");
     }, 500);
   }
+
+  if (action === "hit" && addedPopulation) {
+    spawnPopulationPopup(addedPopulation);
+  }
+}
+
+// HITで加算された人口を「+◯万人」と金文字でふわっと表示する。
+function spawnPopulationPopup(amount) {
+  if (!els.myTotal || !els.confettiLayer || !Number.isFinite(amount) || amount === 0) return;
+
+  const rect = els.myTotal.getBoundingClientRect();
+  const popup = document.createElement("span");
+  popup.className = "population-popup";
+  popup.textContent = `${amount > 0 ? "+" : ""}${formatManValue(amount)}万人`;
+  popup.style.left = `${rect.left + rect.width / 2}px`;
+  popup.style.top = `${rect.top}px`;
+  els.confettiLayer.append(popup);
+
+  window.setTimeout(() => popup.remove(), 1300);
 }
 
 function triggerOutcomeEffect(status) {
@@ -1695,10 +1715,15 @@ function updateCandidateCard(category, masked) {
   if (!masked && category && CATEGORY_LABELS[category]) {
     els.candidateBox.classList.add(`tier-${category}`);
     els.candidateBox.dataset.suit = CATEGORY_SUITS[category] || "";
-    if (els.candidateTierLabel) els.candidateTierLabel.textContent = CATEGORY_LABELS[category];
+    // めくった後は実際の人口が別途表示されるため、「10万〜20万人未満」のような
+    // 人口帯テキストは冗長なので出さない（枠の色・スートだけで見た目を伝える）。
+    if (els.candidateTierLabel) els.candidateTierLabel.hidden = true;
   } else {
     els.candidateBox.dataset.suit = "";
-    if (els.candidateTierLabel) els.candidateTierLabel.textContent = masked ? "？？？" : "STANDBY";
+    if (els.candidateTierLabel) {
+      els.candidateTierLabel.hidden = false;
+      els.candidateTierLabel.textContent = masked ? "？？？" : "STANDBY";
+    }
   }
   els.candidateBox.classList.toggle("masked", masked);
 }
