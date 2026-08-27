@@ -15,7 +15,7 @@ import { MUNICIPALITIES } from "./data/municipalities/municipalities.js";
 import { MUNICIPALITY_MAP_POINTS, PREFECTURE_MAPS } from "./data/maps/prefecture-map-data.js";
 
 const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 5;
+const MAX_PLAYERS = 10;
 const CPU_THINK_DELAY_MS = 1000;
 const OVER_TARGET_DRAW_RATE = 0.01;
 // 「TARGET÷この数」に近い人口ほど引きやすくする。3なら平均3ターン程度でTARGET付近に届く見込み。
