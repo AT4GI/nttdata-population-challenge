@@ -17,11 +17,11 @@ import { MUNICIPALITY_MAP_POINTS, PREFECTURE_MAPS } from "./data/maps/prefecture
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 10;
 const CPU_THINK_DELAY_MS = 1000;
-const OVER_TARGET_DRAW_RATE = 0.01;
+const OVER_TARGET_DRAW_RATE = 0.08;
 // 「TARGET÷この数」に近い人口ほど引きやすくする。3なら平均3ターン程度でTARGET付近に届く見込み。
 const DRAW_REFERENCE_TURNS = 3;
 // 参照値からの対数距離に対する減衰の強さ。大きいほど参照値から離れた人口が出にくくなる。
-const DRAW_DECAY_RATE = 4;
+const DRAW_DECAY_RATE = 2;
 // 「人口カード構成」表示で、1つの帯の割合がこれを超えたら細分化する。
 const DRAW_BAND_SHARE_CAP = 0.25;
 const DRAW_BAND_MAX_DEPTH = 5;
