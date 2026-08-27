@@ -1689,13 +1689,15 @@ function triggerBustFlash() {
 function updateCandidateCard(category, masked) {
   if (!els.candidateBox) return;
   els.candidateBox.classList.remove(...TIER_CLASSES);
-  if (category && CATEGORY_LABELS[category]) {
+  // マスク中（HIT前）は人口帯（category）がわかる見た目・表記を一切出さない。
+  // 枠の色やスート記号も人口帯のヒントになるため、テキストと一緒に隠す。
+  if (!masked && category && CATEGORY_LABELS[category]) {
     els.candidateBox.classList.add(`tier-${category}`);
     els.candidateBox.dataset.suit = CATEGORY_SUITS[category] || "";
     if (els.candidateTierLabel) els.candidateTierLabel.textContent = CATEGORY_LABELS[category];
   } else {
     els.candidateBox.dataset.suit = "";
-    if (els.candidateTierLabel) els.candidateTierLabel.textContent = "STANDBY";
+    if (els.candidateTierLabel) els.candidateTierLabel.textContent = masked ? "？？？" : "STANDBY";
   }
   els.candidateBox.classList.toggle("masked", masked);
 }
