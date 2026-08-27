@@ -303,8 +303,9 @@ const els = {
   candidateBox: document.querySelector("#candidateBox"),
   confettiLayer: document.querySelector("#confettiLayer"),
   burstFlash: document.querySelector("#burstFlash"),
+  actionBanner: document.querySelector("#actionBanner"),
+  actionBannerText: document.querySelector("#actionBannerText"),
   candidateMapSlot: document.querySelector("#candidateMapSlot"),
-  candidateTierLabel: document.querySelector("#candidateTierLabel"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
@@ -1652,6 +1653,7 @@ function flashEffectClass(effectClass) {
 function triggerImmediateEffect(action, addedPopulation) {
   flashEffectClass(action === "hit" ? "action-hit" : "action-stand");
   playSfx(action === "hit" ? "hit" : "stand");
+  triggerActionBanner(action === "hit" ? "HIT!" : "STAND", action === "hit" ? "hit" : "stand");
 
   if (action === "hit" && els.candidatePopulation) {
     els.candidatePopulation.classList.remove("pop-flash");
@@ -1665,6 +1667,18 @@ function triggerImmediateEffect(action, addedPopulation) {
   if (action === "hit" && addedPopulation) {
     spawnPopulationPopup(addedPopulation);
   }
+}
+
+// HIT/STANDを選んだ瞬間に、何を選んだか一目でわかる文字を画面中央に出す。
+function triggerActionBanner(text, variant) {
+  if (!els.actionBanner || !els.actionBannerText) return;
+  els.actionBanner.classList.remove("show", "hit", "stand");
+  void els.actionBanner.offsetWidth;
+  els.actionBannerText.textContent = text;
+  els.actionBanner.classList.add("show", variant);
+  window.setTimeout(() => {
+    els.actionBanner.classList.remove("show", "hit", "stand");
+  }, 850);
 }
 
 // HITで加算された人口を「+◯万人」と金文字でふわっと表示する。
@@ -1715,15 +1729,8 @@ function updateCandidateCard(category, masked) {
   if (!masked && category && CATEGORY_LABELS[category]) {
     els.candidateBox.classList.add(`tier-${category}`);
     els.candidateBox.dataset.suit = CATEGORY_SUITS[category] || "";
-    // めくった後は実際の人口が別途表示されるため、「10万〜20万人未満」のような
-    // 人口帯テキストは冗長なので出さない（枠の色・スートだけで見た目を伝える）。
-    if (els.candidateTierLabel) els.candidateTierLabel.hidden = true;
   } else {
     els.candidateBox.dataset.suit = "";
-    if (els.candidateTierLabel) {
-      els.candidateTierLabel.hidden = false;
-      els.candidateTierLabel.textContent = masked ? "？？？" : "STANDBY";
-    }
   }
   els.candidateBox.classList.toggle("masked", masked);
 }
@@ -2034,6 +2041,10 @@ async function actCpuTurn(cpuPlayerId, actionKey) {
 }
 
 function decideCpuAction(room, cpuPlayer) {
+  // 1回もHITしていないうちにSTANDして人口0のまま終わるのは不自然なので、
+  // 精度による判断ミスの対象にせず必ずHITさせる。
+  if (!(cpuPlayer.hitCount > 0)) return "hit";
+
   const idealAction = getIdealCpuAction(room, cpuPlayer);
   const accuracy = Number(cpuPlayer.accuracy || 0.5);
   if (Math.random() < accuracy) return idealAction;
