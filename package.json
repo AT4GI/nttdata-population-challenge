@@ -1,0 +1,11 @@
+{
+  "name": "nttdata-population-challenge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:smoke": "node --experimental-loader ./scripts/firebase-stub-loader.mjs scripts/boot-smoke-test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
