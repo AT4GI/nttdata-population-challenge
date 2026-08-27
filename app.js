@@ -259,6 +259,12 @@ const ITEM_CATALOG = [
   }
 ];
 
+const ITEM_RARITY_CLASSES = {
+  ノーマル: "rarity-normal",
+  レア: "rarity-rare",
+  ウルトラレア: "rarity-ultra-rare"
+};
+
 const els = {
   setupView: document.querySelector("#setupView"),
   setupModeView: document.querySelector("#setupModeView"),
@@ -2349,12 +2355,6 @@ function populateTargetSelects() {
 function makeTargetOption(target) {
   return `<option value="${target.id}">${target.label}</option>`;
 }
-
-const ITEM_RARITY_CLASSES = {
-  ノーマル: "rarity-normal",
-  レア: "rarity-rare",
-  ウルトラレア: "rarity-ultra-rare"
-};
 
 function renderItemGuide() {
   if (!els.itemGuideList) return;
