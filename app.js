@@ -156,7 +156,7 @@ const ITEM_CATALOG = [
     id: "card-swap",
     label: "カード交換",
     description: "表示中の候補市区町村を1回だけ引き直します。",
-    rarity: "コモン",
+    rarity: "ノーマル",
     weight: 20,
     requiresTarget: false
   },
@@ -164,7 +164,7 @@ const ITEM_CATALOG = [
     id: "small-boost",
     label: "微増",
     description: "自分の現在人口に3,000人を加算します。",
-    rarity: "コモン",
+    rarity: "ノーマル",
     weight: 18,
     requiresTarget: false
   },
@@ -172,7 +172,7 @@ const ITEM_CATALOG = [
     id: "scout",
     label: "偵察",
     description: "表示中の候補の人口をHITする前に確認できます。ターンは消費しません。",
-    rarity: "アンコモン",
+    rarity: "ノーマル",
     weight: 14,
     requiresTarget: false,
     instant: true
@@ -181,7 +181,7 @@ const ITEM_CATALOG = [
     id: "target-boost-5pct",
     label: "目標ブースト",
     description: "自分の現在人口にTARGETの5%を加算します。",
-    rarity: "アンコモン",
+    rarity: "ノーマル",
     weight: 13,
     requiresTarget: false
   },
@@ -189,7 +189,7 @@ const ITEM_CATALOG = [
     id: "double-next",
     label: "2倍",
     description: "次に自分が獲得する市区町村の人口を2倍にします。",
-    rarity: "アンコモン",
+    rarity: "ノーマル",
     weight: 10,
     requiresTarget: false
   },
@@ -197,7 +197,7 @@ const ITEM_CATALOG = [
     id: "barrier",
     label: "バリア",
     description: "発動後、次に自分へ使われる妨害アイテムを1回だけ無効化します。",
-    rarity: "アンコモン",
+    rarity: "ノーマル",
     weight: 10,
     requiresTarget: false
   },
@@ -2349,8 +2349,7 @@ function makeTargetOption(target) {
 }
 
 const ITEM_RARITY_CLASSES = {
-  コモン: "rarity-common",
-  アンコモン: "rarity-uncommon",
+  ノーマル: "rarity-normal",
   レア: "rarity-rare",
   ウルトラレア: "rarity-ultra-rare"
 };
@@ -2370,7 +2369,7 @@ function renderItemGuide() {
     name.textContent = itemDef.label;
 
     const rarity = document.createElement("span");
-    rarity.className = `item-guide-rarity ${ITEM_RARITY_CLASSES[itemDef.rarity] || "rarity-common"}`;
+    rarity.className = `item-guide-rarity ${ITEM_RARITY_CLASSES[itemDef.rarity] || "rarity-normal"}`;
     rarity.textContent = itemDef.rarity;
 
     head.append(name, rarity);

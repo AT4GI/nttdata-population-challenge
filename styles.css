@@ -458,12 +458,8 @@ label input {
   white-space: nowrap;
 }
 
-.item-guide-rarity.rarity-common {
+.item-guide-rarity.rarity-normal {
   color: var(--muted);
-}
-
-.item-guide-rarity.rarity-uncommon {
-  color: #9fb3ac;
 }
 
 .item-guide-rarity.rarity-rare {
