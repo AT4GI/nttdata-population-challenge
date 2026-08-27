@@ -2513,7 +2513,13 @@ function renderGameStartIntroRule(room, target) {
   const targetSpan = document.createElement("strong");
   targetSpan.textContent = isTargetHidden(room) ? "非公開（伏せモード）" : `${formatNumber(target.value)}人`;
 
-  els.gameStartIntroRule.append("TARGETは", targetSpan, "。これを超えないように、HITかSTANDを選んでいきましょう。");
+  els.gameStartIntroRule.append(
+    "TARGETは",
+    targetSpan,
+    "。",
+    document.createElement("br"),
+    "これを超えないように、HITかSTANDを選んでいきましょう。"
+  );
 }
 
 function hideGameStartIntro(immediate) {
@@ -2548,7 +2554,9 @@ function renderDrawProfile(container, target, options = {}) {
 
   const note = document.createElement("p");
   note.className = "draw-profile-note";
-  note.textContent = `TARGETを超える市区町村は約${Math.round(DRAW_OVER_TARGET_RATE * 100)}%だけ出ます。残りはどの帯もほぼ同じ確率です。`;
+  const perHitManValue = formatManValue(target.value / DRAW_REFERENCE_TURNS);
+  const perTierPercent = ((1 - DRAW_OVER_TARGET_RATE) * 100) / DRAW_BUCKET_COUNT;
+  note.textContent = `1回のHITの目安（TARGET÷${DRAW_REFERENCE_TURNS}＝${perHitManValue}万人）を${DRAW_BUCKET_COUNT}等分し、どの帯も同じ確率（${perTierPercent.toFixed(1)}%）で出ます。TARGETを超える人口は${Math.round(DRAW_OVER_TARGET_RATE * 100)}%です。`;
 
   const list = document.createElement("div");
   list.className = "draw-profile-bars";
