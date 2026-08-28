@@ -299,6 +299,8 @@ const els = {
   burstFlash: document.querySelector("#burstFlash"),
   actionBanner: document.querySelector("#actionBanner"),
   actionBannerText: document.querySelector("#actionBannerText"),
+  itemAnnouncement: document.querySelector("#itemAnnouncement"),
+  itemAnnouncementText: document.querySelector("#itemAnnouncementText"),
   candidateMapSlot: document.querySelector("#candidateMapSlot"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
@@ -358,6 +360,9 @@ let actionPending = false;
 let gameStartIntroHideTimer = null;
 let gameStartIntroVisible = false;
 let lastProgressPlayerId = "";
+// playerId -> そのプレイヤーの前回描画時点でのitem.used。全員分の「アイテムを
+// 今まさに使った」変化を検知するために使う（undefinedは「まだ観測していない」）。
+const lastSeenItemUsed = {};
 let audioCtx = null;
 let bgmGain = null;
 let bgmScheduler = null;
@@ -1240,6 +1245,7 @@ function renderRoom(room) {
   currentRoomCanPlay = room.status === "playing" && areGameStartConfirmationsComplete(room);
   syncBgm();
   const players = room.players || {};
+  if (room.itemMode) detectItemUsageEffects(players);
   const playerIds = getDisplayPlayerIds(room);
   const me = players[currentPlayerId];
   const isHost = room.hostPlayerId === currentPlayerId;
@@ -1664,6 +1670,50 @@ function triggerActionBanner(text, variant) {
   window.setTimeout(() => {
     els.actionBanner.classList.remove("show", "hit", "stand");
   }, 850);
+}
+
+// 誰か（自分・相手どちらでも）がアイテムを使った瞬間をリアルタイムで検知し、
+// 画面上部に何を使ったか分かる通知を出す。item.usedのfalse→true変化を見る。
+function detectItemUsageEffects(players) {
+  for (const [playerId, player] of Object.entries(players)) {
+    const used = Boolean(player?.item?.used);
+    const previouslySeen = lastSeenItemUsed[playerId];
+    if (used && previouslySeen === false) {
+      const casterName = playerId === currentPlayerId ? "あなた" : player.name || "参加者";
+      const text = buildItemAnnouncementText(casterName, player.lastAction);
+      if (text) triggerItemAnnouncement(text);
+    }
+    lastSeenItemUsed[playerId] = used;
+  }
+}
+
+function buildItemAnnouncementText(casterName, lastAction) {
+  if (!lastAction || !lastAction.itemLabel) return null;
+  const itemLabel = lastAction.itemLabel;
+
+  if (lastAction.type === "item-blocked") {
+    return `${casterName}の「${itemLabel}」は${lastAction.targetName}のバリアで防がれた！`;
+  }
+  if (lastAction.type === "item-reflected") {
+    return `${casterName}の「${itemLabel}」が${lastAction.targetName}に跳ね返された！`;
+  }
+  if (lastAction.targetName) {
+    return `${casterName}が${lastAction.targetName}に「${itemLabel}」！`;
+  }
+  return `${casterName}が「${itemLabel}」を使用！`;
+}
+
+// アイテム使用の通知を画面上部にトースト表示する。
+function triggerItemAnnouncement(text) {
+  if (!els.itemAnnouncement || !els.itemAnnouncementText) return;
+  els.itemAnnouncement.classList.remove("show");
+  void els.itemAnnouncement.offsetWidth;
+  els.itemAnnouncementText.textContent = text;
+  els.itemAnnouncement.classList.add("show");
+  playSfx("tick");
+  window.setTimeout(() => {
+    els.itemAnnouncement.classList.remove("show");
+  }, 2600);
 }
 
 // HITで加算された人口を「+◯万人」と金文字でふわっと表示する。
