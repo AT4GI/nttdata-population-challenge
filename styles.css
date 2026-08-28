@@ -44,6 +44,9 @@ body {
   --font-display: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
   --font-digital: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
   --font-body: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  /* NTT DATA採用サイトの見出し書体を参考にしたアクセント書体。英字はArchivo、
+     日本語は同じウェイトのNoto Sans JPにフォールバックする。 */
+  --font-accent: "Archivo", "Noto Sans JP", sans-serif;
   font-family: var(--font-body);
 }
 
@@ -184,10 +187,30 @@ h1 {
 }
 
 .setup-intro {
-  margin: 0 0 18px;
-  color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.6;
+  max-width: 46ch;
+  margin: 0 auto 22px;
+  text-align: center;
+  color: var(--ink);
+  font-family: var(--font-accent);
+  font-weight: 600;
+  font-size: clamp(1.02rem, 2.6vw, 1.22rem);
+  letter-spacing: 0.01em;
+  line-height: 1.7;
+}
+
+.setup-intro-term {
+  font-family: var(--font-digital);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0 2px;
+}
+
+.setup-intro-term.target {
+  color: var(--gold-bright);
+}
+
+.setup-intro-term.bust {
+  color: var(--danger-bright);
 }
 
 .setup-choice-grid {
