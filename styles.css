@@ -44,8 +44,6 @@ body {
   --font-display: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
   --font-digital: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
   --font-body: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
-  /* NTT DATA採用サイト(nttdata-recruit.com)の英字見出しに合わせたアクセント書体 */
-  --font-accent: "Archivo", "Noto Sans JP", sans-serif;
   font-family: var(--font-body);
 }
 
@@ -157,14 +155,6 @@ body.in-room .app-shell {
   font-family: var(--font-display);
 }
 
-/* 英字だけの見出し（Firebase Realtime Database MVPなど）は、採用サイトに
-   ならってArchivoで表示する。日本語のラベル(.label)には影響しない。 */
-.eyebrow {
-  font-family: var(--font-accent);
-  font-weight: 400;
-  letter-spacing: 0.14em;
-}
-
 h1,
 h2,
 p {
@@ -173,17 +163,10 @@ p {
 
 h1 {
   margin-bottom: 0;
-  /* NTT DATAロゴ本体（隙間なく詰まった極太のブロック体）に近い見た目に
-     したいので、Archivo Black を使う。日本語部分は自動でNoto Sans JPに
-     フォールバックする（Archivo BlackはCJKグリフを持たないため）。 */
-  font-family: "Archivo Black", var(--font-display);
-  /* Archivo Blackは常に極太（単一ウェイトのフォント）で表示されるため、
-     フォールバック先の日本語(Noto Sans JP)側もできるだけ太くして、
-     英語部分と日本語部分の太さの差が目立たないようにする。 */
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  font-size: clamp(1.7rem, 4.4vw, 3.3rem);
-  line-height: 1.15;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 4.6vw, 3.6rem);
+  line-height: 1.1;
   color: var(--gold-bright);
   text-shadow: 0 0 22px rgba(212, 175, 55, 0.35), 0 2px 0 rgba(0, 0, 0, 0.5);
 }
@@ -843,6 +826,14 @@ label input {
   font-size: 0.85rem;
 }
 
+.item-guide-note {
+  display: block;
+  margin-top: 4px;
+  color: #7c8a7d;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 .item-guide-rarity {
   flex-shrink: 0;
   font-size: 0.72rem;
@@ -857,6 +848,10 @@ label input {
 
 .item-guide-rarity.rarity-rare {
   color: var(--gold-bright);
+}
+
+.item-guide-rarity.rarity-super-rare {
+  color: #c084fc;
 }
 
 .item-guide-rarity.rarity-ultra-rare {
@@ -1859,6 +1854,24 @@ label input {
   font-size: 0.88rem;
 }
 
+/* アイテムの効果が発動した瞬間（使用者・対象者どちらも）行を紫色に一瞬光らせる。 */
+.player-row.item-effect-flash {
+  animation: itemEffectFlash 1s ease;
+}
+
+@keyframes itemEffectFlash {
+  0% {
+    border-color: #c084fc;
+    box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.65), 0 0 22px rgba(192, 132, 252, 0.45);
+    background: rgba(124, 58, 237, 0.22);
+  }
+  100% {
+    border-color: var(--line-soft);
+    box-shadow: none;
+    background: rgba(16, 27, 20, 0.85);
+  }
+}
+
 /* 参加者ごとに左端のアクセント色を変え、目標人口バーの色とひと目で対応づける。 */
 .player-row {
   border-left-width: 4px;
@@ -2441,21 +2454,21 @@ body.bust-shake .app-shell {
   display: block;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(0.95rem, 2.6vw, 1.25rem);
+  font-size: clamp(1rem, 2.8vw, 1.35rem);
   letter-spacing: 0.02em;
   color: #f3e8ff;
   background: linear-gradient(135deg, rgba(124, 58, 237, 0.92), rgba(88, 28, 135, 0.92));
   border: 1px solid #c084fc;
   border-radius: 999px;
-  padding: 10px 22px;
-  box-shadow: 0 0 24px rgba(192, 132, 252, 0.55), 0 10px 24px rgba(0, 0, 0, 0.4);
+  padding: 12px 26px;
+  box-shadow: 0 0 28px rgba(192, 132, 252, 0.6), 0 10px 26px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .item-announcement.show {
-  animation: itemAnnouncementIn 2.6s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation: itemAnnouncementIn 3.2s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
 @keyframes itemAnnouncementIn {

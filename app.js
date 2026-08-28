@@ -172,26 +172,11 @@ const ITEM_CATALOG = [
     requiresTarget: false
   },
   {
-    id: "small-boost",
-    label: "微増",
-    description: "自分の現在人口に3,000人を加算します。",
-    rarity: "ノーマル",
-    weight: 18,
-    requiresTarget: false
-  },
-  {
-    id: "scout",
-    label: "偵察",
-    description: "表示中の候補の人口をHITする前に確認できます。ターンは消費しません。",
-    rarity: "ノーマル",
-    weight: 14,
-    requiresTarget: false,
-    instant: true
-  },
-  {
     id: "target-boost-5pct",
     label: "目標ブースト",
     description: "自分の現在人口にTARGETの5%を加算します。",
+    describe: (targetValue) =>
+      `自分の現在人口にTARGETの5%（${formatNumber(Math.round(Number(targetValue || 0) * 0.05))}人）を加算します。`,
     rarity: "ノーマル",
     weight: 13,
     requiresTarget: false
@@ -229,11 +214,20 @@ const ITEM_CATALOG = [
     requiresTarget: true
   },
   {
+    id: "scout",
+    label: "偵察",
+    description: "表示中の候補の人口をHITする前に確認できます。ターンは消費しません。",
+    rarity: "スーパーレア",
+    weight: 4,
+    requiresTarget: false,
+    instant: true
+  },
+  {
     id: "swap-totals",
     label: "総取っ替え",
     description: "自分と指定した相手の現在人口を入れ替えます。",
-    rarity: "レア",
-    weight: 6,
+    rarity: "スーパーレア",
+    weight: 4,
     requiresTarget: true
   },
   {
@@ -273,10 +267,11 @@ const ITEM_CATALOG = [
 const ITEM_RARITY_CLASSES = {
   ノーマル: "rarity-normal",
   レア: "rarity-rare",
+  スーパーレア: "rarity-super-rare",
   ウルトラレア: "rarity-ultra-rare"
 };
 
-const ITEM_RARITY_ORDER = ["ノーマル", "レア", "ウルトラレア"];
+const ITEM_RARITY_ORDER = ["ノーマル", "レア", "スーパーレア", "ウルトラレア"];
 
 const els = {
   setupView: document.querySelector("#setupView"),
@@ -412,6 +407,10 @@ let lastProgressPlayerId = "";
 // playerId -> そのプレイヤーの前回描画時点でのitem.used。全員分の「アイテムを
 // 今まさに使った」変化を検知するために使う（undefinedは「まだ観測していない」）。
 const lastSeenItemUsed = {};
+// playerId -> そのプレイヤーの前回描画時点でのlastActionの内容(JSON化)。
+// 使用者側だけでなく「対象にされた側」の変化も検知して、プレイヤー一覧の
+// 該当行を一瞬光らせるために使う（undefinedは「まだ観測していない」）。
+const lastSeenActionSignature = {};
 // 直前の描画で観測済みだったコメントidの集合。nullは「まだ観測していない」
 // （部屋に入った直後の初回描画で、既存の全コメントをふわっと通知しないため）。
 let lastSeenCommentIds = null;
@@ -1092,10 +1091,6 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       updates[`players/${playerId}/scoutRevealedCandidateId`] = player.candidate.id;
       break;
     }
-    case "small-boost": {
-      applyPlayerFieldUpdates(updates, playerId, resolveTotalChange(room, player, (player.total || 0) + 3000));
-      break;
-    }
     case "target-boost-5pct": {
       applyPlayerFieldUpdates(updates, playerId, resolveTotalChange(room, player, (player.total || 0) + Math.round(target * 0.05)));
       break;
@@ -1119,6 +1114,12 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
         const victim = room.players?.[defense.targetId];
         const amount = Math.round((victim.total || 0) * 0.1);
         applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) - amount));
+        updates[`players/${defense.targetId}/lastAction`] = {
+          type: "item-received",
+          itemLabel: itemDef.label,
+          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+          detail: `-${formatNumber(amount)}人`
+        };
       }
       break;
     }
@@ -1130,6 +1131,12 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
         const victimPlayer = room.players?.[defense.targetId];
         applyPlayerFieldUpdates(updates, defense.casterId, resolveTotalChange(room, casterPlayer, victimPlayer.total || 0));
         applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victimPlayer, casterPlayer.total || 0));
+        updates[`players/${defense.targetId}/lastAction`] = {
+          type: "item-received",
+          itemLabel: itemDef.label,
+          casterName: casterPlayer?.name || "参加者",
+          detail: `${formatNumber(casterPlayer?.total || 0)}人と入れ替え`
+        };
       }
       break;
     }
@@ -1139,6 +1146,12 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       if (defense.applied) {
         const victim = room.players?.[defense.targetId];
         applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 10000));
+        updates[`players/${defense.targetId}/lastAction`] = {
+          type: "item-received",
+          itemLabel: itemDef.label,
+          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+          detail: "+10,000人"
+        };
       }
       break;
     }
@@ -1148,6 +1161,12 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       if (defense.applied) {
         const victim = room.players?.[defense.targetId];
         applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 50000));
+        updates[`players/${defense.targetId}/lastAction`] = {
+          type: "item-received",
+          itemLabel: itemDef.label,
+          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+          detail: "+50,000人"
+        };
       }
       break;
     }
@@ -1156,6 +1175,12 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       lastActionAlreadySet = true;
       if (defense.applied) {
         updates[`players/${defense.targetId}/nextHitMultiplier`] = 0.5;
+        updates[`players/${defense.targetId}/lastAction`] = {
+          type: "item-received",
+          itemLabel: itemDef.label,
+          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+          detail: "次のHITが半分に"
+        };
       }
       break;
     }
@@ -1497,7 +1522,7 @@ function renderItemPanel(room, me) {
 
   const isMyTurn = canTakeTurn(room, currentPlayerId);
   els.itemName.textContent = `${itemDef.label}（${itemDef.rarity}）`;
-  els.itemDescription.textContent = itemDef.description;
+  els.itemDescription.textContent = getItemDescription(itemDef, getRoomTarget(room).value);
   els.useItemButton.disabled = !isMyTurn;
   els.useItemButton.dataset.itemId = itemDef.id;
 
@@ -1701,6 +1726,7 @@ if (room.status !== "waiting") {
     item.className = "player-row";
     if (playerId === currentPlayerId) item.classList.add("me");
     if (playerId === turnPlayerId && room.status === "playing") item.classList.add("current-turn");
+    if (shouldFlashItemEffect(playerId, player.lastAction)) item.classList.add("item-effect-flash");
     setPlayerColorClass(item, room, playerId);
 
     const title = document.createElement("strong");
@@ -1795,6 +1821,18 @@ function triggerActionBanner(text, variant) {
 
 // 誰か（自分・相手どちらでも）がアイテムを使った瞬間をリアルタイムで検知し、
 // 画面上部に何を使ったか分かる通知を出す。item.usedのfalse→true変化を見る。
+const ITEM_ACTION_TYPES = new Set(["item", "item-blocked", "item-reflected", "item-received"]);
+
+// 使用者・対象者どちらの行も、アイテムの効果で状態が変わった瞬間だけ一瞬光らせる。
+// 初回観測（部屋に入った直後）は光らせない。
+function shouldFlashItemEffect(playerId, lastAction) {
+  const signature = JSON.stringify(lastAction || null);
+  const previousSignature = lastSeenActionSignature[playerId];
+  lastSeenActionSignature[playerId] = signature;
+  if (previousSignature === undefined || previousSignature === signature) return false;
+  return ITEM_ACTION_TYPES.has(lastAction?.type);
+}
+
 function detectItemUsageEffects(players) {
   for (const [playerId, player] of Object.entries(players)) {
     const used = Boolean(player?.item?.used);
@@ -1857,15 +1895,15 @@ function buildItemAnnouncementText(casterName, lastAction) {
   const itemLabel = lastAction.itemLabel;
 
   if (lastAction.type === "item-blocked") {
-    return `${casterName}の「${itemLabel}」は${lastAction.targetName}のバリアで防がれた！`;
+    return `🛡️ ${casterName}の「${itemLabel}」は${lastAction.targetName}のバリアで防がれた！`;
   }
   if (lastAction.type === "item-reflected") {
-    return `${casterName}の「${itemLabel}」が${lastAction.targetName}に跳ね返された！`;
+    return `🔁 ${casterName}の「${itemLabel}」が${lastAction.targetName}に跳ね返された！`;
   }
   if (lastAction.targetName) {
-    return `${casterName}が${lastAction.targetName}に「${itemLabel}」！`;
+    return `⚡ ${casterName}が${lastAction.targetName}に「${itemLabel}」！`;
   }
-  return `${casterName}が「${itemLabel}」を使用！`;
+  return `✨ ${casterName}が「${itemLabel}」を使用！`;
 }
 
 // アイテム使用の通知を画面上部にトースト表示する。
@@ -1878,7 +1916,7 @@ function triggerItemAnnouncement(text) {
   playSfx("tick");
   window.setTimeout(() => {
     els.itemAnnouncement.classList.remove("show");
-  }, 2600);
+  }, 3200);
 }
 
 // HITで加算された人口を「+◯万人」と金文字でふわっと表示する。
@@ -2194,6 +2232,9 @@ function buildLastActionText(player) {
   }
   if (action.type === "item-blocked") return `直前：${action.targetName}のバリアに『${action.itemLabel}』を防がれた`;
   if (action.type === "item-reflected") return `直前：${action.targetName}に『${action.itemLabel}』を跳ね返された`;
+  if (action.type === "item-received") {
+    return `直前：${action.casterName}の『${action.itemLabel}』を受けた${action.detail ? `（${action.detail}）` : ""}`;
+  }
   return "";
 }
 
@@ -2505,6 +2546,12 @@ function getItemDefinition(itemId) {
   return ITEM_CATALOG.find((item) => item.id === itemId) || null;
 }
 
+// TARGET依存の効果（目標ブーストなど）は、実際のTARGET値から具体的な人数を
+// 計算して説明文に埋め込む。describeを持たないアイテムは静的な説明文をそのまま使う。
+function getItemDescription(itemDef, targetValue) {
+  return typeof itemDef.describe === "function" ? itemDef.describe(targetValue) : itemDef.description;
+}
+
 function pickCandidate(drawn, targetValue) {
   const available = MUNICIPALITIES.filter((item) => !drawn[item.id]);
   const pool = available.length > 0 ? available : MUNICIPALITIES;
@@ -2598,7 +2645,7 @@ function renderItemGuide() {
   if (!els.itemGuideList) return;
   els.itemGuideList.innerHTML = "";
 
-  // ITEM_CATALOG内の並び順に関わらず、常にレア度の順（ノーマル→レア→ウルトラレア）で表示する。
+  // ITEM_CATALOG内の並び順に関わらず、常にレア度の順（ノーマル→レア→スーパーレア→ウルトラレア）で表示する。
   const sortedItems = [...ITEM_CATALOG].sort(
     (a, b) => ITEM_RARITY_ORDER.indexOf(a.rarity) - ITEM_RARITY_ORDER.indexOf(b.rarity)
   );
@@ -2620,7 +2667,17 @@ function renderItemGuide() {
     head.append(name, rarity);
 
     const description = document.createElement("p");
-    description.textContent = itemDef.description;
+    // TARGET依存の効果は、この画面ではまだ実際のTARGETが決まっていないため
+    // デフォルトTARGETでの参考値を示し、実際の対戦では選んだTARGETの値になる旨を添える。
+    description.textContent = getItemDescription(itemDef, DEFAULT_TARGET.value);
+    if (typeof itemDef.describe === "function") {
+      const note = document.createElement("small");
+      note.className = "item-guide-note";
+      note.textContent = `※ ${DEFAULT_TARGET.label}(${formatNumber(DEFAULT_TARGET.value)}人)を選んだ場合の例。実際の人数はTARGETによって変わります。`;
+      card.append(head, description, note);
+      els.itemGuideList.append(card);
+      continue;
+    }
 
     card.append(head, description);
     els.itemGuideList.append(card);
