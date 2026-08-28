@@ -1156,10 +1156,12 @@ label input {
 /* NTTデータ拠点の一言は、出身地バッジより控えめ（背景なし・細字・落ち着いた色）にする。 */
 .candidate-office-note {
   margin: 6px 0 0 !important;
+  max-width: 46ch;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.76rem;
+  line-height: 1.4;
   font-weight: 500;
-  opacity: 0.75;
+  opacity: 0.85;
 }
 
 .players-panel h2,

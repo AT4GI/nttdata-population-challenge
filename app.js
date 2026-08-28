@@ -128,30 +128,30 @@ const PREFECTURES = [...new Set(MUNICIPALITIES.map((item) => item.prefecture))];
 // NTTデータグループ各社の本社所在地（公式サイトの会社概要/アクセスページで確認済み）。
 // 出典: https://www.nttdata.com/global/ja/recruit/careers/chiikitodata/company/ ほか各社公式サイト。
 const NTT_DATA_OFFICE_LOCATIONS = [
-  { prefecture: "東京都", name: "江東区" },
-  { prefecture: "北海道", name: "札幌市北区" },
-  { prefecture: "宮城県", name: "仙台市青葉区" },
-  { prefecture: "長野県", name: "長野市" },
-  { prefecture: "愛知県", name: "名古屋市中区" },
-  { prefecture: "石川県", name: "金沢市" },
-  { prefecture: "大阪府", name: "大阪市北区" },
-  { prefecture: "広島県", name: "広島市南区" },
-  { prefecture: "愛媛県", name: "松山市" },
-  { prefecture: "福岡県", name: "福岡市博多区" },
-  { prefecture: "千葉県", name: "松戸市" },
-  { prefecture: "東京都", name: "千代田区" },
-  { prefecture: "東京都", name: "新宿区" },
-  { prefecture: "東京都", name: "稲城市" },
-  { prefecture: "東京都", name: "渋谷区" },
-  { prefecture: "大阪府", name: "大阪市中央区" },
-  { prefecture: "東京都", name: "港区" },
-  { prefecture: "東京都", name: "中央区" },
-  { prefecture: "神奈川県", name: "横浜市港北区" },
-  { prefecture: "東京都", name: "大田区" },
-  { prefecture: "東京都", name: "品川区" },
-  { prefecture: "東京都", name: "豊島区" },
-  { prefecture: "東京都", name: "目黒区" },
-  { prefecture: "大分県", name: "大分市" }
+  { prefecture: "東京都", name: "江東区", companies: ["NTTデータグループ本社", "NTTデータ・インフォメーションテクノロジー", "NTTデータ・ウィズ", "NTTデータSMS", "NTTデータ・コーテック", "NTTデータザムテクノロジーズ", "NTTデータだいち", "NTTデータ・ビーン", "NTTデータ・ライフデザイン", "NTTデータ・カスタマサービス", "Marble Visions"] },
+  { prefecture: "北海道", name: "札幌市北区", companies: ["NTTデータ北海道"] },
+  { prefecture: "宮城県", name: "仙台市青葉区", companies: ["NTTデータ東北"] },
+  { prefecture: "長野県", name: "長野市", companies: ["NTTデータ信越"] },
+  { prefecture: "愛知県", name: "名古屋市中区", companies: ["NTTデータ東海"] },
+  { prefecture: "石川県", name: "金沢市", companies: ["NTTデータ北陸"] },
+  { prefecture: "大阪府", name: "大阪市北区", companies: ["NTTデータ関西", "NTTデータセキスイシステムズ"] },
+  { prefecture: "広島県", name: "広島市南区", companies: ["NTTデータ中国"] },
+  { prefecture: "愛媛県", name: "松山市", companies: ["NTTデータ四国"] },
+  { prefecture: "福岡県", name: "福岡市博多区", companies: ["NTTデータ九州", "エヌ・ティ・ティ・データNCB"] },
+  { prefecture: "千葉県", name: "松戸市", companies: ["NTTデータMCS"] },
+  { prefecture: "東京都", name: "千代田区", companies: ["日本電子計算", "NTTグローバルデータセンター・ジャパン", "NTTセキュリティ", "NTTリミテッド・ジャパン", "NTTデータ経営研究所", "JIPテクノサイエンス", "JSOL", "ジップインフォブリッジ", "NTTデータ先端技術", "フォーティエンスコンサルティング", "理研数理", "NTTデータルウィーブ"] },
+  { prefecture: "東京都", name: "新宿区", companies: ["NTTデータ・アイ", "キュービック", "NTTデータ数理システム"] },
+  { prefecture: "東京都", name: "稲城市", companies: ["いなぎ図書館サービス", "いなぎ文化センターサービス"] },
+  { prefecture: "東京都", name: "渋谷区", companies: ["NTTデータ・ウェーブ", "ペイジェント"] },
+  { prefecture: "大阪府", name: "大阪市中央区", companies: ["NTTデータSBC", "DACS"] },
+  { prefecture: "東京都", name: "港区", companies: ["NTTデータ・エービック", "NTTデータMHIシステムズ", "NTTデータグローバル・サービス", "ジャステック", "NTTデータ・ニューソン", "NTTデータ バリュー・エンジニア", "NTTデータビジネスブレインズ", "NTTデータ・ビズインテグラル", "NTTデータ・フィナンシャルテクノロジー", "NTTデータフロンティア"] },
+  { prefecture: "東京都", name: "中央区", companies: ["NTTデータNJK", "NTTデータ・エマーズ", "NTTデータ・グローバルソリューションズ", "ジェイエスフィット", "ネットイヤーグループ"] },
+  { prefecture: "神奈川県", name: "横浜市港北区", companies: ["NTTデータMSE", "NTTデータ オートモビリジェンス研究所", "NTTデータフォース"] },
+  { prefecture: "東京都", name: "大田区", companies: ["NTTデータエンジニアリングシステムズ", "NTTデータビリングサービス"] },
+  { prefecture: "東京都", name: "品川区", companies: ["NTTデータCCS", "ハレックス"] },
+  { prefecture: "東京都", name: "豊島区", companies: ["NTTデータスミス", "NTTデータ・ビジネス・システムズ"] },
+  { prefecture: "東京都", name: "目黒区", companies: ["NTTデータソフィア", "NTTデータユニバーシティ"] },
+  { prefecture: "大分県", name: "大分市", companies: ["NTTデータ・ビーンサービス"] }
 ];
 const statusLabels = {
   waiting: "待機中",
@@ -1825,14 +1825,25 @@ function updateCandidateHomeNote(players, prefecture) {
 
 // 今カードに表示中の市区町村がNTTデータグループの拠点所在地と一致していたら、
 // カード上に控えめな一言を添える（主張しすぎないよう、社名は列挙しない）。
-function isNttDataOfficeLocation(prefecture, name) {
-  if (!prefecture || !name) return false;
-  return NTT_DATA_OFFICE_LOCATIONS.some((office) => office.prefecture === prefecture && office.name === name);
+function findNttDataOffice(prefecture, name) {
+  if (!prefecture || !name) return null;
+  return NTT_DATA_OFFICE_LOCATIONS.find((office) => office.prefecture === prefecture && office.name === name) || null;
+}
+
+// 会社名が多い拠点（港区・千代田区・江東区など）は、代表2社+「など◯社」で
+// 詳しさと読みやすさを両立する。3社以下ならそのまま全社名を出す。
+function buildOfficeNoteText(office) {
+  const companies = office.companies || [];
+  if (companies.length === 0) return "🏢 NTTデータグループの拠点があります";
+  if (companies.length <= 3) return `🏢 ${companies.join("・")}の拠点があります`;
+  return `🏢 ${companies.slice(0, 2).join("・")}ほか、NTTデータグループ計${companies.length}社の拠点があります`;
 }
 
 function updateCandidateOfficeNote(prefecture, name) {
   if (!els.candidateOfficeNote) return;
-  els.candidateOfficeNote.classList.toggle("hidden", !isNttDataOfficeLocation(prefecture, name));
+  const office = findNttDataOffice(prefecture, name);
+  els.candidateOfficeNote.classList.toggle("hidden", !office);
+  els.candidateOfficeNote.textContent = office ? buildOfficeNoteText(office) : "";
 }
 
 function buildItemAnnouncementText(casterName, lastAction) {
