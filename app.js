@@ -125,6 +125,34 @@ const TARGETS = [
 const DEFAULT_TARGET = TARGETS.find((target) => target.isDefault) || TARGETS[0];
 // 市区町村データから実在する都道府県名を重複なく取り出す（表記ゆれの心配がない）。
 const PREFECTURES = [...new Set(MUNICIPALITIES.map((item) => item.prefecture))];
+// NTTデータグループ各社の本社所在地（公式サイトの会社概要/アクセスページで確認済み）。
+// 出典: https://www.nttdata.com/global/ja/recruit/careers/chiikitodata/company/ ほか各社公式サイト。
+const NTT_DATA_OFFICE_LOCATIONS = [
+  { prefecture: "東京都", name: "江東区" },
+  { prefecture: "北海道", name: "札幌市北区" },
+  { prefecture: "宮城県", name: "仙台市青葉区" },
+  { prefecture: "長野県", name: "長野市" },
+  { prefecture: "愛知県", name: "名古屋市中区" },
+  { prefecture: "石川県", name: "金沢市" },
+  { prefecture: "大阪府", name: "大阪市北区" },
+  { prefecture: "広島県", name: "広島市南区" },
+  { prefecture: "愛媛県", name: "松山市" },
+  { prefecture: "福岡県", name: "福岡市博多区" },
+  { prefecture: "千葉県", name: "松戸市" },
+  { prefecture: "東京都", name: "千代田区" },
+  { prefecture: "東京都", name: "新宿区" },
+  { prefecture: "東京都", name: "稲城市" },
+  { prefecture: "東京都", name: "渋谷区" },
+  { prefecture: "大阪府", name: "大阪市中央区" },
+  { prefecture: "東京都", name: "港区" },
+  { prefecture: "東京都", name: "中央区" },
+  { prefecture: "神奈川県", name: "横浜市港北区" },
+  { prefecture: "東京都", name: "大田区" },
+  { prefecture: "東京都", name: "品川区" },
+  { prefecture: "東京都", name: "豊島区" },
+  { prefecture: "東京都", name: "目黒区" },
+  { prefecture: "大分県", name: "大分市" }
+];
 const statusLabels = {
   waiting: "待機中",
   active: "プレイ中",
@@ -320,6 +348,7 @@ const els = {
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
   candidateHomeNote: document.querySelector("#candidateHomeNote"),
+  candidateOfficeNote: document.querySelector("#candidateOfficeNote"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
   hitButton: document.querySelector("#hitButton"),
   standButton: document.querySelector("#standButton"),
@@ -1424,7 +1453,9 @@ function renderRoom(room) {
   const shownPrefecture = isCandidateMasked
     ? candidate.prefecture
     : focusPlayer?.lastRevealed?.prefecture || null;
+  const shownName = isCandidateMasked ? candidate.name : focusPlayer?.lastRevealed?.name || null;
   updateCandidateHomeNote(players, shownPrefecture);
+  updateCandidateOfficeNote(shownPrefecture, shownName);
   updateCandidateCard(revealCategory, isCandidateMasked);
   updateCandidateMap(isCandidateMasked ? candidate : focusPlayer?.lastRevealed || null);
   updateTargetProgress(room, focusPlayer, target, focusPlayerId);
@@ -1790,6 +1821,18 @@ function updateCandidateHomeNote(players, prefecture) {
   }
   els.candidateHomeNote.textContent = `🏠 ${matchedNames.join("、")}の出身地です`;
   els.candidateHomeNote.classList.remove("hidden");
+}
+
+// 今カードに表示中の市区町村がNTTデータグループの拠点所在地と一致していたら、
+// カード上に控えめな一言を添える（主張しすぎないよう、社名は列挙しない）。
+function isNttDataOfficeLocation(prefecture, name) {
+  if (!prefecture || !name) return false;
+  return NTT_DATA_OFFICE_LOCATIONS.some((office) => office.prefecture === prefecture && office.name === name);
+}
+
+function updateCandidateOfficeNote(prefecture, name) {
+  if (!els.candidateOfficeNote) return;
+  els.candidateOfficeNote.classList.toggle("hidden", !isNttDataOfficeLocation(prefecture, name));
 }
 
 function buildItemAnnouncementText(casterName, lastAction) {
