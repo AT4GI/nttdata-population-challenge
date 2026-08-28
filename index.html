@@ -55,6 +55,10 @@
             <input id="playerNameInput" type="text" maxlength="20" placeholder="Player">
           </label>
           <label class="stacked-field">
+            出身都道府県（任意）
+            <select id="createHomePrefectureSelect"></select>
+          </label>
+          <label class="stacked-field">
             TARGET
             <select id="createTargetSelect"></select>
           </label>
@@ -89,6 +93,10 @@
           <label>
             表示名
             <input id="joinPlayerNameInput" type="text" maxlength="20" placeholder="Player">
+          </label>
+          <label class="stacked-field">
+            出身都道府県（任意）
+            <select id="joinHomePrefectureSelect"></select>
           </label>
           <label>
             部屋ID
@@ -347,6 +355,7 @@
     <div id="itemAnnouncement" class="item-announcement" aria-hidden="true">
       <span id="itemAnnouncementText" class="item-announcement-text"></span>
     </div>
+    <div id="commentPopupLayer" class="comment-popup-layer" aria-hidden="true"></div>
     <div id="gameStartIntro" class="game-start-intro hidden" aria-hidden="true">
       <div class="game-start-intro-card">
         <p class="label">GAME START</p>

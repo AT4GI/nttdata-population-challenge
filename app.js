@@ -21,8 +21,11 @@ const CPU_THINK_DELAY_MS = 1000;
 const DRAW_BUCKET_COUNT = 10;
 // 10段階の目安の幅は「TARGET ÷ この数」。3なら平均3ターン程度でTARGET付近に届く見込み。
 const DRAW_REFERENCE_TURNS = 3;
-// TARGETを超える人口が出る確率（残りの95%は10段階に均等配分）。
+// TARGETを超える人口が出る確率。
 const DRAW_OVER_TARGET_RATE = 0.05;
+// 「1回のHITの目安」を超え、TARGET以下の人口が出る確率
+// （10段階だけだとTARGET÷3〜TARGETの人口帯が一切出せなかったため用意）。
+const DRAW_MIDDLE_TARGET_RATE = 0.05;
 const PLAYER_COLOR_COUNT = 10;
 const MAX_BATTLE_COMMENTS = 50;
 const BAR_FILL_MS = 2000;
@@ -120,6 +123,8 @@ const TARGETS = [
   }
 ];
 const DEFAULT_TARGET = TARGETS.find((target) => target.isDefault) || TARGETS[0];
+// 市区町村データから実在する都道府県名を重複なく取り出す（表記ゆれの心配がない）。
+const PREFECTURES = [...new Set(MUNICIPALITIES.map((item) => item.prefecture))];
 const statusLabels = {
   waiting: "待機中",
   active: "プレイ中",
@@ -277,6 +282,8 @@ const els = {
   setupMessage: document.querySelector("#setupMessage"),
   createTargetSelect: document.querySelector("#createTargetSelect"),
   cpuTargetSelect: document.querySelector("#cpuTargetSelect"),
+  createHomePrefectureSelect: document.querySelector("#createHomePrefectureSelect"),
+  joinHomePrefectureSelect: document.querySelector("#joinHomePrefectureSelect"),
   createHideTargetCheckbox: document.querySelector("#createHideTargetCheckbox"),
   cpuHideTargetCheckbox: document.querySelector("#cpuHideTargetCheckbox"),
   createItemModeCheckbox: document.querySelector("#createItemModeCheckbox"),
@@ -308,6 +315,7 @@ const els = {
   actionBannerText: document.querySelector("#actionBannerText"),
   itemAnnouncement: document.querySelector("#itemAnnouncement"),
   itemAnnouncementText: document.querySelector("#itemAnnouncementText"),
+  commentPopupLayer: document.querySelector("#commentPopupLayer"),
   candidateMapSlot: document.querySelector("#candidateMapSlot"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
@@ -370,6 +378,12 @@ let lastProgressPlayerId = "";
 // playerId -> そのプレイヤーの前回描画時点でのitem.used。全員分の「アイテムを
 // 今まさに使った」変化を検知するために使う（undefinedは「まだ観測していない」）。
 const lastSeenItemUsed = {};
+// 直前の描画で観測済みだったコメントidの集合。nullは「まだ観測していない」
+// （部屋に入った直後の初回描画で、既存の全コメントをふわっと通知しないため）。
+let lastSeenCommentIds = null;
+// playerId -> そのプレイヤーの前回描画時点でのhistory件数。件数が増えた瞬間だけ
+// 「新しく市区町村が確定した」と判定し、出身都道府県との一致をチェックする。
+const lastSeenHistoryLength = {};
 let audioCtx = null;
 let bgmGain = null;
 let bgmScheduler = null;
@@ -385,6 +399,7 @@ const SHARE_RESULT_BUTTON_LABEL = els.shareResultButton?.textContent || "共有�
 
 sessionStorage.setItem("populationBlackjackPlayerId", currentPlayerId);
 populateTargetSelects();
+populateHomePrefectureSelects();
 renderItemGuide();
 disableSetup(true);
 updateSoundToggleButton();
@@ -471,6 +486,51 @@ async function sendBattleComment() {
     commentPending = false;
     els.battleCommentSendButton.disabled = false;
   }
+}
+
+// 新着コメントが来た瞬間を検知し、画面上にふわっと浮かぶ通知を出す。
+// チャット欄（renderBattleComments）とは別に、誰が見ていても気づけるように。
+function detectNewComments(room) {
+  const comments = Object.entries(room.comments || {})
+    .map(([id, comment]) => ({ id, ...comment }))
+    .filter((comment) => typeof comment.text === "string" && comment.text.trim());
+  const currentIds = new Set(comments.map((comment) => comment.id));
+
+  if (lastSeenCommentIds === null) {
+    lastSeenCommentIds = currentIds;
+    return;
+  }
+
+  const newComments = comments
+    .filter((comment) => !lastSeenCommentIds.has(comment.id))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  for (const comment of newComments) {
+    const author = comment.playerId === currentPlayerId
+      ? "あなた"
+      : room.players?.[comment.playerId]?.name || "参加者";
+    spawnCommentPopup(author, comment.text);
+  }
+
+  lastSeenCommentIds = currentIds;
+}
+
+function spawnCommentPopup(author, text) {
+  if (!els.commentPopupLayer) return;
+
+  const bubble = document.createElement("div");
+  bubble.className = "comment-popup";
+
+  const authorEl = document.createElement("strong");
+  authorEl.textContent = author;
+
+  const textEl = document.createElement("p");
+  textEl.textContent = text;
+
+  bubble.append(authorEl, textEl);
+  els.commentPopupLayer.append(bubble);
+
+  window.setTimeout(() => bubble.remove(), 4200);
 }
 
 function renderBattleComments(room) {
@@ -561,7 +621,7 @@ async function createRoomWithTarget(target) {
   await runSetupAction(async () => {
     const roomId = makeRoomId();
     const playerName = getPlayerName(els.playerNameInput, "Player 1");
-    const player = makePlayer(playerName, "waiting", { type: "human" });
+    const player = makePlayer(playerName, "waiting", { type: "human", homePrefecture: els.createHomePrefectureSelect.value || null });
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
@@ -575,6 +635,7 @@ async function createRoomWithTarget(target) {
       turnAdvancing: false,
       playerOrder: [],
       startedPlayerIds: [],
+      drawn: {},
       hostPlayerId: currentPlayerId,
       createdAt: serverTimestamp(),
       players: {
@@ -627,7 +688,7 @@ async function createCpuRoom(selectedTarget = null) {
       });
     }
 
-    players[playerOrder[0]].candidate = pickCandidate(players[playerOrder[0]].drawn || {}, target.value);
+    players[playerOrder[0]].candidate = pickCandidate({}, target.value);
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
@@ -643,6 +704,7 @@ async function createCpuRoom(selectedTarget = null) {
       turnAdvancing: false,
       playerOrder,
       startedPlayerIds: playerOrder,
+      drawn: {},
       hostPlayerId: currentPlayerId,
       createdAt: serverTimestamp(),
       startedAt: serverTimestamp(),
@@ -686,7 +748,7 @@ async function joinRoom() {
     }
 
     const defaultName = `Player ${Math.min(playerIds.length + 1, MAX_PLAYERS)}`;
-    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(els.joinPlayerNameInput, defaultName), "waiting", { type: "human" }));
+    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(els.joinPlayerNameInput, defaultName), "waiting", { type: "human", homePrefecture: els.joinHomePrefectureSelect.value || null }));
     enterRoom(roomId);
   });
 }
@@ -741,7 +803,7 @@ async function startGame() {
         updates[`players/${playerId}/item`] = assignRandomItem();
       }
     }
-    updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(players[playerOrder[0]].drawn || {}, getRoomTarget(room).value);
+    updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(room.drawn || {}, getRoomTarget(room).value);
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
@@ -862,6 +924,7 @@ async function rematchRoom() {
 
     const target = getRoomTarget(room);
     const playerOrder = getPlayerOrder(room);
+    const firstCandidate = pickCandidate({}, target.value);
     const updates = {
       status: "playing",
       startConfirmationRequired: true,
@@ -872,7 +935,8 @@ async function rematchRoom() {
       playerOrder,
       startedPlayerIds: playerOrder,
       startedAt: serverTimestamp(),
-      finishedAt: null
+      finishedAt: null,
+      drawn: {}
     };
 
     playerOrder.forEach((playerId, index) => {
@@ -881,7 +945,6 @@ async function rematchRoom() {
         total: 0,
         hitCount: 0,
         status: "active",
-        drawn: {},
         history: [],
         lastRevealed: null,
         lastAction: null,
@@ -890,7 +953,7 @@ async function rematchRoom() {
         nextHitMultiplier: null,
         scoutRevealedCandidateId: null,
         item: room.itemMode && player?.type === "human" ? assignRandomItem() : null,
-        candidate: index === 0 ? pickCandidate({}, target.value) : null
+        candidate: index === 0 ? firstCandidate : null
       }));
     });
 
@@ -904,8 +967,10 @@ async function applyPlayerAction(room, playerId, action) {
 
   const payload = action === "hit" ? buildHitPayload(room, player) : buildStandPayload();
   const nextPlayers = { ...(room.players || {}), [playerId]: { ...player, ...payload } };
+  const nextDrawn = action === "hit" ? { ...(room.drawn || {}), [payload.lastRevealed.id]: true } : room.drawn || {};
   const revealUpdates = prefixPlayerUpdate(playerId, payload);
   revealUpdates.turnAdvancing = true;
+  if (action === "hit") revealUpdates[`drawn/${payload.lastRevealed.id}`] = true;
 
   await update(ref(db, `rooms/${currentRoomId}`), revealUpdates);
   triggerImmediateEffect(action, action === "hit" ? payload.total - (player.total || 0) : 0);
@@ -915,7 +980,7 @@ async function applyPlayerAction(room, playerId, action) {
   if (action === "hit") await wait(BAR_FILL_MS);
   triggerOutcomeEffect(payload.status);
 
-  const progressUpdates = buildRoomProgressUpdates({ ...room, players: nextPlayers }, playerId);
+  const progressUpdates = buildRoomProgressUpdates({ ...room, players: nextPlayers, drawn: nextDrawn }, playerId);
   progressUpdates.turnAdvancing = false;
   const shareSnapshot = progressUpdates.shareSnapshot;
   delete progressUpdates.shareSnapshot;
@@ -986,7 +1051,7 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
 
   switch (itemDef.id) {
     case "card-swap": {
-      updates[`players/${playerId}/candidate`] = pickCandidate(player.drawn || {}, target);
+      updates[`players/${playerId}/candidate`] = pickCandidate(room.drawn || {}, target);
       break;
     }
     case "scout": {
@@ -1169,13 +1234,12 @@ function getPostEffectDelay(action, status) {
 
 function buildHitPayload(room, player) {
   const roomTarget = getRoomTarget(room);
-  const candidate = player.candidate || pickCandidate(player.drawn || {}, roomTarget.value);
+  const candidate = player.candidate || pickCandidate(room.drawn || {}, roomTarget.value);
   const multiplier = player.nextHitMultiplier || 1;
   const appliedPopulation = Math.round(candidate.population * multiplier);
   const nextTotal = (player.total || 0) + appliedPopulation;
   const target = roomTarget.value;
 
-  const drawn = { ...(player.drawn || {}), [candidate.id]: true };
   const status = nextTotal > target ? "bust" : nextTotal === target ? "just" : "active";
   const historyItem = {
     id: candidate.id,
@@ -1203,7 +1267,6 @@ function buildHitPayload(room, player) {
     total: nextTotal,
     hitCount: (player.hitCount || 0) + 1,
     status,
-    drawn,
     history: [...(player.history || []), historyItem],
     lastRevealed: candidate,
     lastAction,
@@ -1257,6 +1320,7 @@ function renderRoom(room) {
   syncBgm();
   const players = room.players || {};
   if (room.itemMode) detectItemUsageEffects(players);
+  detectHomePrefectureMatches(players);
   const playerIds = getDisplayPlayerIds(room);
   const me = players[currentPlayerId];
   const isHost = room.hostPlayerId === currentPlayerId;
@@ -1326,7 +1390,7 @@ function renderRoom(room) {
   els.hitCountLabel.textContent = `${focusLabel}のHIT回数`;
   els.myTotal.textContent = formatNumber(focusPlayer?.total || 0);
   els.myHitCount.textContent = formatNumber(focusPlayer?.hitCount || 0);
-  els.myStatus.textContent = buildMyStatus(me, room);
+  els.myStatus.replaceChildren(buildMyStatus(me, room));
 
   const candidate = focusPlayer?.candidate;
   const isCandidateMasked = Boolean(candidate && canPlay(focusPlayer) && room.status === "playing");
@@ -1366,6 +1430,7 @@ function renderRoom(room) {
   renderItemTargetOptions(players, playerIds);
   renderPlayersList(room, players, playerIds);
   renderBattleComments(room);
+  detectNewComments(room);
 
   renderResult(room, players);
   document.body.classList.toggle("modal-open", (room.status === "finished" && Boolean(room.result)) || gameStartIntroVisible);
@@ -1695,6 +1760,28 @@ function detectItemUsageEffects(players) {
       if (text) triggerItemAnnouncement(text);
     }
     lastSeenItemUsed[playerId] = used;
+  }
+}
+
+// 誰かが新しく市区町村を確定させた（HITで人口が確定した）瞬間を検知し、
+// その都道府県が参加者の誰かの出身と一致していたらふわっと知らせる。
+function detectHomePrefectureMatches(players) {
+  for (const [playerId, player] of Object.entries(players)) {
+    const historyLength = (player?.history || []).length;
+    const previouslySeen = lastSeenHistoryLength[playerId];
+    if (previouslySeen !== undefined && historyLength > previouslySeen) {
+      const latest = player.history[player.history.length - 1];
+      const prefecture = latest?.prefecture;
+      if (prefecture) {
+        const matchedNames = Object.values(players)
+          .filter((p) => p?.homePrefecture === prefecture)
+          .map((p) => p.name || "参加者");
+        if (matchedNames.length > 0) {
+          spawnCommentPopup("🏠 出身地", `${matchedNames.join("、")}の出身の都道府県です`);
+        }
+      }
+    }
+    lastSeenHistoryLength[playerId] = historyLength;
   }
 }
 
@@ -2100,7 +2187,7 @@ function decideCpuAction(room, cpuPlayer) {
 function getIdealCpuAction(room, cpuPlayer) {
   const target = getRoomTarget(room).value;
   const currentTotal = cpuPlayer.total || 0;
-  const candidate = cpuPlayer.candidate || pickCandidate(cpuPlayer.drawn || {}, target);
+  const candidate = cpuPlayer.candidate || pickCandidate(room.drawn || {}, target);
   const nextTotal = currentTotal + candidate.population;
   const currentDiff = Math.abs(target - currentTotal);
   const nextDiff = Math.abs(target - nextTotal);
@@ -2223,7 +2310,7 @@ function buildRoomProgressUpdates(room, actedPlayerId) {
   const nextPlayer = room.players?.[nextPlayerId];
   if (nextPlayer && canPlay(nextPlayer) && !nextPlayer.candidate) {
     const target = getRoomTarget(room);
-    updates[`players/${nextPlayerId}/candidate`] = pickCandidate(nextPlayer.drawn || {}, target.value);
+    updates[`players/${nextPlayerId}/candidate`] = pickCandidate(room.drawn || {}, target.value);
   }
 
   return updates;
@@ -2287,11 +2374,11 @@ function makePlayer(name, status, options = {}) {
     type: options.type || "human",
     difficulty: options.difficulty || null,
     accuracy: options.accuracy || null,
+    homePrefecture: options.homePrefecture || null,
     joinedOrder: Date.now(),
     total: 0,
     hitCount: 0,
     status,
-    drawn: {},
     candidate: null,
     lastRevealed: null,
     item: options.item || null,
@@ -2359,14 +2446,20 @@ function pickCandidate(drawn, targetValue) {
 
 function pickWeightedCandidate(pool, targetValue) {
   const target = Number(targetValue || 0);
+  const perHitScale = target / DRAW_REFERENCE_TURNS;
   const overTargetPool = pool.filter((item) => item.population > target);
-  const underTargetPool = pool.filter((item) => item.population <= target);
+  const middlePool = pool.filter((item) => item.population > perHitScale && item.population <= target);
+  const underScalePool = pool.filter((item) => item.population <= perHitScale);
 
-  if (overTargetPool.length > 0 && underTargetPool.length > 0 && Math.random() < DRAW_OVER_TARGET_RATE) {
+  const roll = Math.random();
+  if (overTargetPool.length > 0 && roll < DRAW_OVER_TARGET_RATE) {
     return overTargetPool[Math.floor(Math.random() * overTargetPool.length)];
   }
+  if (middlePool.length > 0 && roll < DRAW_OVER_TARGET_RATE + DRAW_MIDDLE_TARGET_RATE) {
+    return middlePool[Math.floor(Math.random() * middlePool.length)];
+  }
 
-  const tiers = buildDrawTiers(underTargetPool.length > 0 ? underTargetPool : pool, target);
+  const tiers = buildDrawTiers(underScalePool.length > 0 ? underScalePool : pool, target);
   const tier = tiers[Math.floor(Math.random() * tiers.length)];
   return tier.candidates[Math.floor(Math.random() * tier.candidates.length)];
 }
@@ -2426,6 +2519,12 @@ function populateTargetSelects() {
 
 function makeTargetOption(target) {
   return `<option value="${target.id}">${target.label}</option>`;
+}
+
+function populateHomePrefectureSelects() {
+  const options = ['<option value="">未設定</option>', ...PREFECTURES.map((pref) => `<option value="${pref}">${pref}</option>`)].join("");
+  els.createHomePrefectureSelect.innerHTML = options;
+  els.joinHomePrefectureSelect.innerHTML = options;
 }
 
 function renderItemGuide() {
@@ -2659,8 +2758,9 @@ function renderDrawProfile(container, target, options = {}) {
   const note = document.createElement("p");
   note.className = "draw-profile-note";
   const perHitManValue = formatManValue(target.value / DRAW_REFERENCE_TURNS);
-  const perTierPercent = ((1 - DRAW_OVER_TARGET_RATE) * 100) / DRAW_BUCKET_COUNT;
-  note.textContent = `1回のHITの目安（TARGET÷${DRAW_REFERENCE_TURNS}＝${perHitManValue}万人）を${DRAW_BUCKET_COUNT}等分し、どの帯も同じ確率（${perTierPercent.toFixed(1)}%）で出ます。TARGETを超える人口は${Math.round(DRAW_OVER_TARGET_RATE * 100)}%です。`;
+  const tierShare = 1 - DRAW_OVER_TARGET_RATE - DRAW_MIDDLE_TARGET_RATE;
+  const perTierPercent = (tierShare * 100) / DRAW_BUCKET_COUNT;
+  note.textContent = `1回のHITの目安（TARGET÷${DRAW_REFERENCE_TURNS}＝${perHitManValue}万人）を${DRAW_BUCKET_COUNT}等分し、どの帯も同じ確率（${perTierPercent.toFixed(1)}%）で出ます。それを超えてTARGET以下の人口は${Math.round(DRAW_MIDDLE_TARGET_RATE * 100)}%、TARGETを超える人口は${Math.round(DRAW_OVER_TARGET_RATE * 100)}%です。`;
 
   const list = document.createElement("div");
   list.className = "draw-profile-bars";
@@ -2708,24 +2808,30 @@ function getDrawProfileRows(targetValue) {
   const target = Number(targetValue || 0);
   if (target <= 0 || MUNICIPALITIES.length === 0) return [];
 
+  const perHitScale = target / DRAW_REFERENCE_TURNS;
   const overItems = MUNICIPALITIES.filter((item) => item.population > target);
-  const underItems = MUNICIPALITIES.filter((item) => item.population <= target);
-  const hasUnder = underItems.length > 0;
+  const middleItems = MUNICIPALITIES.filter((item) => item.population > perHitScale && item.population <= target);
+  const underItems = MUNICIPALITIES.filter((item) => item.population <= perHitScale);
   const hasOver = overItems.length > 0;
+  const hasMiddle = middleItems.length > 0;
+
+  const overShare = hasOver ? DRAW_OVER_TARGET_RATE : 0;
+  const middleShare = hasMiddle ? DRAW_MIDDLE_TARGET_RATE : 0;
+  const tierShare = Math.max(0, 1 - overShare - middleShare);
 
   const rows = [];
 
-  if (hasUnder) {
-    const tierShare = hasOver ? 1 - DRAW_OVER_TARGET_RATE : 1;
-    const tiers = buildDrawTiers(underItems, target);
-    const percentEach = (tierShare * 100) / tiers.length;
-    for (const tier of tiers) {
-      rows.push({ label: buildDrawBandLabel(tier.lo, tier.hi, false), percent: percentEach });
-    }
+  const tiers = buildDrawTiers(underItems.length > 0 ? underItems : MUNICIPALITIES, target);
+  const percentEach = (tierShare * 100) / tiers.length;
+  for (const tier of tiers) {
+    rows.push({ label: buildDrawBandLabel(tier.lo, tier.hi, false), percent: percentEach });
+  }
+
+  if (hasMiddle) {
+    rows.push({ label: buildDrawBandLabel(perHitScale, target, false), percent: middleShare * 100 });
   }
 
   if (hasOver) {
-    const overShare = hasUnder ? DRAW_OVER_TARGET_RATE : 1;
     rows.push({ label: buildDrawBandLabel(target, null, true), percent: overShare * 100 });
   }
 
@@ -2801,25 +2907,64 @@ async function getCurrentRoom() {
   return snapshot.val();
 }
 
+// 「TARGETまで◯◯人」のような残り人数だけを目立つ色・サイズで強調するため、
+// 文字列ではなくDOM断片を組み立てて返す（呼び出し側はreplaceChildrenで使う）。
 function buildMyStatus(player, room) {
   const target = getRoomTarget(room).value;
   const hideTarget = isTargetHidden(room);
-  if (player.status === "bust") return hideTarget ? "BUST：TARGETをオーバーしました" : `BUST：${formatNumber(player.total - target)}人オーバー`;
-  if (player.status === "just") return "JUST：TARGETと完全一致";
-  if (player.status === "stand") return hideTarget ? "STAND：結果を待っています" : `STAND：TARGETまで${formatNumber(target - player.total)}人`;
+  const frag = document.createDocumentFragment();
+
+  const remaining = (text) => {
+    const el = document.createElement("strong");
+    el.className = "remaining-highlight";
+    el.textContent = text;
+    return el;
+  };
+
+  if (player.status === "bust") {
+    if (hideTarget) {
+      frag.append("BUST：TARGETをオーバーしました");
+    } else {
+      frag.append("BUST：", remaining(`${formatNumber(player.total - target)}人オーバー`));
+    }
+    return frag;
+  }
+  if (player.status === "just") {
+    frag.append("JUST：TARGETと完全一致");
+    return frag;
+  }
+  if (player.status === "stand") {
+    if (hideTarget) {
+      frag.append("STAND：結果を待っています");
+    } else {
+      frag.append("STAND：TARGETまで", remaining(`${formatNumber(target - player.total)}人`));
+    }
+    return frag;
+  }
   if (player.status === "active") {
     if (room.status === "playing" && !areGameStartConfirmationsComplete(room)) {
-      return "全員のOKを待っています。";
+      frag.append("全員のOKを待っています。");
+      return frag;
     }
     if (room.status === "playing" && getCurrentTurnPlayerId(room) !== currentPlayerId) {
       const turnPlayer = room.players?.[getCurrentTurnPlayerId(room)];
-      return hideTarget
-        ? `${turnPlayer?.name || "他の参加者"}さんの番です。`
-        : `${turnPlayer?.name || "他の参加者"}さんの番です。TARGETまで${formatNumber(target - player.total)}人`;
+      const name = turnPlayer?.name || "他の参加者";
+      if (hideTarget) {
+        frag.append(`${name}さんの番です。`);
+      } else {
+        frag.append(`${name}さんの番です。TARGETまで`, remaining(`${formatNumber(target - player.total)}人`));
+      }
+      return frag;
     }
-    return hideTarget ? "あなたの番です。" : `あなたの番です。TARGETまで${formatNumber(target - player.total)}人`;
+    if (hideTarget) {
+      frag.append("あなたの番です。");
+    } else {
+      frag.append("あなたの番です。TARGETまで", remaining(`${formatNumber(target - player.total)}人`));
+    }
+    return frag;
   }
-  return "待機中";
+  frag.append("待機中");
+  return frag;
 }
 
 function assertFirebaseConfig(config) {

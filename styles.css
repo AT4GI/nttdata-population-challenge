@@ -493,6 +493,14 @@ label input {
   color: var(--muted);
 }
 
+.remaining-highlight {
+  color: #ffd700;
+  font-size: 1.2em;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  margin: 0 2px;
+}
+
 .guide-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2158,6 +2166,62 @@ body.bust-shake .app-shell {
   100% {
     opacity: 0;
     transform: translate(-50%, -14px);
+  }
+}
+
+.comment-popup-layer {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 91;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+  max-width: min(78vw, 320px);
+}
+
+.comment-popup {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid var(--gold-dark);
+  border-radius: 12px;
+  padding: 8px 14px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  animation: commentPopupFloat 4.2s ease both;
+}
+
+.comment-popup strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  color: var(--gold-bright);
+  margin-bottom: 2px;
+}
+
+.comment-popup p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+@keyframes commentPopupFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
   }
 }
 
