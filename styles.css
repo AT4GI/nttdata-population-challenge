@@ -519,36 +519,274 @@ label input {
   margin: 0 3px;
 }
 
-.guide-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+.howto-carousel {
   margin-top: 20px;
 }
 
-.guide-block {
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  background: rgba(18, 30, 22, 0.7);
-  padding: 16px;
+.howto-slide-viewport {
+  position: relative;
+  min-height: 340px;
 }
 
-.guide-block h2 {
-  margin-bottom: 10px;
-  font-size: 1.1rem;
+.howto-slide {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  animation: howtoFadeIn 0.25s ease;
+}
+
+.howto-slide.active {
+  display: flex;
+}
+
+@keyframes howtoFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.howto-mock {
+  width: min(100%, 340px);
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: rgba(18, 30, 22, 0.7);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.howto-mock-card {
+  width: 100%;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: rgba(10, 18, 13, 0.6);
+  padding: 14px 16px;
+  position: relative;
+}
+
+.howto-mock-card.revealed {
+  border-color: var(--gold-bright);
+}
+
+.howto-mock-label {
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.howto-mock-name {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
   font-family: var(--font-display);
   color: var(--gold-bright);
 }
 
-.guide-block ul,
-.guide-block ol {
-  margin: 0;
-  padding-left: 1.2rem;
+.howto-mock-sub {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
   color: var(--muted);
 }
 
-.guide-block li + li {
-  margin-top: 8px;
+.howto-mock-unknown {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.howto-mock-popup {
+  position: absolute;
+  top: -12px;
+  right: 12px;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-bright));
+  color: #0a120d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.howto-mock-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.howto-mock-button {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.howto-mock-button.small {
+  padding: 6px 14px;
+  font-size: 0.78rem;
+}
+
+.howto-mock-button.primary {
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-bright));
+  color: #0a120d;
+  border-color: transparent;
+}
+
+.howto-mock-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.howto-mock-bar-track {
+  flex: 1;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(10, 18, 13, 0.6);
+  border: 1px solid var(--line-soft);
+  overflow: hidden;
+}
+
+.howto-mock-bar-fill {
+  width: 82%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-bright));
+}
+
+.howto-mock-bar span {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+
+.howto-mock-status-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.howto-mock-status {
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.howto-mock-status.bust {
+  background: rgba(220, 60, 60, 0.18);
+  color: #ff8a8a;
+  border: 1px solid rgba(220, 60, 60, 0.4);
+}
+
+.howto-mock-status.just {
+  background: rgba(212, 175, 55, 0.18);
+  color: var(--gold-bright);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.howto-mock-room {
+  text-align: center;
+}
+
+.howto-mock-room-code {
+  font-family: var(--font-digital);
+  font-size: 1.8rem;
+  letter-spacing: 0.12em;
+  color: var(--gold-bright);
+  margin-top: 6px;
+}
+
+.howto-mock-item {
+  width: 100%;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: rgba(10, 18, 13, 0.6);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.howto-mock-item small {
+  color: var(--muted);
+}
+
+.howto-mock-item .howto-mock-button {
+  margin-top: 6px;
+}
+
+.howto-mock-result {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.howto-mock-result-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(10, 18, 13, 0.6);
+  border: 1px solid var(--line-soft);
+  font-size: 0.9rem;
+}
+
+.howto-mock-result-row.gold {
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+  font-weight: 800;
+}
+
+.howto-caption {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.howto-caption strong {
+  color: var(--gold-bright);
+}
+
+.howto-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.howto-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.howto-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line-soft);
+}
+
+.howto-dot.active {
+  background: var(--gold-bright);
 }
 
 .item-guide {
@@ -2393,7 +2631,6 @@ body.bust-shake .app-shell {
 
   .field-grid,
   .setup-choice-grid,
-  .guide-grid,
   .game-grid {
     grid-template-columns: 1fr;
   }
@@ -2454,7 +2691,7 @@ main,
 
 /* タイトルやパネル内の区切りに余計な黒い面を作らない */
 .title-area,
-.guide-block,
+.howto-mock,
 .history-block,
 .battle-comments {
   background: transparent !important;
@@ -2466,7 +2703,7 @@ main,
   border: 0 !important;
 }
 
-.guide-block {
+.howto-mock {
   border-color: rgba(186, 230, 253, 0.34) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -2522,14 +2759,6 @@ body {
 
   .setup-panel {
     max-width: none;
-  }
-
-  .guide-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .guide-block:last-child {
-    grid-column: 1 / -1;
   }
 
   .game-grid {
@@ -2589,11 +2818,7 @@ body {
     min-height: 56px;
   }
 
-  .guide-grid {
-    gap: 12px;
-  }
-
-  .guide-block {
+  .howto-mock {
     padding: 14px;
     font-size: 0.9rem;
     line-height: 1.55;

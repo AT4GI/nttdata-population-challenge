@@ -294,6 +294,10 @@ const els = {
   selectCpuModeButton: document.querySelector("#selectCpuModeButton"),
   backFromPvpButton: document.querySelector("#backFromPvpButton"),
   backFromHowToButton: document.querySelector("#backFromHowToButton"),
+  howtoSlides: Array.from(document.querySelectorAll(".howto-slide")),
+  howtoPrevButton: document.querySelector("#howtoPrevButton"),
+  howtoNextButton: document.querySelector("#howtoNextButton"),
+  howtoDots: document.querySelector("#howtoDots"),
   backFromCreateButton: document.querySelector("#backFromCreateButton"),
   backFromJoinButton: document.querySelector("#backFromJoinButton"),
   backFromCpuButton: document.querySelector("#backFromCpuButton"),
@@ -440,6 +444,8 @@ els.selectJoinModeButton.addEventListener("click", () => showSetupMode("join"));
 els.selectCpuModeButton.addEventListener("click", () => showSetupMode("cpu"));
 els.backFromPvpButton.addEventListener("click", () => showSetupMode("home"));
 els.backFromHowToButton.addEventListener("click", () => showSetupMode("home"));
+els.howtoPrevButton.addEventListener("click", () => stepHowtoSlide(-1));
+els.howtoNextButton.addEventListener("click", () => stepHowtoSlide(1));
 els.backFromCreateButton.addEventListener("click", () => showSetupMode("pvp"));
 els.backFromJoinButton.addEventListener("click", () => showSetupMode("pvp"));
 els.backFromCpuButton.addEventListener("click", () => showSetupMode("home"));
@@ -2917,6 +2923,40 @@ function disableSetup(disabled) {
   els.startCpuRoomButton.disabled = disabled;
 }
 
+let howtoSlideIndex = 0;
+
+function renderHowtoSlide() {
+  els.howtoSlides.forEach((slide, index) => {
+    slide.classList.toggle("active", index === howtoSlideIndex);
+  });
+  if (els.howtoDots) {
+    els.howtoDots.innerHTML = "";
+    els.howtoSlides.forEach((_, index) => {
+      const dot = document.createElement("span");
+      dot.className = "howto-dot" + (index === howtoSlideIndex ? " active" : "");
+      els.howtoDots.append(dot);
+    });
+  }
+  els.howtoPrevButton.disabled = howtoSlideIndex === 0;
+  const isLast = howtoSlideIndex === els.howtoSlides.length - 1;
+  els.howtoNextButton.textContent = isLast ? "閉じる" : "次へ";
+}
+
+function stepHowtoSlide(delta) {
+  const isLast = howtoSlideIndex === els.howtoSlides.length - 1;
+  if (delta > 0 && isLast) {
+    showSetupMode("home");
+    return;
+  }
+  howtoSlideIndex = Math.min(Math.max(howtoSlideIndex + delta, 0), els.howtoSlides.length - 1);
+  renderHowtoSlide();
+}
+
+function resetHowtoSlides() {
+  howtoSlideIndex = 0;
+  renderHowtoSlide();
+}
+
 function showSetupMode(mode) {
   clearRoulette();
   els.setupIntro.classList.toggle("hidden", mode !== "home");
@@ -2928,6 +2968,7 @@ function showSetupMode(mode) {
   els.cpuRoomForm.classList.toggle("hidden", mode !== "cpu");
   setSetupMessage("");
 
+  if (mode === "howto") resetHowtoSlides();
   if (mode === "create") els.playerNameInput.focus();
   if (mode === "join") els.joinPlayerNameInput.focus();
   if (mode === "cpu") els.cpuPlayerNameInput.focus();

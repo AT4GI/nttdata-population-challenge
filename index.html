@@ -153,36 +153,89 @@
         <div class="button-row">
           <button id="backFromHowToButton" type="button" class="secondary">戻る</button>
         </div>
-        <div class="guide-grid" aria-label="遊び方と対戦方法">
-          <section class="guide-block" aria-labelledby="rulesTitle">
-            <h2 id="rulesTitle">遊び方</h2>
-            <ul>
-              <li>市区町村カードを引いて人口を足していき、合計をTARGETに近づけるゲームです（2〜10人対戦）。</li>
-              <li>自分の番では、次に引くカードの人口を予想してHIT（引く）かSTAND（止める）を選びます。</li>
-              <li>HITするとカードの人口が合計に足されます。TARGETを超えたらBUST（その時点で負け確定）、ぴったりならJUSTです。</li>
-              <li>全員がSTAND / BUST / JUSTになったらゲーム終了です。BUSTしていない人のうち、合計がTARGETに一番近い人の勝ちです。</li>
-              <li>伏せモード：TARGETを非公開のまま対戦します。正解は結果画面で発表されます。</li>
-              <li>アイテムモード：開始時に1人1個ランダムでアイテムが配られ、自分の番に1回だけ使えます。</li>
-            </ul>
-          </section>
-          <section class="guide-block" aria-labelledby="inviteTitle">
-            <h2 id="inviteTitle">友達と対戦</h2>
-            <ol>
-              <li>1人目が表示名を入れて「部屋を作る」を押します。</li>
-              <li>表示された部屋IDを友達に共有します。</li>
-              <li>友達は同じURLを開き、表示名と部屋IDを入れて「参加する」を押します。</li>
-              <li>2人以上そろい、全員が「準備OK」を押すと、ホストが「ゲーム開始」を押せるようになります。</li>
-              <li>使用する人口カードの一覧を確認し、全員が「OK」を押すとゲーム開始です。</li>
-            </ol>
-          </section>
-          <section class="guide-block" aria-labelledby="cpuTitle">
-            <h2 id="cpuTitle">一人で遊ぶ</h2>
-            <ul>
-              <li>CPU戦では、CPU人数を1〜4人から選び、人口カードの一覧を確認して「OK」を押すと始まります。</li>
-              <li>CPUは自分の番になると、少し考えてから自動でHITかSTANDを選びます。</li>
-              <li>アイテムモードでは、アイテムが配られるのはあなただけです（CPUは使いません）。</li>
-            </ul>
-          </section>
+        <div class="howto-carousel" aria-label="遊び方">
+          <div class="howto-slide-viewport">
+            <div class="howto-slide" data-slide="0">
+              <div class="howto-mock">
+                <div class="howto-mock-card">
+                  <p class="howto-mock-label">CITY DATA / 次の市区町村</p>
+                  <h3 class="howto-mock-name">？？？</h3>
+                  <p class="howto-mock-sub">東京都の候補</p>
+                  <p class="howto-mock-unknown">人口：?????</p>
+                </div>
+                <div class="howto-mock-buttons">
+                  <span class="howto-mock-button primary">HIT</span>
+                  <span class="howto-mock-button">STAND</span>
+                </div>
+              </div>
+              <p class="howto-caption">自分の番になったら、次に引く市区町村の人口を予想して<strong>HIT</strong>（引く）か<strong>STAND</strong>（止める）を選びます。</p>
+            </div>
+
+            <div class="howto-slide" data-slide="1">
+              <div class="howto-mock">
+                <div class="howto-mock-card revealed">
+                  <p class="howto-mock-label">CITY DATA / 次の市区町村</p>
+                  <h3 class="howto-mock-name">豊洲</h3>
+                  <p class="howto-mock-sub">東京都 / 198,765人</p>
+                  <p class="howto-mock-unknown">HIT！</p>
+                  <span class="howto-mock-popup">+19.9万人</span>
+                </div>
+              </div>
+              <p class="howto-caption">HITすると人口が公開されて、あなたの現在人口に加算されます。市区町村は重複せず、ゲーム中は1回ずつしか出てきません。</p>
+            </div>
+
+            <div class="howto-slide" data-slide="2">
+              <div class="howto-mock">
+                <div class="howto-mock-bar">
+                  <div class="howto-mock-bar-track"><div class="howto-mock-bar-fill"></div></div>
+                  <span>82%</span>
+                </div>
+                <div class="howto-mock-status-row">
+                  <span class="howto-mock-status bust">BUST</span>
+                  <span class="howto-mock-status just">JUST</span>
+                </div>
+              </div>
+              <p class="howto-caption">合計がTARGETを超えたら<strong>BUST</strong>（負け確定）、ぴったりなら<strong>JUST</strong>です。超えない範囲でTARGETに一番近い人が勝ちます。</p>
+            </div>
+
+            <div class="howto-slide" data-slide="3">
+              <div class="howto-mock">
+                <div class="howto-mock-room">
+                  <p class="howto-mock-label">部屋ID</p>
+                  <div class="howto-mock-room-code">ABC123</div>
+                </div>
+              </div>
+              <p class="howto-caption">1人が「部屋を作る」を押して表示された部屋IDを友達に共有すれば、友達は「部屋に参加する」からすぐ合流できます（2〜10人対戦）。</p>
+            </div>
+
+            <div class="howto-slide" data-slide="4">
+              <div class="howto-mock">
+                <div class="howto-mock-item">
+                  <strong>カード交換（ノーマル）</strong>
+                  <small>表示中の候補市区町村を1回だけ引き直します。</small>
+                  <span class="howto-mock-button primary small">使う</span>
+                </div>
+              </div>
+              <p class="howto-caption">「アイテムモード」をONにすると、参加者に1人1個ランダムでアイテムが配られ、自分の番に1回だけ使えます。</p>
+            </div>
+
+            <div class="howto-slide" data-slide="5">
+              <div class="howto-mock">
+                <div class="howto-mock-result">
+                  <div class="howto-mock-result-row gold"><span>1位</span><strong>あなた</strong></div>
+                  <div class="howto-mock-result-row"><span>2位</span><strong>参加者2</strong></div>
+                  <div class="howto-mock-result-row"><span>3位</span><strong>参加者3</strong></div>
+                </div>
+              </div>
+              <p class="howto-caption">全員がSTAND / BUST / JUSTになったらゲーム終了。結果は共有リンクで、その場にいない人にも見せられます。</p>
+            </div>
+          </div>
+
+          <div class="howto-nav">
+            <button id="howtoPrevButton" type="button" class="secondary">戻る</button>
+            <div class="howto-dots" id="howtoDots" aria-hidden="true"></div>
+            <button id="howtoNextButton" type="button">次へ</button>
+          </div>
         </div>
 
         <section id="itemGuide" class="item-guide" aria-labelledby="itemGuideTitle">
