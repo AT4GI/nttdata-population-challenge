@@ -190,14 +190,6 @@ const ITEM_CATALOG = [
     requiresTarget: false
   },
   {
-    id: "barrier",
-    label: "バリア",
-    description: "発動後、次に自分へ使われる妨害アイテムを1回だけ無効化します。",
-    rarity: "ノーマル",
-    weight: 10,
-    requiresTarget: false
-  },
-  {
     id: "force-plus-10k",
     label: "強制加算1万",
     description: "指定した相手の現在人口に1万人を強制的に加算します。TARGETを超えるとBUSTします。",
@@ -245,14 +237,6 @@ const ITEM_CATALOG = [
     rarity: "レア",
     weight: 6,
     requiresTarget: true
-  },
-  {
-    id: "reflect",
-    label: "リフレクト",
-    description: "発動後、次に自分へ使われる妨害アイテムの効果を発動者自身に跳ね返します。",
-    rarity: "レア",
-    weight: 5,
-    requiresTarget: false
   },
   {
     id: "reset-all",
@@ -980,8 +964,6 @@ async function rematchRoom() {
         history: [],
         lastRevealed: null,
         lastAction: null,
-        barrierActive: false,
-        reflectActive: false,
         nextHitMultiplier: null,
         scoutRevealedCandidateId: null,
         item: room.itemMode && player?.type === "human" ? assignRandomItem() : null,
@@ -1099,89 +1081,71 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       updates[`players/${playerId}/nextHitMultiplier`] = 2;
       break;
     }
-    case "barrier": {
-      updates[`players/${playerId}/barrierActive`] = true;
-      break;
-    }
-    case "reflect": {
-      updates[`players/${playerId}/reflectActive`] = true;
-      break;
-    }
     case "steal-10pct": {
-      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      const defense = setItemLastAction(updates, playerId, targetPlayerId, targetPlayer, itemDef);
       lastActionAlreadySet = true;
-      if (defense.applied) {
-        const victim = room.players?.[defense.targetId];
-        const amount = Math.round((victim.total || 0) * 0.1);
-        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) - amount));
-        updates[`players/${defense.targetId}/lastAction`] = {
-          type: "item-received",
-          itemLabel: itemDef.label,
-          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
-          detail: `-${formatNumber(amount)}人`
-        };
-      }
+      const victim = room.players?.[defense.targetId];
+      const amount = Math.round((victim.total || 0) * 0.1);
+      applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) - amount));
+      updates[`players/${defense.targetId}/lastAction`] = {
+        type: "item-received",
+        itemLabel: itemDef.label,
+        casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+        detail: `-${formatNumber(amount)}人`
+      };
       break;
     }
     case "swap-totals": {
-      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      const defense = setItemLastAction(updates, playerId, targetPlayerId, targetPlayer, itemDef);
       lastActionAlreadySet = true;
-      if (defense.applied) {
-        const casterPlayer = room.players?.[defense.casterId];
-        const victimPlayer = room.players?.[defense.targetId];
-        applyPlayerFieldUpdates(updates, defense.casterId, resolveTotalChange(room, casterPlayer, victimPlayer.total || 0));
-        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victimPlayer, casterPlayer.total || 0));
-        updates[`players/${defense.targetId}/lastAction`] = {
-          type: "item-received",
-          itemLabel: itemDef.label,
-          casterName: casterPlayer?.name || "参加者",
-          detail: `${formatNumber(casterPlayer?.total || 0)}人と入れ替え`
-        };
-      }
+      const casterPlayer = room.players?.[defense.casterId];
+      const victimPlayer = room.players?.[defense.targetId];
+      applyPlayerFieldUpdates(updates, defense.casterId, resolveTotalChange(room, casterPlayer, victimPlayer.total || 0));
+      applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victimPlayer, casterPlayer.total || 0));
+      updates[`players/${defense.targetId}/lastAction`] = {
+        type: "item-received",
+        itemLabel: itemDef.label,
+        casterName: casterPlayer?.name || "参加者",
+        detail: `${formatNumber(casterPlayer?.total || 0)}人と入れ替え`
+      };
       break;
     }
     case "force-plus-10k": {
-      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      const defense = setItemLastAction(updates, playerId, targetPlayerId, targetPlayer, itemDef);
       lastActionAlreadySet = true;
-      if (defense.applied) {
-        const victim = room.players?.[defense.targetId];
-        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 10000));
-        updates[`players/${defense.targetId}/lastAction`] = {
-          type: "item-received",
-          itemLabel: itemDef.label,
-          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
-          detail: "+10,000人"
-        };
-      }
+      const victim = room.players?.[defense.targetId];
+      applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 10000));
+      updates[`players/${defense.targetId}/lastAction`] = {
+        type: "item-received",
+        itemLabel: itemDef.label,
+        casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+        detail: "+10,000人"
+      };
       break;
     }
     case "force-plus-50k": {
-      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      const defense = setItemLastAction(updates, playerId, targetPlayerId, targetPlayer, itemDef);
       lastActionAlreadySet = true;
-      if (defense.applied) {
-        const victim = room.players?.[defense.targetId];
-        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 50000));
-        updates[`players/${defense.targetId}/lastAction`] = {
-          type: "item-received",
-          itemLabel: itemDef.label,
-          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
-          detail: "+50,000人"
-        };
-      }
+      const victim = room.players?.[defense.targetId];
+      applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 50000));
+      updates[`players/${defense.targetId}/lastAction`] = {
+        type: "item-received",
+        itemLabel: itemDef.label,
+        casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+        detail: "+50,000人"
+      };
       break;
     }
     case "halve-next": {
-      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
+      const defense = setItemLastAction(updates, playerId, targetPlayerId, targetPlayer, itemDef);
       lastActionAlreadySet = true;
-      if (defense.applied) {
-        updates[`players/${defense.targetId}/nextHitMultiplier`] = 0.5;
-        updates[`players/${defense.targetId}/lastAction`] = {
-          type: "item-received",
-          itemLabel: itemDef.label,
-          casterName: (room.players?.[defense.casterId]?.name) || "参加者",
-          detail: "次のHITが半分に"
-        };
-      }
+      updates[`players/${defense.targetId}/nextHitMultiplier`] = 0.5;
+      updates[`players/${defense.targetId}/lastAction`] = {
+        type: "item-received",
+        itemLabel: itemDef.label,
+        casterName: (room.players?.[defense.casterId]?.name) || "参加者",
+        detail: "次のHITが半分に"
+      };
       break;
     }
     case "reset-all": {
@@ -1232,46 +1196,15 @@ function resolveTotalChange(room, player, nextTotal) {
   return result;
 }
 
-function isBarrierActive(player) {
-  return Boolean(player?.item?.id === "barrier" && player.barrierActive);
-}
-
-function isReflectActive(player) {
-  return Boolean(player?.item?.id === "reflect" && player.reflectActive);
-}
-
-// 攻撃系アイテムの発動前に、対象がバリア／リフレクトを持っていないか確認する。
-// バリア: 効果を完全に無効化し、対象のバリアを消費する。
-// リフレクト: 効果の対象を発動者自身にすり替え、対象のリフレクトを消費する。
-// どちらも無ければ、通常どおり発動者→対象の効果として扱う。
-function resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef) {
-  if (isBarrierActive(targetPlayer)) {
-    updates[`players/${targetPlayerId}/barrierActive`] = false;
-    updates[`players/${playerId}/lastAction`] = {
-      type: "item-blocked",
-      itemLabel: itemDef.label,
-      targetName: targetPlayer.name || "参加者"
-    };
-    return { applied: false };
-  }
-
-  if (isReflectActive(targetPlayer)) {
-    updates[`players/${targetPlayerId}/reflectActive`] = false;
-    updates[`players/${playerId}/lastAction`] = {
-      type: "item-reflected",
-      itemLabel: itemDef.label,
-      targetName: targetPlayer.name || "参加者"
-    };
-    return { applied: true, casterId: targetPlayerId, targetId: playerId };
-  }
-
+// 攻撃系アイテムの発動者→対象のlastActionを記録し、両者のIDを返す。
+function setItemLastAction(updates, playerId, targetPlayerId, targetPlayer, itemDef) {
   updates[`players/${playerId}/lastAction`] = {
     type: "item",
     itemId: itemDef.id,
     itemLabel: itemDef.label,
     targetName: targetPlayer.name || "参加者"
   };
-  return { applied: true, casterId: playerId, targetId: targetPlayerId };
+  return { casterId: playerId, targetId: targetPlayerId };
 }
 
 function applyPlayerFieldUpdates(updates, playerId, fields) {
@@ -1821,7 +1754,7 @@ function triggerActionBanner(text, variant) {
 
 // 誰か（自分・相手どちらでも）がアイテムを使った瞬間をリアルタイムで検知し、
 // 画面上部に何を使ったか分かる通知を出す。item.usedのfalse→true変化を見る。
-const ITEM_ACTION_TYPES = new Set(["item", "item-blocked", "item-reflected", "item-received"]);
+const ITEM_ACTION_TYPES = new Set(["item", "item-received"]);
 
 // 使用者・対象者どちらの行も、アイテムの効果で状態が変わった瞬間だけ一瞬光らせる。
 // 初回観測（部屋に入った直後）は光らせない。
@@ -1894,12 +1827,6 @@ function buildItemAnnouncementText(casterName, lastAction) {
   if (!lastAction || !lastAction.itemLabel) return null;
   const itemLabel = lastAction.itemLabel;
 
-  if (lastAction.type === "item-blocked") {
-    return `🛡️ ${casterName}の「${itemLabel}」は${lastAction.targetName}のバリアで防がれた！`;
-  }
-  if (lastAction.type === "item-reflected") {
-    return `🔁 ${casterName}の「${itemLabel}」が${lastAction.targetName}に跳ね返された！`;
-  }
   if (lastAction.targetName) {
     return `⚡ ${casterName}が${lastAction.targetName}に「${itemLabel}」！`;
   }
@@ -2230,8 +2157,6 @@ function buildLastActionText(player) {
       ? `直前：アイテム『${action.itemLabel}』を${action.targetName}に使用`
       : `直前：アイテム『${action.itemLabel}』を使用`;
   }
-  if (action.type === "item-blocked") return `直前：${action.targetName}のバリアに『${action.itemLabel}』を防がれた`;
-  if (action.type === "item-reflected") return `直前：${action.targetName}に『${action.itemLabel}』を跳ね返された`;
   if (action.type === "item-received") {
     return `直前：${action.casterName}の『${action.itemLabel}』を受けた${action.detail ? `（${action.detail}）` : ""}`;
   }
@@ -2490,8 +2415,6 @@ function makePlayer(name, status, options = {}) {
     candidate: null,
     lastRevealed: null,
     item: options.item || null,
-    barrierActive: false,
-    reflectActive: false,
     nextHitMultiplier: null,
     scoutRevealedCandidateId: null,
     ready: false,
@@ -2641,46 +2564,54 @@ function populateHomePrefectureSelects() {
   els.joinHomePrefectureSelect.innerHTML = options;
 }
 
+function buildItemGuideCard(itemDef) {
+  const card = document.createElement("div");
+  card.className = "item-guide-card";
+
+  const name = document.createElement("strong");
+  name.textContent = itemDef.label;
+
+  const description = document.createElement("p");
+  // TARGET依存の効果は、この画面ではまだ実際のTARGETが決まっていないため
+  // デフォルトTARGETでの参考値を示し、実際の対戦では選んだTARGETの値になる旨を添える。
+  description.textContent = getItemDescription(itemDef, DEFAULT_TARGET.value);
+
+  card.append(name, description);
+
+  if (typeof itemDef.describe === "function") {
+    const note = document.createElement("small");
+    note.className = "item-guide-card-note";
+    note.textContent = `※ ${DEFAULT_TARGET.label}(${formatNumber(DEFAULT_TARGET.value)}人)を選んだ場合の例。実際の人数はTARGETによって変わります。`;
+    card.append(note);
+  }
+
+  return card;
+}
+
+// レア度ごとに見出し+横一列のカード群として表示する。
 function renderItemGuide() {
   if (!els.itemGuideList) return;
   els.itemGuideList.innerHTML = "";
 
-  // ITEM_CATALOG内の並び順に関わらず、常にレア度の順（ノーマル→レア→スーパーレア→ウルトラレア）で表示する。
-  const sortedItems = [...ITEM_CATALOG].sort(
-    (a, b) => ITEM_RARITY_ORDER.indexOf(a.rarity) - ITEM_RARITY_ORDER.indexOf(b.rarity)
-  );
+  for (const rarity of ITEM_RARITY_ORDER) {
+    const itemsInRarity = ITEM_CATALOG.filter((item) => item.rarity === rarity);
+    if (itemsInRarity.length === 0) continue;
 
-  for (const itemDef of sortedItems) {
-    const card = document.createElement("div");
-    card.className = "item-guide-card";
+    const group = document.createElement("div");
+    group.className = "item-guide-group";
 
-    const head = document.createElement("div");
-    head.className = "item-guide-card-head";
+    const heading = document.createElement("h3");
+    heading.className = `item-guide-group-title ${ITEM_RARITY_CLASSES[rarity] || "rarity-normal"}`;
+    heading.textContent = rarity;
 
-    const name = document.createElement("strong");
-    name.textContent = itemDef.label;
-
-    const rarity = document.createElement("span");
-    rarity.className = `item-guide-rarity ${ITEM_RARITY_CLASSES[itemDef.rarity] || "rarity-normal"}`;
-    rarity.textContent = itemDef.rarity;
-
-    head.append(name, rarity);
-
-    const description = document.createElement("p");
-    // TARGET依存の効果は、この画面ではまだ実際のTARGETが決まっていないため
-    // デフォルトTARGETでの参考値を示し、実際の対戦では選んだTARGETの値になる旨を添える。
-    description.textContent = getItemDescription(itemDef, DEFAULT_TARGET.value);
-    if (typeof itemDef.describe === "function") {
-      const note = document.createElement("small");
-      note.className = "item-guide-note";
-      note.textContent = `※ ${DEFAULT_TARGET.label}(${formatNumber(DEFAULT_TARGET.value)}人)を選んだ場合の例。実際の人数はTARGETによって変わります。`;
-      card.append(head, description, note);
-      els.itemGuideList.append(card);
-      continue;
+    const row = document.createElement("div");
+    row.className = "item-guide-row";
+    for (const itemDef of itemsInRarity) {
+      row.append(buildItemGuideCard(itemDef));
     }
 
-    card.append(head, description);
-    els.itemGuideList.append(card);
+    group.append(heading, row);
+    els.itemGuideList.append(group);
   }
 }
 

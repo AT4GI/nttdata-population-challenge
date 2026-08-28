@@ -794,27 +794,55 @@ label input {
 }
 
 .item-guide-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.item-guide-group-title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.item-guide-group-title.rarity-normal {
+  color: var(--muted);
+}
+
+.item-guide-group-title.rarity-rare {
+  color: var(--gold-bright);
+}
+
+.item-guide-group-title.rarity-super-rare {
+  color: #c084fc;
+}
+
+.item-guide-group-title.rarity-ultra-rare {
+  color: #ef5da8;
+}
+
+/* 同じレア度のカードは横一列に並べ、入りきらない分は横スクロールにする
+   （ページ全体を横スクロールさせないよう、このリストの内側だけで完結させる）。 */
+.item-guide-row {
+  display: flex;
   gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .item-guide-card {
+  flex: 0 0 220px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background: rgba(16, 27, 20, 0.85);
   padding: 10px 12px;
 }
 
-.item-guide-card-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
 .item-guide-card strong {
+  display: block;
+  margin-bottom: 4px;
   font-family: var(--font-display);
   color: var(--ink);
   font-size: 0.98rem;
@@ -826,36 +854,12 @@ label input {
   font-size: 0.85rem;
 }
 
-.item-guide-note {
+.item-guide-card-note {
   display: block;
   margin-top: 4px;
   color: #7c8a7d;
   font-size: 0.72rem;
   line-height: 1.4;
-}
-
-.item-guide-rarity {
-  flex-shrink: 0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.item-guide-rarity.rarity-normal {
-  color: var(--muted);
-}
-
-.item-guide-rarity.rarity-rare {
-  color: var(--gold-bright);
-}
-
-.item-guide-rarity.rarity-super-rare {
-  color: #c084fc;
-}
-
-.item-guide-rarity.rarity-ultra-rare {
-  color: #ef5da8;
 }
 
 .game-grid {
