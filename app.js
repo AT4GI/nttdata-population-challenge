@@ -2807,49 +2807,52 @@ function hideGameStartIntro(immediate) {
   }, 450);
 }
 
+// 「人口カード構成」は、以前は12行の数値表だったが「パッと見て分からない」
+// という指摘を受け、安全圏/際どい/バースト圏の3色バー1本＋短い一言に単純化した。
+// 内訳の割合はgetDrawProfileZonesが実際の抽選(buildDrawTiers)と同じ定数
+// (DRAW_OVER_TARGET_RATE等)から計算するため、表示と実際の確率は食い違わない。
 function renderDrawProfile(container, target, options = {}) {
   if (!container) return;
-
-  const rows = getDrawProfileRows(target.value);
   container.innerHTML = "";
 
   const title = document.createElement("h3");
   title.textContent = options.title || "人口カード構成";
 
-  const note = document.createElement("p");
-  note.className = "draw-profile-note";
-  const perHitManValue = formatManValue(target.value / DRAW_REFERENCE_TURNS);
-  const tierShare = 1 - DRAW_OVER_TARGET_RATE - DRAW_MIDDLE_TARGET_RATE;
-  const perTierPercent = (tierShare * 100) / DRAW_BUCKET_COUNT;
-  note.textContent = `1回のHITの目安（TARGET÷${DRAW_REFERENCE_TURNS}＝${perHitManValue}万人）を${DRAW_BUCKET_COUNT}等分し、どの帯も同じ確率（${perTierPercent.toFixed(1)}%）で出ます。それを超えてTARGET以下の人口は${Math.round(DRAW_MIDDLE_TARGET_RATE * 100)}%、TARGETを超える人口は${Math.round(DRAW_OVER_TARGET_RATE * 100)}%です。`;
+  const zones = getDrawProfileZones(target.value);
 
-  const list = document.createElement("div");
-  list.className = "draw-profile-bars";
+  const summary = document.createElement("p");
+  summary.className = "draw-profile-summary";
+  summary.textContent = `1回のHITごとに、際どい人口が${Math.round(zones.middle.percent)}%、TARGETを超える人口が${Math.round(zones.over.percent)}%の確率で出ます。`;
 
-  for (const row of rows) {
-    const item = document.createElement("div");
-    item.className = "draw-profile-row";
-
-    const label = document.createElement("span");
-    label.className = "draw-profile-label";
-    label.textContent = row.label;
-
-    const meter = document.createElement("span");
-    meter.className = "draw-profile-meter";
-
-    const fill = document.createElement("span");
-    fill.className = "draw-profile-fill";
-    fill.style.width = `${Math.max(0, Math.min(100, row.percent))}%`;
-    meter.append(fill);
-
-    const value = document.createElement("strong");
-    value.textContent = `${Math.round(row.percent)}%`;
-
-    item.append(label, meter, value);
-    list.append(item);
+  const bar = document.createElement("div");
+  bar.className = "draw-profile-bar";
+  for (const key of ["safe", "middle", "over"]) {
+    const segment = document.createElement("span");
+    segment.className = `draw-profile-bar-segment ${key}`;
+    segment.style.width = `${Math.max(0, Math.min(100, zones[key].percent))}%`;
+    bar.append(segment);
   }
 
-  container.append(title, note, list);
+  const legend = document.createElement("div");
+  legend.className = "draw-profile-legend";
+  for (const key of ["safe", "middle", "over"]) {
+    const zone = zones[key];
+    const item = document.createElement("div");
+    item.className = `draw-profile-legend-item ${key}`;
+
+    const dot = document.createElement("span");
+    dot.className = "draw-profile-legend-dot";
+
+    const strong = document.createElement("strong");
+    strong.textContent = `${zone.label} ${Math.round(zone.percent)}%`;
+    const small = document.createElement("small");
+    small.textContent = zone.rangeLabel;
+
+    item.append(dot, strong, small);
+    legend.append(item);
+  }
+
+  container.append(title, summary, bar, legend);
 }
 
 function formatManValue(value) {
@@ -2863,40 +2866,20 @@ function buildDrawBandLabel(lo, hi, isOpenUpper) {
   return `${formatManValue(lo)}万〜${formatManValue(hi)}万人未満`;
 }
 
-// 「人口カード構成」表示用に、実際の抽選(buildDrawTiers)と同じ帯・同じ確率を
-// そのまま表示する。ゲーム中の抽選ロジックと表示が食い違うことはない。
-function getDrawProfileRows(targetValue) {
+// 安全圏（1回のHITの目安を10等分した範囲）/ 際どい（それを超えてTARGET以下）/
+// バースト圏（TARGET超え）の3ゾーンに集約する。
+function getDrawProfileZones(targetValue) {
   const target = Number(targetValue || 0);
-  if (target <= 0 || MUNICIPALITIES.length === 0) return [];
-
   const perHitScale = target / DRAW_REFERENCE_TURNS;
-  const overItems = MUNICIPALITIES.filter((item) => item.population > target);
-  const middleItems = MUNICIPALITIES.filter((item) => item.population > perHitScale && item.population <= target);
-  const underItems = MUNICIPALITIES.filter((item) => item.population <= perHitScale);
-  const hasOver = overItems.length > 0;
-  const hasMiddle = middleItems.length > 0;
+  const overShare = DRAW_OVER_TARGET_RATE;
+  const middleShare = DRAW_MIDDLE_TARGET_RATE;
+  const safeShare = Math.max(0, 1 - overShare - middleShare);
 
-  const overShare = hasOver ? DRAW_OVER_TARGET_RATE : 0;
-  const middleShare = hasMiddle ? DRAW_MIDDLE_TARGET_RATE : 0;
-  const tierShare = Math.max(0, 1 - overShare - middleShare);
-
-  const rows = [];
-
-  const tiers = buildDrawTiers(underItems.length > 0 ? underItems : MUNICIPALITIES, target);
-  const percentEach = (tierShare * 100) / tiers.length;
-  for (const tier of tiers) {
-    rows.push({ label: buildDrawBandLabel(tier.lo, tier.hi, false), percent: percentEach });
-  }
-
-  if (hasMiddle) {
-    rows.push({ label: buildDrawBandLabel(perHitScale, target, false), percent: middleShare * 100 });
-  }
-
-  if (hasOver) {
-    rows.push({ label: buildDrawBandLabel(target, null, true), percent: overShare * 100 });
-  }
-
-  return rows;
+  return {
+    safe: { label: "安全圏", percent: safeShare * 100, rangeLabel: buildDrawBandLabel(0, perHitScale, false) },
+    middle: { label: "際どい", percent: middleShare * 100, rangeLabel: buildDrawBandLabel(perHitScale, target, false) },
+    over: { label: "バースト圏", percent: overShare * 100, rangeLabel: buildDrawBandLabel(target, null, true) }
+  };
 }
 
 function makeCpuProfiles(cpuCount) {

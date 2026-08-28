@@ -1239,24 +1239,21 @@ label input {
   color: var(--gold-bright);
 }
 
-.game-start-intro-card .draw-profile-note {
+.game-start-intro-card .draw-profile-summary {
   text-align: left;
   font-size: clamp(0.86rem, 1.4vw, 1rem);
 }
 
-.game-start-intro-card .draw-profile-row {
-  grid-template-columns: minmax(100px, 160px) minmax(120px, 1fr) 56px;
-  text-align: left;
-  min-height: clamp(24px, 3vw, 32px);
+.game-start-intro-card .draw-profile-bar {
+  height: clamp(20px, 2.6vw, 28px);
 }
 
-.game-start-intro-card .draw-profile-label,
-.game-start-intro-card .draw-profile-row strong {
+.game-start-intro-card .draw-profile-legend-item strong {
   font-size: clamp(0.88rem, 1.5vw, 1.05rem);
 }
 
-.game-start-intro-card .draw-profile-meter {
-  height: clamp(10px, 1.4vw, 14px);
+.game-start-intro-card .draw-profile-legend-item small {
+  font-size: clamp(0.74rem, 1.2vw, 0.86rem);
 }
 
 .game-start-intro-card h3 {
@@ -1348,53 +1345,82 @@ label input {
   color: var(--gold-bright);
 }
 
-.draw-profile-note {
+.draw-profile-summary {
   margin: 0 0 12px;
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 700;
 }
 
-.draw-profile-bars {
-  display: grid;
-  gap: 9px;
-}
-
-.draw-profile-row {
-  display: grid;
-  grid-template-columns: minmax(86px, 120px) minmax(90px, 1fr) 42px;
-  align-items: center;
-  gap: 10px;
-  min-height: 24px;
-}
-
-.draw-profile-label {
-  color: #cdd8cf;
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
-.draw-profile-meter {
-  position: relative;
-  height: 10px;
+.draw-profile-bar {
+  display: flex;
+  width: 100%;
+  height: 22px;
   overflow: hidden;
   border-radius: 999px;
-  background: #0a140e;
   border: 1px solid var(--line-soft);
+  background: #0a140e;
+  margin-bottom: 14px;
 }
 
-.draw-profile-fill {
-  display: block;
+.draw-profile-bar-segment {
   height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--gold-dark), var(--gold-bright));
 }
 
-.draw-profile-row strong {
-  color: var(--gold-bright);
+.draw-profile-bar-segment.safe {
+  background: linear-gradient(90deg, #1f7a4d, #4ade80);
+}
+
+.draw-profile-bar-segment.middle {
+  background: linear-gradient(90deg, #92600a, #ffd166);
+}
+
+.draw-profile-bar-segment.over {
+  background: linear-gradient(90deg, var(--danger), var(--danger-bright));
+}
+
+.draw-profile-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 16px;
+}
+
+.draw-profile-legend-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: baseline;
+}
+
+.draw-profile-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  align-self: center;
+}
+
+.draw-profile-legend-item.safe .draw-profile-legend-dot {
+  background: #4ade80;
+}
+
+.draw-profile-legend-item.middle .draw-profile-legend-dot {
+  background: #ffd166;
+}
+
+.draw-profile-legend-item.over .draw-profile-legend-dot {
+  background: var(--danger-bright);
+}
+
+.draw-profile-legend-item strong {
+  grid-column: 2;
+  color: var(--ink);
   font-size: 0.88rem;
-  text-align: right;
-  font-family: var(--font-digital);
+}
+
+.draw-profile-legend-item small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.76rem;
 }
 
 .game-grid.action-hit .candidate-box {
@@ -2359,9 +2385,8 @@ body.bust-shake .app-shell {
     flex: 1 1 160px;
   }
 
-  .draw-profile-row {
-    grid-template-columns: minmax(80px, 108px) minmax(70px, 1fr) 38px;
-    gap: 8px;
+  .draw-profile-legend {
+    grid-template-columns: 1fr;
   }
 }/* =========================================
    ここから下は、強制的に色を上書きする設定
@@ -2673,12 +2698,6 @@ body {
     border-radius: 14px;
   }
 
-  .game-start-intro-card .draw-profile-row,
-  .draw-profile-row {
-    grid-template-columns: minmax(70px, 96px) minmax(60px, 1fr) 34px;
-    gap: 6px;
-  }
-
   .sound-toggle {
     top: max(10px, env(safe-area-inset-top));
     right: max(10px, env(safe-area-inset-right));
@@ -2730,12 +2749,4 @@ body {
     opacity: 0.42;
   }
 
-  .draw-profile-row,
-  .game-start-intro-card .draw-profile-row {
-    grid-template-columns: 1fr;
-  }
-
-  .draw-profile-value {
-    text-align: left;
-  }
 }
