@@ -177,7 +177,10 @@ h1 {
      したいので、Archivo Black を使う。日本語部分は自動でNoto Sans JPに
      フォールバックする（Archivo BlackはCJKグリフを持たないため）。 */
   font-family: "Archivo Black", var(--font-display);
-  font-weight: 400;
+  /* Archivo Blackは常に極太（単一ウェイトのフォント）で表示されるため、
+     フォールバック先の日本語(Noto Sans JP)側もできるだけ太くして、
+     英語部分と日本語部分の太さの差が目立たないようにする。 */
+  font-weight: 800;
   letter-spacing: -0.01em;
   font-size: clamp(1.7rem, 4.4vw, 3.3rem);
   line-height: 1.15;
