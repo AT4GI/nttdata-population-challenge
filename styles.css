@@ -44,6 +44,8 @@ body {
   --font-display: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
   --font-digital: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
   --font-body: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  /* NTT DATA採用サイト(nttdata-recruit.com)の英字見出しに合わせたアクセント書体 */
+  --font-accent: "Archivo", "Noto Sans JP", sans-serif;
   font-family: var(--font-body);
 }
 
@@ -155,6 +157,14 @@ body.in-room .app-shell {
   font-family: var(--font-display);
 }
 
+/* 英字だけの見出し（Firebase Realtime Database MVPなど）は、採用サイトに
+   ならってArchivoで表示する。日本語のラベル(.label)には影響しない。 */
+.eyebrow {
+  font-family: var(--font-accent);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+}
+
 h1,
 h2,
 p {
@@ -164,9 +174,12 @@ p {
 h1 {
   margin-bottom: 0;
   font-family: var(--font-display);
-  font-weight: 700;
+  /* NTT DATA採用サイトの見出し（太字ではなく、字間を広めにとった上品な
+     スタイル）にならう。 */
+  font-weight: 400;
+  letter-spacing: 0.1em;
   font-size: clamp(1.9rem, 4.6vw, 3.6rem);
-  line-height: 1.1;
+  line-height: 1.2;
   color: var(--gold-bright);
   text-shadow: 0 0 22px rgba(212, 175, 55, 0.35), 0 2px 0 rgba(0, 0, 0, 0.5);
 }
