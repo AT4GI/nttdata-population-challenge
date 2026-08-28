@@ -187,7 +187,6 @@ h1 {
 }
 
 .setup-intro {
-  max-width: 46ch;
   margin: 0 auto 22px;
   text-align: center;
   color: var(--ink);
@@ -195,7 +194,9 @@ h1 {
   font-weight: 600;
   font-size: clamp(1.02rem, 2.6vw, 1.22rem);
   letter-spacing: 0.01em;
-  line-height: 1.7;
+  line-height: 1.8;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .setup-intro-term {
