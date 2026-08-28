@@ -319,6 +319,7 @@ const els = {
   candidateMapSlot: document.querySelector("#candidateMapSlot"),
   candidateName: document.querySelector("#candidateName"),
   candidatePrefecture: document.querySelector("#candidatePrefecture"),
+  candidateHomeNote: document.querySelector("#candidateHomeNote"),
   candidatePopulation: document.querySelector("#candidatePopulation"),
   hitButton: document.querySelector("#hitButton"),
   standButton: document.querySelector("#standButton"),
@@ -381,9 +382,6 @@ const lastSeenItemUsed = {};
 // 直前の描画で観測済みだったコメントidの集合。nullは「まだ観測していない」
 // （部屋に入った直後の初回描画で、既存の全コメントをふわっと通知しないため）。
 let lastSeenCommentIds = null;
-// playerId -> そのプレイヤーの前回描画時点でのhistory件数。件数が増えた瞬間だけ
-// 「新しく市区町村が確定した」と判定し、出身都道府県との一致をチェックする。
-const lastSeenHistoryLength = {};
 let audioCtx = null;
 let bgmGain = null;
 let bgmScheduler = null;
@@ -1280,6 +1278,12 @@ function buildHitPayload(room, player) {
     payload.finishedAt = serverTimestamp();
   }
 
+  // 自分の出身都道府県の市区町村を引き当てたら、アイテムモードのON/OFFに
+  // 関わらずサプライズでアイテムを1個だけ獲得できる（すでに持っていれば何もしない）。
+  if (!player.item && player.homePrefecture && player.homePrefecture === candidate.prefecture) {
+    payload.item = assignRandomItem();
+  }
+
   return payload;
 }
 
@@ -1319,8 +1323,7 @@ function renderRoom(room) {
   currentRoomCanPlay = room.status === "playing" && areGameStartConfirmationsComplete(room);
   syncBgm();
   const players = room.players || {};
-  if (room.itemMode) detectItemUsageEffects(players);
-  detectHomePrefectureMatches(players);
+  detectItemUsageEffects(players);
   const playerIds = getDisplayPlayerIds(room);
   const me = players[currentPlayerId];
   const isHost = room.hostPlayerId === currentPlayerId;
@@ -1418,6 +1421,10 @@ function renderRoom(room) {
     : focusPlayer?.lastRevealed
       ? focusPlayer.lastRevealed.category
       : null;
+  const shownPrefecture = isCandidateMasked
+    ? candidate.prefecture
+    : focusPlayer?.lastRevealed?.prefecture || null;
+  updateCandidateHomeNote(players, shownPrefecture);
   updateCandidateCard(revealCategory, isCandidateMasked);
   updateCandidateMap(isCandidateMasked ? candidate : focusPlayer?.lastRevealed || null);
   updateTargetProgress(room, focusPlayer, target, focusPlayerId);
@@ -1442,7 +1449,8 @@ function renderItemPanel(room, me) {
 
   const item = me?.item;
   const itemDef = item ? getItemDefinition(item.id) : null;
-  const shouldShow = Boolean(room.itemMode && itemDef && !item.used);
+  // itemModeがOFFでも、出身地ボーナスなどでアイテムを持っていれば使えるようにする。
+  const shouldShow = Boolean(itemDef && !item.used);
 
   els.itemPanel.classList.toggle("hidden", !shouldShow);
   if (!shouldShow) {
@@ -1663,7 +1671,7 @@ if (room.status !== "waiting") {
     if (playerId === currentPlayerId) playerBadges.push("あなた");
     if (player.type === "cpu") playerBadges.push("CPU");
     if (playerId === turnPlayerId && room.status === "playing") playerBadges.push("TURN");
-    if (room.itemMode && player.item && !player.item.used) playerBadges.push("ITEM");
+    if (player.item && !player.item.used) playerBadges.push("ITEM");
     if (room.status === "waiting") playerBadges.push(player.ready ? "OK" : "未確認");
     title.textContent = `${player.name || "参加者"}${playerBadges.length > 0 ? `（${playerBadges.join(" / ")}）` : ""}`;
 
@@ -1763,26 +1771,25 @@ function detectItemUsageEffects(players) {
   }
 }
 
-// 誰かが新しく市区町村を確定させた（HITで人口が確定した）瞬間を検知し、
-// その都道府県が参加者の誰かの出身と一致していたらふわっと知らせる。
-function detectHomePrefectureMatches(players) {
-  for (const [playerId, player] of Object.entries(players)) {
-    const historyLength = (player?.history || []).length;
-    const previouslySeen = lastSeenHistoryLength[playerId];
-    if (previouslySeen !== undefined && historyLength > previouslySeen) {
-      const latest = player.history[player.history.length - 1];
-      const prefecture = latest?.prefecture;
-      if (prefecture) {
-        const matchedNames = Object.values(players)
-          .filter((p) => p?.homePrefecture === prefecture)
-          .map((p) => p.name || "参加者");
-        if (matchedNames.length > 0) {
-          spawnCommentPopup("🏠 出身地", `${matchedNames.join("、")}の出身の都道府県です`);
-        }
-      }
-    }
-    lastSeenHistoryLength[playerId] = historyLength;
+// 今カードに表示中の都道府県が、参加者の誰かの出身と一致していたら
+// カード上に控えめに一言添える（ポップアップにはせず、カードの一部として表示）。
+function findHomePrefectureMatchNames(players, prefecture) {
+  if (!prefecture) return [];
+  return Object.values(players || {})
+    .filter((p) => p?.homePrefecture === prefecture)
+    .map((p) => p.name || "参加者");
+}
+
+function updateCandidateHomeNote(players, prefecture) {
+  if (!els.candidateHomeNote) return;
+  const matchedNames = findHomePrefectureMatchNames(players, prefecture);
+  if (matchedNames.length === 0) {
+    els.candidateHomeNote.classList.add("hidden");
+    els.candidateHomeNote.textContent = "";
+    return;
   }
+  els.candidateHomeNote.textContent = `🏠 ${matchedNames.join("、")}の出身地です`;
+  els.candidateHomeNote.classList.remove("hidden");
 }
 
 function buildItemAnnouncementText(casterName, lastAction) {
@@ -2937,7 +2944,7 @@ function buildMyStatus(player, room) {
     if (hideTarget) {
       frag.append("STAND：結果を待っています");
     } else {
-      frag.append("STAND：TARGETまで", remaining(`${formatNumber(target - player.total)}人`));
+      frag.append("STAND：TARGETまで残り", remaining(`${formatNumber(target - player.total)}人`));
     }
     return frag;
   }
@@ -2952,14 +2959,14 @@ function buildMyStatus(player, room) {
       if (hideTarget) {
         frag.append(`${name}さんの番です。`);
       } else {
-        frag.append(`${name}さんの番です。TARGETまで`, remaining(`${formatNumber(target - player.total)}人`));
+        frag.append(`${name}さんの番です。TARGETまで残り`, remaining(`${formatNumber(target - player.total)}人`));
       }
       return frag;
     }
     if (hideTarget) {
       frag.append("あなたの番です。");
     } else {
-      frag.append("あなたの番です。TARGETまで", remaining(`${formatNumber(target - player.total)}人`));
+      frag.append("あなたの番です。TARGETまで残り", remaining(`${formatNumber(target - player.total)}人`));
     }
     return frag;
   }
