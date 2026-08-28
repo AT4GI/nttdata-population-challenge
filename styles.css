@@ -183,6 +183,13 @@ h1 {
   max-width: 720px;
 }
 
+.setup-intro {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
 .setup-choice-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

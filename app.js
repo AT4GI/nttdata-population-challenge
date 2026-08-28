@@ -247,6 +247,7 @@ const ITEM_RARITY_ORDER = ["ノーマル", "レア", "ウルトラレア"];
 
 const els = {
   setupView: document.querySelector("#setupView"),
+  setupIntro: document.querySelector("#setupIntro"),
   homeModeView: document.querySelector("#homeModeView"),
   setupModeView: document.querySelector("#setupModeView"),
   howToPlayView: document.querySelector("#howToPlayView"),
@@ -2768,6 +2769,7 @@ function disableSetup(disabled) {
 
 function showSetupMode(mode) {
   clearRoulette();
+  els.setupIntro.classList.toggle("hidden", mode !== "home");
   els.homeModeView.classList.toggle("hidden", mode !== "home");
   els.setupModeView.classList.toggle("hidden", mode !== "pvp");
   els.howToPlayView.classList.toggle("hidden", mode !== "howto");
