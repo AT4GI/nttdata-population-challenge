@@ -201,13 +201,14 @@ h1 {
   font-family: var(--font-display);
 }
 
-/* NTT DATAの採用サイトにある「考動力・変革力・共創力」の3円グラフィックを
-   モチーフにした、対戦モード選択のトップ画面。3つの円をSVGで背景として敷き、
-   その上に実際のボタン（透明）を重ねてラベルを表示する。 */
+/* NTT DATAの採用サイト（nttdata-recruit.com/recruit/hr.html）にある
+   「考動力・変革力・共創力」のグラフィック（pinwheel.png、同サイトの
+   images/hr/img_01.pngをそのまま使用）をモチーフにした、対戦モード選択の
+   トップ画面。背景画像の上に実際のボタン（透明）を重ねてラベルを表示する。 */
 .brand-pinwheel {
   position: relative;
   width: min(94vw, 460px);
-  aspect-ratio: 650 / 620;
+  aspect-ratio: 1300 / 1309;
   margin: 0 auto;
 }
 
@@ -216,11 +217,7 @@ h1 {
   inset: 0;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
-}
-
-.brand-pinwheel-bg circle {
-  fill: #bc4121;
+  object-fit: contain;
 }
 
 .pinwheel-petal {
@@ -267,38 +264,38 @@ h1 {
 }
 
 .petal-top {
-  top: 2%;
+  top: 5%;
   left: 22%;
   width: 56%;
-  height: 32%;
+  height: 25%;
   justify-content: flex-start;
-  padding-top: 10%;
+  padding-top: 6%;
 }
 
 .petal-right {
-  top: 46%;
-  left: 54%;
-  width: 44%;
-  height: 46%;
+  top: 52%;
+  left: 62%;
+  width: 36%;
+  height: 26%;
   justify-content: flex-end;
-  padding-bottom: 8%;
+  padding-bottom: 4%;
 }
 
 .petal-left {
-  top: 46%;
+  top: 52%;
   left: 2%;
-  width: 44%;
-  height: 46%;
+  width: 36%;
+  height: 26%;
   justify-content: flex-end;
-  padding-bottom: 8%;
+  padding-bottom: 4%;
 }
 
 .pinwheel-center {
   position: absolute;
   top: 36%;
-  left: 26%;
-  width: 48%;
-  height: 32%;
+  left: 24%;
+  width: 46%;
+  height: 22%;
   display: flex;
   flex-direction: column;
   align-items: center;
