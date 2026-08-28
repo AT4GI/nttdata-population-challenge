@@ -180,6 +180,14 @@ const ITEM_CATALOG = [
     requiresTarget: false
   },
   {
+    id: "force-plus-10k",
+    label: "強制加算1万",
+    description: "指定した相手の現在人口に1万人を強制的に加算します。TARGETを超えるとBUSTします。",
+    rarity: "ノーマル",
+    weight: 10,
+    requiresTarget: true
+  },
+  {
     id: "steal-10pct",
     label: "人口削減",
     description: "指定した相手の現在人口を10%削ります。",
@@ -193,14 +201,6 @@ const ITEM_CATALOG = [
     description: "自分と指定した相手の現在人口を入れ替えます。",
     rarity: "レア",
     weight: 6,
-    requiresTarget: true
-  },
-  {
-    id: "force-plus-10k",
-    label: "強制加算1万",
-    description: "指定した相手の現在人口に1万人を強制的に加算します。TARGETを超えるとBUSTします。",
-    rarity: "ノーマル",
-    weight: 10,
     requiresTarget: true
   },
   {
@@ -228,14 +228,6 @@ const ITEM_CATALOG = [
     requiresTarget: false
   },
   {
-    id: "force-plus-30k",
-    label: "強制加算3万",
-    description: "指定した相手の現在人口に3万人を強制的に加算します。TARGETを超えるとBUSTします。",
-    rarity: "ウルトラレア",
-    weight: 3,
-    requiresTarget: true
-  },
-  {
     id: "reset-all",
     label: "総リセット",
     description: "STAND・BUST・JUST済みの人も含めて全員の現在人口・HIT回数・履歴を0に戻し、再びプレイ中にします（自分も対象です）。",
@@ -250,6 +242,8 @@ const ITEM_RARITY_CLASSES = {
   レア: "rarity-rare",
   ウルトラレア: "rarity-ultra-rare"
 };
+
+const ITEM_RARITY_ORDER = ["ノーマル", "レア", "ウルトラレア"];
 
 const els = {
   setupView: document.querySelector("#setupView"),
@@ -1040,15 +1034,6 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
       if (defense.applied) {
         const victim = room.players?.[defense.targetId];
         applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 50000));
-      }
-      break;
-    }
-    case "force-plus-30k": {
-      const defense = resolveItemDefense(updates, playerId, targetPlayerId, targetPlayer, itemDef);
-      lastActionAlreadySet = true;
-      if (defense.applied) {
-        const victim = room.players?.[defense.targetId];
-        applyPlayerFieldUpdates(updates, defense.targetId, resolveTotalChange(room, victim, (victim.total || 0) + 30000));
       }
       break;
     }
@@ -2386,7 +2371,12 @@ function renderItemGuide() {
   if (!els.itemGuideList) return;
   els.itemGuideList.innerHTML = "";
 
-  for (const itemDef of ITEM_CATALOG) {
+  // ITEM_CATALOG内の並び順に関わらず、常にレア度の順（ノーマル→レア→ウルトラレア）で表示する。
+  const sortedItems = [...ITEM_CATALOG].sort(
+    (a, b) => ITEM_RARITY_ORDER.indexOf(a.rarity) - ITEM_RARITY_ORDER.indexOf(b.rarity)
+  );
+
+  for (const itemDef of sortedItems) {
     const card = document.createElement("div");
     card.className = "item-guide-card";
 
