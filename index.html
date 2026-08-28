@@ -22,24 +22,21 @@
       <section id="setupView" class="panel setup-panel">
         <p id="setupIntro" class="setup-intro">市区町村の人口を足していき、TARGETの人数にできるだけ近づけよう。超えたらBUST！2〜10人でオンライン対戦できます。</p>
         <div id="homeModeView" class="brand-pinwheel">
-          <button id="selectPvpModeButton" type="button" class="pinwheel-petal petal-top">
-            <span class="pinwheel-petal-text">
-              <strong>友達と対戦</strong>
-              <small>部屋を作って、友達を誘って遊ぼう。</small>
-            </span>
-          </button>
-          <button id="selectCpuModeButton" type="button" class="pinwheel-petal petal-right">
-            <span class="pinwheel-petal-text">
-              <strong>CPU戦をする</strong>
-              <small>1人でもすぐに対戦できる。</small>
-            </span>
-          </button>
-          <button id="selectHowToButton" type="button" class="pinwheel-petal petal-left">
-            <span class="pinwheel-petal-text">
-              <strong>遊び方</strong>
-              <small>ルールをかんたんに確認できる。</small>
-            </span>
-          </button>
+          <button id="selectPvpModeButton" type="button" class="pinwheel-petal petal-top" aria-labelledby="petalTopLabel"></button>
+          <button id="selectCpuModeButton" type="button" class="pinwheel-petal petal-right" aria-labelledby="petalRightLabel"></button>
+          <button id="selectHowToButton" type="button" class="pinwheel-petal petal-left" aria-labelledby="petalLeftLabel"></button>
+          <span id="petalTopLabel" class="pinwheel-petal-text petal-top-text">
+            <strong>友達と対戦</strong>
+            <small>部屋を作って、友達を誘って遊ぼう。</small>
+          </span>
+          <span id="petalRightLabel" class="pinwheel-petal-text petal-right-text">
+            <strong>CPU戦をする</strong>
+            <small>1人でもすぐに対戦できる。</small>
+          </span>
+          <span id="petalLeftLabel" class="pinwheel-petal-text petal-left-text">
+            <strong>遊び方</strong>
+            <small>ルールをかんたんに確認できる。</small>
+          </span>
           <div class="pinwheel-center" aria-hidden="true">
             <strong>強い意志と情熱</strong>
             <small>入社後、NTT DATAで意欲高く<br>頑張り続けるためのコア。</small>
