@@ -247,13 +247,19 @@ const ITEM_RARITY_ORDER = ["ノーマル", "レア", "ウルトラレア"];
 
 const els = {
   setupView: document.querySelector("#setupView"),
+  homeModeView: document.querySelector("#homeModeView"),
   setupModeView: document.querySelector("#setupModeView"),
+  howToPlayView: document.querySelector("#howToPlayView"),
   createRoomForm: document.querySelector("#createRoomForm"),
   joinRoomForm: document.querySelector("#joinRoomForm"),
   cpuRoomForm: document.querySelector("#cpuRoomForm"),
+  selectPvpModeButton: document.querySelector("#selectPvpModeButton"),
+  selectHowToButton: document.querySelector("#selectHowToButton"),
   selectCreateModeButton: document.querySelector("#selectCreateModeButton"),
   selectJoinModeButton: document.querySelector("#selectJoinModeButton"),
   selectCpuModeButton: document.querySelector("#selectCpuModeButton"),
+  backFromPvpButton: document.querySelector("#backFromPvpButton"),
+  backFromHowToButton: document.querySelector("#backFromHowToButton"),
   backFromCreateButton: document.querySelector("#backFromCreateButton"),
   backFromJoinButton: document.querySelector("#backFromJoinButton"),
   backFromCpuButton: document.querySelector("#backFromCpuButton"),
@@ -384,12 +390,16 @@ updateSoundToggleButton();
 if (sharedResultId) showShareView();
 initializeFirebase();
 
+els.selectPvpModeButton.addEventListener("click", () => showSetupMode("pvp"));
+els.selectHowToButton.addEventListener("click", () => showSetupMode("howto"));
 els.selectCreateModeButton.addEventListener("click", () => showSetupMode("create"));
 els.selectJoinModeButton.addEventListener("click", () => showSetupMode("join"));
 els.selectCpuModeButton.addEventListener("click", () => showSetupMode("cpu"));
-els.backFromCreateButton.addEventListener("click", () => showSetupMode("choice"));
-els.backFromJoinButton.addEventListener("click", () => showSetupMode("choice"));
-els.backFromCpuButton.addEventListener("click", () => showSetupMode("choice"));
+els.backFromPvpButton.addEventListener("click", () => showSetupMode("home"));
+els.backFromHowToButton.addEventListener("click", () => showSetupMode("home"));
+els.backFromCreateButton.addEventListener("click", () => showSetupMode("pvp"));
+els.backFromJoinButton.addEventListener("click", () => showSetupMode("pvp"));
+els.backFromCpuButton.addEventListener("click", () => showSetupMode("home"));
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
@@ -2747,6 +2757,7 @@ function setSetupMessage(message) {
 }
 
 function disableSetup(disabled) {
+  els.selectPvpModeButton.disabled = disabled;
   els.selectCreateModeButton.disabled = disabled;
   els.selectJoinModeButton.disabled = disabled;
   els.selectCpuModeButton.disabled = disabled;
@@ -2757,7 +2768,9 @@ function disableSetup(disabled) {
 
 function showSetupMode(mode) {
   clearRoulette();
-  els.setupModeView.classList.toggle("hidden", mode !== "choice");
+  els.homeModeView.classList.toggle("hidden", mode !== "home");
+  els.setupModeView.classList.toggle("hidden", mode !== "pvp");
+  els.howToPlayView.classList.toggle("hidden", mode !== "howto");
   els.createRoomForm.classList.toggle("hidden", mode !== "create");
   els.joinRoomForm.classList.toggle("hidden", mode !== "join");
   els.cpuRoomForm.classList.toggle("hidden", mode !== "cpu");

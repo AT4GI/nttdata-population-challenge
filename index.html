@@ -20,10 +20,16 @@
       </section>
 
       <section id="setupView" class="panel setup-panel">
-        <div id="setupModeView" class="setup-choice-grid">
+        <div id="homeModeView" class="setup-choice-grid">
+          <button id="selectPvpModeButton" type="button">友達と対戦</button>
+          <button id="selectCpuModeButton" type="button" class="secondary">CPU戦をする</button>
+          <button id="selectHowToButton" type="button" class="secondary">遊び方</button>
+        </div>
+
+        <div id="setupModeView" class="setup-choice-grid hidden">
           <button id="selectCreateModeButton" type="button">部屋を作る</button>
           <button id="selectJoinModeButton" type="button" class="secondary">部屋に参加する</button>
-          <button id="selectCpuModeButton" type="button" class="secondary">CPU戦をする</button>
+          <button id="backFromPvpButton" type="button" class="secondary">戻る</button>
         </div>
 
         <div id="createRoomForm" class="setup-form hidden">
@@ -118,6 +124,10 @@
         </div>
 
         <p id="setupMessage" class="message" role="status"></p>
+        <div id="howToPlayView" class="hidden">
+        <div class="button-row">
+          <button id="backFromHowToButton" type="button" class="secondary">戻る</button>
+        </div>
         <div class="guide-grid" aria-label="遊び方と対戦方法">
           <section class="guide-block" aria-labelledby="rulesTitle">
             <h2 id="rulesTitle">遊び方</h2>
@@ -155,6 +165,7 @@
           <p class="item-guide-note">「アイテムモード」をONにすると、参加者に1人1個ランダムでアイテムが配られ、自分の番に1回だけ使えます。他プレイヤーを直接妨害する攻撃系アイテムほど出現率は低めです（CPUはアイテムを使いません）。</p>
           <div id="itemGuideList" class="item-guide-list"></div>
         </section>
+        </div>
       </section>
 
       <section id="gameView" class="game-grid hidden" aria-live="polite">
