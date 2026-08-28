@@ -2808,7 +2808,7 @@ function hideGameStartIntro(immediate) {
 }
 
 // 「人口カード構成」は、以前は12行の数値表だったが「パッと見て分からない」
-// という指摘を受け、安全圏/際どい/バースト圏の3色バー1本＋短い一言に単純化した。
+// という指摘を受け、安全圏/警戒圏/バースト圏の3色バー1本＋短い一言に単純化した。
 // 内訳の割合はgetDrawProfileZonesが実際の抽選(buildDrawTiers)と同じ定数
 // (DRAW_OVER_TARGET_RATE等)から計算するため、表示と実際の確率は食い違わない。
 function renderDrawProfile(container, target, options = {}) {
@@ -2822,7 +2822,7 @@ function renderDrawProfile(container, target, options = {}) {
 
   const summary = document.createElement("p");
   summary.className = "draw-profile-summary";
-  summary.textContent = `1回のHITごとに、際どい人口が${Math.round(zones.middle.percent)}%、TARGETを超える人口が${Math.round(zones.over.percent)}%の確率で出ます。`;
+  summary.textContent = `1回のHITごとに、警戒圏の人口が${Math.round(zones.middle.percent)}%、TARGETを超える人口が${Math.round(zones.over.percent)}%の確率で出ます。`;
 
   const bar = document.createElement("div");
   bar.className = "draw-profile-bar";
@@ -2866,7 +2866,7 @@ function buildDrawBandLabel(lo, hi, isOpenUpper) {
   return `${formatManValue(lo)}万〜${formatManValue(hi)}万人未満`;
 }
 
-// 安全圏（1回のHITの目安を10等分した範囲）/ 際どい（それを超えてTARGET以下）/
+// 安全圏（1回のHITの目安を10等分した範囲）/ 警戒圏（それを超えてTARGET以下）/
 // バースト圏（TARGET超え）の3ゾーンに集約する。
 function getDrawProfileZones(targetValue) {
   const target = Number(targetValue || 0);
@@ -2877,7 +2877,7 @@ function getDrawProfileZones(targetValue) {
 
   return {
     safe: { label: "安全圏", percent: safeShare * 100, rangeLabel: buildDrawBandLabel(0, perHitScale, false) },
-    middle: { label: "際どい", percent: middleShare * 100, rangeLabel: buildDrawBandLabel(perHitScale, target, false) },
+    middle: { label: "警戒圏", percent: middleShare * 100, rangeLabel: buildDrawBandLabel(perHitScale, target, false) },
     over: { label: "バースト圏", percent: overShare * 100, rangeLabel: buildDrawBandLabel(target, null, true) }
   };
 }
