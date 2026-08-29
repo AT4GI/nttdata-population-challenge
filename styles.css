@@ -1,51 +1,55 @@
 body {
-  background-color: #0F172A;
-  color: #FFFFFF;
-  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
+  background-color: #F5F7FA;
+  color: #070F26;
   font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
 }
 
+/* NTT DATA採用サイト(nttdata-recruit.com)を実測して作った配色・書体トークン。
+   --gold系の変数名は既存コードとの互換のため残しているが、実体は
+   NTT DATAブランドブルー(#0072BC)。ダーク×グロー基調から、白地に
+   濃紺+ブルーのフラットな配色へ作り替えている。 */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* 1. 背景とパネル（知的で深いネイビー。緑みはゼロです） */
-  --bg-1: #0F172A;
-  --bg-2: #1E293B;
-  --panel: #1e3a5f;
-  --panel-alt: #2a4d77;
-  --panel-glass: rgba(15, 23, 42, 0.86);
+  /* 1. 背景とパネル（白基調。ヒーロー帯だけ濃紺+写真を使う） */
+  --bg-1: #F5F7FA;
+  --bg-2: #EDF1F6;
+  --panel: #FFFFFF;
+  --panel-alt: #F1F5F9;
+  --panel-glass: rgba(255, 255, 255, 0.92);
+  --navy: #070F26;
+  --navy-soft: #1C2740;
 
-  /* 2. 文字の色（水色を排除し、すべて見やすい真っ白に変更） */
-  --ink: #FFFFFF;
-  --muted: #FFFFFF; /* サブの文字も真っ白でくっきりと表示させます */
+  /* 2. 文字の色 */
+  --ink: #0B1220;
+  --muted: #5B6472;
 
-  /* 3. アクセントカラー（爽やかで洗練されたライトブルー） */
-  --line: rgba(56, 189, 248, 0.32);
-  --line-soft: rgba(56, 189, 248, 0.16);
-  --gold: #38BDF8;
-  --gold-bright: #7DD3FC;
-  --gold-dark: #0284C7;
-  --primary: #38BDF8;
-  --primary-dark: #0284C7;
-  --primary-soft: rgba(56, 189, 248, 0.14);
-  --cyan: #38BDF8;
-  --accent: #38BDF8;
+  /* 3. アクセントカラー（NTT DATA公式サイト実測: #0072BC） */
+  --line: rgba(7, 15, 38, 0.14);
+  --line-soft: rgba(7, 15, 38, 0.08);
+  --gold: #0072BC;
+  --gold-bright: #2E93D1;
+  --gold-dark: #00558F;
+  --primary: #0072BC;
+  --primary-dark: #00558F;
+  --primary-soft: rgba(0, 114, 188, 0.08);
+  --cyan: #0072BC;
+  --accent: #0072BC;
   --turn: var(--primary);
 
-  /* 4. システムカラー（残っていた深緑を洗練された色に上書き！） */
-  --danger: #e74c3c;
-  --danger-bright: #ff7675;
-  --success: #0ea5e9; /* 成功時の緑もブルー系に変更し統一感を演出 */
-  --success-bright: #38bdf8;
-  --idle: #334155; /* 深緑の原因だった待機色を、洗練されたスレートグレーに変更 */
-  --shadow: rgba(0, 0, 0, 0.55);
+  /* 4. システムカラー */
+  --danger: #D93025;
+  --danger-bright: #EE4B3A;
+  --success: #0072BC;
+  --success-bright: #2E93D1;
+  --idle: #9AA5B4;
+  --shadow: rgba(7, 15, 38, 0.14);
 
-  /* 5. フォント（端末を問わず読みやすいゴシック体＋等幅数字） */
+  /* 5. フォント。日本語はNoto Sans JP、英数字・ボタン文字はNTT DATAサイトに
+     合わせてArchivoを使う。 */
   --font-display: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
   --font-digital: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
   --font-body: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
-  /* NTT DATA採用サイトの見出し書体を参考にしたアクセント書体。英字はArchivo、
-     日本語は同じウェイトのNoto Sans JPにフォールバックする。 */
   --font-accent: "Archivo", "Noto Sans JP", sans-serif;
   font-family: var(--font-body);
 }
@@ -62,36 +66,38 @@ select {
   font: inherit;
 }
 
+/* NTT DATA採用サイトのENTRY/MYPAGEボタンを実測(#0072BC単色・角丸5px・
+   Archivo 700・影なし)して合わせたスタイル。 */
 button {
-  border: 1px solid var(--gold-dark);
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--gold-bright), var(--primary-dark));
-  color: #0f172a;
+  border: none;
+  border-radius: 5px;
+  background: var(--primary);
+  color: #FFFFFF;
   min-height: 48px;
   padding: 0 24px;
-  font-weight: 800;
+  font-family: var(--font-accent);
+  font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  box-shadow: none;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
 button:hover:not(:disabled) {
-  filter: brightness(1.06);
+  background: var(--primary-dark);
   transform: translateY(-1px);
-  box-shadow: 0 9px 20px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 button.secondary {
-  background: var(--panel-alt);
-  color: var(--ink);
+  background: #FFFFFF;
+  color: var(--navy);
   border: 1px solid var(--line);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 
 button.secondary:hover:not(:disabled) {
-  background: #223529;
-  border-color: var(--gold);
+  background: var(--panel-alt);
+  border-color: var(--primary);
 }
 
 button:disabled {
@@ -106,23 +112,24 @@ select {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 5px;
   padding: 8px 12px;
-  background: #0f1c14;
+  background: #FFFFFF;
   color: var(--ink);
 }
 
 input:disabled,
 select:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: not-allowed;
+  background: var(--panel-alt);
 }
 
 input:focus,
 select:focus {
   outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 114, 188, 0.18);
 }
 
 .num-digital {
@@ -138,11 +145,7 @@ select:focus {
 }
 
 .title-area {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 20px;
-  margin-bottom: 20px;
+  overflow: hidden;
 }
 
 /* NTT DATA採用サイトの「ロゴマーク＋社名」の並びを参考にしたブランド表示。
@@ -151,7 +154,7 @@ select:focus {
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .brand-mark {
@@ -204,8 +207,8 @@ h1 {
 .panel {
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: linear-gradient(180deg, var(--panel-glass), rgba(10, 18, 13, 0.92));
-  box-shadow: 0 20px 44px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: var(--panel);
+  box-shadow: 0 2px 12px var(--shadow);
   padding: 20px;
 }
 
@@ -282,6 +285,7 @@ h1 {
 }
 
 .pinwheel-petal:hover:not(:disabled) {
+  background: #bc4121;
   filter: brightness(1.12);
 }
 
@@ -392,7 +396,7 @@ h1 {
   padding: 12px 14px;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(16, 27, 20, 0.6);
+  background: var(--panel-alt);
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease;
 }
@@ -403,7 +407,7 @@ h1 {
 
 .mode-toggle:has(.mode-toggle-input:checked) {
   border-color: var(--gold);
-  background: rgba(56, 189, 248, 0.1);
+  background: var(--primary-soft);
 }
 
 .mode-toggle-input {
@@ -421,9 +425,9 @@ h1 {
   width: 44px;
   height: 24px;
   border-radius: 999px;
-  background: #0a140e;
-  border: 1px solid var(--line-soft);
-  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
+  background: #D5DBE3;
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 3px rgba(7, 15, 38, 0.15);
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 
@@ -434,7 +438,8 @@ h1 {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--muted);
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(7, 15, 38, 0.3);
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
 }
 
@@ -445,7 +450,7 @@ h1 {
 
 .mode-toggle-input:checked ~ .mode-toggle-track .mode-toggle-thumb {
   transform: translateX(20px);
-  background: #0a140e;
+  background: #FFFFFF;
 }
 
 .mode-toggle-input:focus-visible ~ .mode-toggle-track {
@@ -511,17 +516,17 @@ label input {
 }
 
 .roulette-window {
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--navy);
+  border-radius: 5px;
   min-height: 52px;
   padding: 13px 14px;
-  background: #050a07;
-  color: var(--gold-bright);
+  background: var(--navy);
+  color: #4DD0FF;
   font-family: var(--font-digital);
   font-size: 1.05rem;
   font-weight: 700;
   overflow: hidden;
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.4);
 }
 
 .roulette-window.spinning {
@@ -591,7 +596,7 @@ label input {
   width: min(100%, 340px);
   border: 1px solid var(--line-soft);
   border-radius: 14px;
-  background: rgba(18, 30, 22, 0.7);
+  background: rgba(241, 245, 249, 0.9);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -605,7 +610,7 @@ label input {
   width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(10, 18, 13, 0.6);
+  background: rgba(237, 241, 246, 0.9);
   padding: 14px 16px;
   position: relative;
 }
@@ -690,7 +695,7 @@ label input {
   flex: 1;
   height: 12px;
   border-radius: 999px;
-  background: rgba(10, 18, 13, 0.6);
+  background: rgba(237, 241, 246, 0.9);
   border: 1px solid var(--line-soft);
   overflow: hidden;
 }
@@ -749,7 +754,7 @@ label input {
   width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(10, 18, 13, 0.6);
+  background: rgba(237, 241, 246, 0.9);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -777,7 +782,7 @@ label input {
   justify-content: space-between;
   padding: 8px 14px;
   border-radius: 8px;
-  background: rgba(10, 18, 13, 0.6);
+  background: rgba(237, 241, 246, 0.9);
   border: 1px solid var(--line-soft);
   font-size: 0.9rem;
 }
@@ -827,7 +832,7 @@ label input {
   margin-top: 16px;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(18, 30, 22, 0.7);
+  background: rgba(241, 245, 249, 0.9);
   padding: 16px;
 }
 
@@ -887,7 +892,7 @@ label input {
   flex: 0 0 220px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(16, 27, 20, 0.85);
+  background: rgba(241, 245, 249, 0.95);
   padding: 10px 12px;
 }
 
@@ -1043,10 +1048,10 @@ label input {
   flex: 1 1 auto;
   height: 12px;
   border-radius: 999px;
-  background: #0a140e;
+  background: #E4E9EF;
   border: 1px solid var(--line-soft);
   overflow: hidden;
-  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 3px rgba(7, 15, 38, 0.12);
 }
 
 .target-progress-fill {
@@ -1481,7 +1486,7 @@ label input {
   border-radius: 10px;
   margin-top: 14px;
   padding: 14px;
-  background: rgba(18, 30, 22, 0.85);
+  background: rgba(241, 245, 249, 0.95);
 }
 
 .draw-profile-bottom {
@@ -1519,7 +1524,7 @@ label input {
   border: 1px solid var(--gold);
   border-radius: 16px;
   padding: clamp(28px, 5vw, 48px) clamp(24px, 5vw, 56px);
-  background: linear-gradient(180deg, var(--panel-glass), rgba(10, 18, 13, 0.95));
+  background: linear-gradient(180deg, var(--panel-glass), rgba(255, 255, 255, 1));
   box-shadow: 0 24px 60px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   animation: resultCardIn 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
@@ -1594,7 +1599,7 @@ label input {
   padding: 8px 12px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(7, 15, 38, 0.03);
 }
 
 .game-start-confirmation-player.confirmed {
@@ -1664,7 +1669,7 @@ label input {
   overflow: hidden;
   border-radius: 999px;
   border: 1px solid var(--line-soft);
-  background: #0a140e;
+  background: #E4E9EF;
   margin-bottom: 14px;
 }
 
@@ -1858,7 +1863,7 @@ label input {
   position: relative;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(16, 27, 20, 0.85);
+  background: rgba(241, 245, 249, 0.95);
   padding: 12px;
   overflow: hidden;
 }
@@ -1923,7 +1928,7 @@ label input {
   100% {
     border-color: var(--line-soft);
     box-shadow: none;
-    background: rgba(16, 27, 20, 0.85);
+    background: rgba(241, 245, 249, 0.95);
   }
 }
 
@@ -1992,7 +1997,7 @@ label input {
 .battle-comment-item {
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(7, 15, 38, 0.03);
   padding: 8px 10px;
 }
 
@@ -2046,7 +2051,7 @@ label input {
 .item-panel {
   border: 1px solid var(--gold);
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(16, 27, 20, 0.85));
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(241, 245, 249, 0.95));
   padding: 14px;
   margin-top: 16px;
   /* 常時ほんのり光らせて、他の枠と紛れずアイテムの存在に気づけるようにする。 */
@@ -2112,7 +2117,7 @@ label input {
   width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(16, 27, 20, 0.85);
+  background: rgba(241, 245, 249, 0.95);
   color: var(--ink);
   padding: 10px 12px;
   text-align: left;
@@ -2150,7 +2155,7 @@ label input {
   gap: 12px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(16, 27, 20, 0.85);
+  background: rgba(241, 245, 249, 0.95);
   padding: 10px 12px;
 }
 
@@ -2170,7 +2175,7 @@ label input {
   position: relative;
   background:
     radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.14), transparent 60%),
-    linear-gradient(180deg, var(--panel-glass), rgba(10, 18, 13, 0.92));
+    linear-gradient(180deg, var(--panel-glass), rgba(255, 255, 255, 1));
 }
 
 .result-panel:not(.hidden) {
@@ -2211,7 +2216,7 @@ label input {
   border: 1px solid var(--gold);
   border-radius: 16px;
   padding: 28px 24px;
-  background: linear-gradient(180deg, var(--panel-glass), rgba(10, 18, 13, 0.95));
+  background: linear-gradient(180deg, var(--panel-glass), rgba(255, 255, 255, 1));
   box-shadow: 0 24px 60px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   animation: resultCardIn 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
@@ -2297,12 +2302,12 @@ label input {
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   padding: 10px 12px;
-  background: rgba(16, 27, 20, 0.85);
+  background: rgba(241, 245, 249, 0.95);
 }
 
 .result-row.winner {
   border-color: var(--gold);
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(16, 27, 20, 0.85));
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(241, 245, 249, 0.95));
 }
 
 .result-row.me {
@@ -2602,7 +2607,7 @@ body.bust-shake .app-shell {
 }
 
 .comment-popup {
-  background: rgba(15, 23, 42, 0.94);
+  background: rgba(7, 15, 38, 0.85);
   border: 1px solid var(--gold-dark);
   border-radius: 14px;
   padding: 10px 18px;
@@ -2753,69 +2758,43 @@ body.bust-shake .app-shell {
     grid-template-columns: 1fr;
   }
 }/* =========================================
-   ここから下は、強制的に色を上書きする設定
+   ヒーロー帯（NTT DATA採用サイトの「濃紺+写真+白文字」なファーストビューを
+   参考に、タイトル部分だけをヒーローバンドとして扱う。それ以外のページ
+   本体は白背景のフラットなカード基調にする）
 ========================================= */
 
-/* ① タイトル部分を強制的に「真っ白」にする */
+body {
+  background-color: var(--bg-1);
+}
+
+.title-area {
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  width: 100vw;
+  margin-bottom: 32px;
+  padding: 0;
+  background-image: linear-gradient(180deg, rgba(7, 15, 38, 0.55), rgba(7, 15, 38, 0.72)), url("./bg-sky.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-bottom: 3px solid var(--gold);
+}
+
+.title-area > .brand-lockup {
+  width: min(1080px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 26px 0;
+}
+
 #app-title,
 .title-area h1,
 .eyebrow,
 .title-area p {
   color: #FFFFFF !important;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6) !important; /* 高級感のある影を追加 */
-}
-
-/* ② 背景を「画像」で強制的に上書きする */
-body {
-  /* 保存した画像を背景に読み込む */
-  background-image: url("./bg-sky.png") !important;
-
-  /* 画像を画面いっぱいに綺麗に広げるための魔法のコード4行 */
-  background-size: cover !important;        /* 画面の縦横比に合わせて隙間なく広げる */
-  background-position: center !important;   /* 画像の中心を基準にする */
-  background-repeat: no-repeat !important;  /* 画像をタイルのように繰り返さない */
-  background-attachment: fixed !important;  /* スクロールしても背景を動かさない */
-
-  /* 画像が読み込まれるまでの予備としてネイビーを残しておく */
-  background-color: #0F172A !important;
-}
-
-main,
-.app-shell,
-#app {
-  background: transparent !important;
-}
-
-/* ③ カードやパネルを、背景が透ける美しいガラス風にする */
-.panel,
-.card,
-.modal {
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.46), rgba(30, 64, 175, 0.16)) !important;
-
-  /* 背景にすりガラスのようなぼかし効果を入れる（Apple製品などでよく使われる技術です） */
-  backdrop-filter: blur(14px) saturate(125%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(125%) !important;
-
-  border-color: rgba(125, 211, 252, 0.5) !important;
-}
-
-/* タイトルやパネル内の区切りに余計な黒い面を作らない */
-.title-area,
-.howto-mock,
-.history-block,
-.battle-comments {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-.title-area {
-  border: 0 !important;
-}
-
-.howto-mock {
-  border-color: rgba(186, 230, 253, 0.34) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
 /* =========================================
