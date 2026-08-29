@@ -1,50 +1,49 @@
 body {
-  background-color: #0A1330;
-  color: #EAF1FA;
+  background-color: #F5F7FA;
+  color: #070F26;
   font-family: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
 }
 
 /* NTT DATA採用サイト(nttdata-recruit.com)を実測して作った配色・書体トークン。
    --gold系の変数名は既存コードとの互換のため残しているが、実体は
-   NTT DATAブランドブルー(#0072BC)。白地案から、藍色(インディゴ)を
-   全面に使う「ダークだが企業らしい」配色に変更している。 */
+   NTT DATAブランドブルー(#0072BC)。ダーク×グロー基調から、白地に
+   濃紺+ブルーのフラットな配色へ作り替えている。 */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* 1. 背景とパネル（藍色を全面に使う。ヒーロー帯はさらに一段暗い濃紺+写真） */
-  --bg-1: #0A1330;
-  --bg-2: #0E1A3F;
-  --panel: #121D48;
-  --panel-alt: #1A2B63;
-  --panel-glass: rgba(18, 29, 72, 0.92);
+  /* 1. 背景とパネル（白基調。ヒーロー帯だけ濃紺+写真を使う） */
+  --bg-1: #F5F7FA;
+  --bg-2: #EDF1F6;
+  --panel: #FFFFFF;
+  --panel-alt: #F1F5F9;
+  --panel-glass: rgba(255, 255, 255, 0.92);
   --navy: #070F26;
   --navy-soft: #1C2740;
 
   /* 2. 文字の色 */
-  --ink: #EAF1FA;
-  --muted: #93A4CC;
+  --ink: #0B1220;
+  --muted: #5B6472;
 
-  /* 3. アクセントカラー（NTT DATA公式サイト実測: #0072BC。ダーク地では
-     明るいシアンを強調色として併用する） */
-  --line: rgba(125, 178, 255, 0.22);
-  --line-soft: rgba(125, 178, 255, 0.12);
+  /* 3. アクセントカラー（NTT DATA公式サイト実測: #0072BC） */
+  --line: rgba(7, 15, 38, 0.14);
+  --line-soft: rgba(7, 15, 38, 0.08);
   --gold: #0072BC;
-  --gold-bright: #5BC8FF;
+  --gold-bright: #2E93D1;
   --gold-dark: #00558F;
   --primary: #0072BC;
   --primary-dark: #00558F;
-  --primary-soft: rgba(0, 114, 188, 0.18);
+  --primary-soft: rgba(0, 114, 188, 0.08);
   --cyan: #0072BC;
   --accent: #0072BC;
   --turn: var(--primary);
 
   /* 4. システムカラー */
-  --danger: #FF5B4D;
-  --danger-bright: #FF8A80;
+  --danger: #D93025;
+  --danger-bright: #EE4B3A;
   --success: #0072BC;
-  --success-bright: #5BC8FF;
-  --idle: #4A5A8A;
-  --shadow: rgba(0, 0, 0, 0.45);
+  --success-bright: #2E93D1;
+  --idle: #9AA5B4;
+  --shadow: rgba(7, 15, 38, 0.14);
 
   /* 5. フォント。日本語はNoto Sans JP、英数字・ボタン文字はNTT DATAサイトに
      合わせてArchivoを使う。 */
@@ -90,14 +89,14 @@ button:hover:not(:disabled) {
 }
 
 button.secondary {
-  background: var(--panel-alt);
-  color: var(--ink);
+  background: #FFFFFF;
+  color: var(--navy);
   border: 1px solid var(--line);
   box-shadow: none;
 }
 
 button.secondary:hover:not(:disabled) {
-  background: var(--bg-2);
+  background: var(--panel-alt);
   border-color: var(--primary);
 }
 
@@ -115,7 +114,7 @@ select {
   border: 1px solid var(--line);
   border-radius: 5px;
   padding: 8px 12px;
-  background: var(--bg-2);
+  background: #FFFFFF;
   color: var(--ink);
 }
 
@@ -426,9 +425,9 @@ h1 {
   width: 44px;
   height: 24px;
   border-radius: 999px;
-  background: var(--bg-1);
+  background: #D5DBE3;
   border: 1px solid var(--line);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 1px 3px rgba(7, 15, 38, 0.15);
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 
@@ -597,7 +596,7 @@ label input {
   width: min(100%, 340px);
   border: 1px solid var(--line-soft);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(241, 245, 249, 0.9);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -611,7 +610,7 @@ label input {
   width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(237, 241, 246, 0.9);
   padding: 14px 16px;
   position: relative;
 }
@@ -696,7 +695,7 @@ label input {
   flex: 1;
   height: 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(237, 241, 246, 0.9);
   border: 1px solid var(--line-soft);
   overflow: hidden;
 }
@@ -755,7 +754,7 @@ label input {
   width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(237, 241, 246, 0.9);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -783,7 +782,7 @@ label input {
   justify-content: space-between;
   padding: 8px 14px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(237, 241, 246, 0.9);
   border: 1px solid var(--line-soft);
   font-size: 0.9rem;
 }
@@ -833,7 +832,7 @@ label input {
   margin-top: 16px;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(241, 245, 249, 0.9);
   padding: 16px;
 }
 
@@ -893,7 +892,7 @@ label input {
   flex: 0 0 220px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(241, 245, 249, 0.95);
   padding: 10px 12px;
 }
 
@@ -1049,7 +1048,7 @@ label input {
   flex: 1 1 auto;
   height: 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #E4E9EF;
   border: 1px solid var(--line-soft);
   overflow: hidden;
   box-shadow: inset 0 1px 3px rgba(7, 15, 38, 0.12);
@@ -1487,7 +1486,7 @@ label input {
   border-radius: 10px;
   margin-top: 14px;
   padding: 14px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(241, 245, 249, 0.95);
 }
 
 .draw-profile-bottom {
@@ -1525,7 +1524,7 @@ label input {
   border: 1px solid var(--gold);
   border-radius: 16px;
   padding: clamp(28px, 5vw, 48px) clamp(24px, 5vw, 56px);
-  background: linear-gradient(180deg, var(--panel-glass), var(--panel));
+  background: linear-gradient(180deg, var(--panel-glass), rgba(255, 255, 255, 1));
   box-shadow: 0 24px 60px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   animation: resultCardIn 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
@@ -1600,7 +1599,7 @@ label input {
   padding: 8px 12px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(7, 15, 38, 0.03);
 }
 
 .game-start-confirmation-player.confirmed {
@@ -1670,7 +1669,7 @@ label input {
   overflow: hidden;
   border-radius: 999px;
   border: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.08);
+  background: #E4E9EF;
   margin-bottom: 14px;
 }
 
@@ -1864,7 +1863,7 @@ label input {
   position: relative;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(241, 245, 249, 0.95);
   padding: 12px;
   overflow: hidden;
 }
@@ -1929,7 +1928,7 @@ label input {
   100% {
     border-color: var(--line-soft);
     box-shadow: none;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(241, 245, 249, 0.95);
   }
 }
 
@@ -1998,7 +1997,7 @@ label input {
 .battle-comment-item {
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(7, 15, 38, 0.03);
   padding: 8px 10px;
 }
 
@@ -2052,7 +2051,7 @@ label input {
 .item-panel {
   border: 1px solid var(--gold);
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(241, 245, 249, 0.95));
   padding: 14px;
   margin-top: 16px;
   /* 常時ほんのり光らせて、他の枠と紛れずアイテムの存在に気づけるようにする。 */
@@ -2118,7 +2117,7 @@ label input {
   width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(241, 245, 249, 0.95);
   color: var(--ink);
   padding: 10px 12px;
   text-align: left;
@@ -2156,7 +2155,7 @@ label input {
   gap: 12px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(241, 245, 249, 0.95);
   padding: 10px 12px;
 }
 
@@ -2176,7 +2175,7 @@ label input {
   position: relative;
   background:
     radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.14), transparent 60%),
-    linear-gradient(180deg, var(--panel-glass), var(--panel));
+    linear-gradient(180deg, var(--panel-glass), rgba(255, 255, 255, 1));
 }
 
 .result-panel:not(.hidden) {
@@ -2217,7 +2216,7 @@ label input {
   border: 1px solid var(--gold);
   border-radius: 16px;
   padding: 28px 24px;
-  background: linear-gradient(180deg, var(--panel-glass), var(--panel));
+  background: linear-gradient(180deg, var(--panel-glass), rgba(255, 255, 255, 1));
   box-shadow: 0 24px 60px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   animation: resultCardIn 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
@@ -2303,12 +2302,12 @@ label input {
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(241, 245, 249, 0.95);
 }
 
 .result-row.winner {
   border-color: var(--gold);
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(241, 245, 249, 0.95));
 }
 
 .result-row.me {
