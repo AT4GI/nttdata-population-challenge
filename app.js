@@ -52,7 +52,7 @@ const CATEGORY_SUITS = {
   ordinance_city: "★"
 };
 const TIER_CLASSES = Object.keys(CATEGORY_LABELS).map((category) => `tier-${category}`);
-const CONFETTI_COLORS = ["#d4af37", "#f5da7a", "#37d38f", "#fff6da"];
+const CONFETTI_COLORS = ["#38bdf8", "#7dd3fc", "#0284c7", "#eaf7ff"];
 const SOUND_MUTED_KEY = "populationBlackjackSoundMuted";
 const BGM_MASTER_VOLUME = 0.22;
 const BGM_STEP_SECONDS = 0.3;
