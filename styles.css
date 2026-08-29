@@ -370,7 +370,28 @@ h1 {
   justify-content: center;
   text-align: center;
   gap: 4px;
-  pointer-events: none;
+  /* ボタン要素だが、見た目はピンホイール中央の説明テキストのままにしたい
+     ので、共通のbuttonスタイル(金色の背景・枠線など)をすべて打ち消す。 */
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: transform 0.15s ease;
+}
+
+.pinwheel-center:hover:not(:disabled),
+.pinwheel-center:focus-visible {
+  filter: none;
+  transform: translate(-50%, -50%) scale(1.04);
+  box-shadow: none;
+}
+
+.pinwheel-center:focus-visible {
+  outline: 3px solid #bc4121;
+  outline-offset: 4px;
 }
 
 .pinwheel-center strong {
@@ -384,6 +405,57 @@ h1 {
   font-size: clamp(0.62rem, 2vw, 0.74rem);
   line-height: 1.4;
   color: var(--ink, #2b2420);
+}
+
+/* 外部サイト(NTT DATA公式)に移動する前に、一度確認を挟むための確認ダイアログ。 */
+.brand-link-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.brand-link-confirm.hidden {
+  display: none;
+}
+
+.brand-link-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 10, 20, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.brand-link-confirm-box {
+  position: relative;
+  max-width: 380px;
+  width: 100%;
+  padding: 24px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-glass), rgba(10, 18, 13, 0.95));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  text-align: center;
+}
+
+.brand-link-confirm-text {
+  margin: 0 0 18px;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.brand-link-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.brand-link-confirm-actions button {
+  flex: 1 1 auto;
 }
 
 .setup-form {
@@ -2745,14 +2817,6 @@ body.bust-shake .app-shell {
   background: linear-gradient(135deg, rgba(125, 211, 252, 0.96), rgba(2, 132, 199, 0.94));
   border-color: #7dd3fc;
   box-shadow: 0 0 30px rgba(56, 189, 248, 0.55), 0 10px 26px rgba(0, 0, 0, 0.45);
-}
-
-/* 自分の番になった通知は、他の通知と混同しないよう緑系にする。 */
-.item-announcement.turn .item-announcement-text {
-  color: #06301f;
-  background: linear-gradient(135deg, rgba(134, 239, 172, 0.96), rgba(22, 163, 74, 0.94));
-  border-color: #86efac;
-  box-shadow: 0 0 30px rgba(74, 222, 128, 0.6), 0 10px 26px rgba(0, 0, 0, 0.45);
 }
 
 .item-announcement.show {

@@ -53,6 +53,7 @@ const CATEGORY_SUITS = {
 };
 const TIER_CLASSES = Object.keys(CATEGORY_LABELS).map((category) => `tier-${category}`);
 const CONFETTI_COLORS = ["#38bdf8", "#7dd3fc", "#0284c7", "#eaf7ff"];
+const NTT_DATA_CORPORATE_URL = "https://www.nttdata.com/jp/ja/";
 const SOUND_MUTED_KEY = "populationBlackjackSoundMuted";
 const BGM_MASTER_VOLUME = 0.22;
 const BGM_STEP_SECONDS = 0.3;
@@ -272,6 +273,11 @@ const els = {
   cpuRoomForm: document.querySelector("#cpuRoomForm"),
   selectPvpModeButton: document.querySelector("#selectPvpModeButton"),
   selectHowToButton: document.querySelector("#selectHowToButton"),
+  brandLinkButton: document.querySelector("#brandLinkButton"),
+  brandLinkConfirm: document.querySelector("#brandLinkConfirm"),
+  brandLinkConfirmBackdrop: document.querySelector("#brandLinkConfirmBackdrop"),
+  confirmBrandLinkButton: document.querySelector("#confirmBrandLinkButton"),
+  cancelBrandLinkButton: document.querySelector("#cancelBrandLinkButton"),
   selectCreateModeButton: document.querySelector("#selectCreateModeButton"),
   selectJoinModeButton: document.querySelector("#selectJoinModeButton"),
   selectCpuModeButton: document.querySelector("#selectCpuModeButton"),
@@ -404,9 +410,6 @@ let actionPending = false;
 let gameStartIntroHideTimer = null;
 let gameStartIntroVisible = false;
 let lastProgressPlayerId = "";
-// 自分の番かどうかの前回描画時点での状態。「今まさに自分の番になった」変化を
-// 検知するために使う（undefinedは「まだ観測していない」＝初回は通知しない）。
-let lastSeenMyTurn;
 // 直前に描画した時点での手番プレイヤーID。「手番が別の人に移った」変化を検知して
 // 画面中央に大きく知らせるために使う（undefinedは「まだ観測していない」＝初回は出さない）。
 let lastSeenTurnPlayerId;
@@ -453,6 +456,19 @@ initializeFirebase();
 
 els.selectPvpModeButton.addEventListener("click", () => showSetupMode("pvp"));
 els.selectHowToButton.addEventListener("click", () => showSetupMode("howto"));
+els.brandLinkButton.addEventListener("click", () => {
+  els.brandLinkConfirm.classList.remove("hidden");
+});
+els.confirmBrandLinkButton.addEventListener("click", () => {
+  els.brandLinkConfirm.classList.add("hidden");
+  window.open(NTT_DATA_CORPORATE_URL, "_blank", "noopener,noreferrer");
+});
+els.cancelBrandLinkButton.addEventListener("click", () => {
+  els.brandLinkConfirm.classList.add("hidden");
+});
+els.brandLinkConfirmBackdrop.addEventListener("click", () => {
+  els.brandLinkConfirm.classList.add("hidden");
+});
 els.selectCreateModeButton.addEventListener("click", () => showSetupMode("create"));
 els.selectJoinModeButton.addEventListener("click", () => showSetupMode("join"));
 els.selectCpuModeButton.addEventListener("click", () => showSetupMode("cpu"));
@@ -1550,7 +1566,6 @@ function renderRoom(room) {
   els.standButton.disabled = !myTurn;
   els.hitButton.classList.toggle("my-turn-glow", myTurn);
   els.standButton.classList.toggle("my-turn-glow", myTurn);
-  detectMyTurnChange(myTurn);
   updateMyTurnPageTitle(myTurn);
 
   renderHistory(focusPlayer, focusLabel);
@@ -2029,7 +2044,7 @@ function buildItemAnnouncementText(casterName, lastAction) {
 // キューに積んで1つずつ順番に表示する。
 const itemAnnouncementQueue = [];
 let itemAnnouncementBusy = false;
-const ITEM_ANNOUNCEMENT_VARIANTS = ["acquired", "home", "turn"];
+const ITEM_ANNOUNCEMENT_VARIANTS = ["acquired", "home"];
 
 function triggerItemAnnouncement(text, variant = "use") {
   if (!els.itemAnnouncement || !els.itemAnnouncementText) return;
@@ -2583,19 +2598,6 @@ function getNextTurnIndex(room, actedPlayerId) {
     if (canPlay(nextPlayer)) return nextIndex;
   }
   return actedIndex;
-}
-
-// 自分の番でない→自分の番になった、という変化の瞬間だけ通知する
-// （初回描画や、番のまま再描画され続ける間は鳴らさない）。
-function detectMyTurnChange(myTurn) {
-  if (lastSeenMyTurn === undefined) {
-    lastSeenMyTurn = myTurn;
-    return;
-  }
-  if (myTurn && !lastSeenMyTurn) {
-    triggerItemAnnouncement("🎯 あなたの番です！", "turn");
-  }
-  lastSeenMyTurn = myTurn;
 }
 
 // 他のタブを見ていても気づけるよう、自分の番の間だけタブタイトルを変える。
