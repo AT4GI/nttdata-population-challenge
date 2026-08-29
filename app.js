@@ -681,7 +681,7 @@ async function createRoom() {
 
   if (els.createTargetSelect.value === "random") {
     disableSetup(true);
-    const target = await runTargetRoulette();
+    const target = await runTargetRoulette(els.createHideTargetCheckbox.checked);
     disableSetup(false);
     await createRoomWithTarget(target);
     return;
@@ -734,7 +734,7 @@ async function startCpuRoom() {
   }
 
   disableSetup(true);
-  const target = await runTargetRoulette();
+  const target = await runTargetRoulette(els.cpuHideTargetCheckbox.checked);
   disableSetup(false);
   await createCpuRoom(target);
 }
@@ -2936,7 +2936,7 @@ function pickRandomTarget() {
   return targets[Math.floor(Math.random() * targets.length)] || DEFAULT_TARGET;
 }
 
-function runTargetRoulette() {
+function runTargetRoulette(hideTarget = false) {
   const targets = TARGETS.filter((target) => !target.isSpecial);
   const selected = targets[Math.floor(Math.random() * targets.length)] || DEFAULT_TARGET;
   let index = 0;
@@ -2949,7 +2949,8 @@ function runTargetRoulette() {
   return new Promise((resolve) => {
     rouletteTimer = window.setInterval(() => {
       const target = targets[index % targets.length] || DEFAULT_TARGET;
-      els.rouletteWindow.textContent = `${target.label} ${formatNumber(target.value)}人`;
+      // 伏せモードでは人数だけを隠す。TARGET名までは隠さない。
+      els.rouletteWindow.textContent = hideTarget ? target.label : `${target.label} ${formatNumber(target.value)}人`;
       playSfx("tick");
       index += 1;
     }, 90);
@@ -2957,7 +2958,7 @@ function runTargetRoulette() {
     window.setTimeout(() => {
       clearRoulette(false);
       els.rouletteWindow.classList.remove("spinning");
-      els.rouletteWindow.textContent = `${selected.label} ${formatNumber(selected.value)}人`;
+      els.rouletteWindow.textContent = hideTarget ? selected.label : `${selected.label} ${formatNumber(selected.value)}人`;
       setSetupMessage(`TARGETは「${selected.label}」に決まりました。`);
       window.setTimeout(() => resolve(selected), 500);
     }, 1500);
