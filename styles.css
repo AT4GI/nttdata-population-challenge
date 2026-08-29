@@ -64,11 +64,11 @@ select {
 
 button {
   border: 1px solid var(--gold-dark);
-  border-radius: 8px;
+  border-radius: 999px;
   background: linear-gradient(180deg, var(--gold-bright), var(--primary-dark));
-  color: #1a1206;
+  color: #0f172a;
   min-height: 48px;
-  padding: 0 18px;
+  padding: 0 24px;
   font-weight: 800;
   letter-spacing: 0.02em;
   cursor: pointer;
