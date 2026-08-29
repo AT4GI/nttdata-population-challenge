@@ -370,28 +370,12 @@ h1 {
   justify-content: center;
   text-align: center;
   gap: 4px;
-  /* ボタン要素だが、見た目はピンホイール中央の説明テキストのままにしたい
-     ので、共通のbuttonスタイル(金色の背景・枠線など)をすべて打ち消す。 */
-  background: none;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  text-decoration: none;
   cursor: pointer;
-  border-radius: 12px;
-  transition: transform 0.15s ease;
-}
-
-.pinwheel-center:hover:not(:disabled),
-.pinwheel-center:focus-visible {
-  filter: none;
-  transform: translate(-50%, -50%) scale(1.04);
-  box-shadow: none;
-}
-
-.pinwheel-center:focus-visible {
-  outline: 3px solid #bc4121;
-  outline-offset: 4px;
+  /* ボタンらしい見た目にはせず、隠しコマンド的にテキストを押すと反応する
+     感じにしたい。ただし文字ぴったりだと押しにくいので、クリック判定だけ
+     一回り広げる（transform:translate(-50%,-50%)で中央寄せしているため、
+     paddingを足すだけで見た目の位置は変わらず当たり判定だけ広がる）。 */
+  padding: 14px 6px;
 }
 
 .pinwheel-center strong {
