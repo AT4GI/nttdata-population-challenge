@@ -1442,7 +1442,8 @@ function renderRoom(room) {
   const focusLabel = focusPlayerId === currentPlayerId ? "あなた" : focusPlayer?.name || "参加者";
 
   const hideTarget = isTargetHidden(room);
-  const targetDisplay = hideTarget ? "？？？？？？人" : `${formatNumber(target.value)}人`;
+  // 伏せモードでも人数だけを隠し、TARGET名（何を目指しているか）は見えるようにする。
+  const targetDisplay = hideTarget ? `${target.label} ？？？？？？人` : `${formatNumber(target.value)}人`;
 
   const isStartConfirming = room.status === "playing" && !areGameStartConfirmationsComplete(room);
   els.roomState.textContent = room.status === "finished" ? "終了" : isStartConfirming ? "開始確認中" : room.status === "playing" ? "ゲーム開始" : "待機中";
