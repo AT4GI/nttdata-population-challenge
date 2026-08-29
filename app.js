@@ -398,6 +398,12 @@ let actionPending = false;
 let gameStartIntroHideTimer = null;
 let gameStartIntroVisible = false;
 let lastProgressPlayerId = "";
+// 自分の番かどうかの前回描画時点での状態。「今まさに自分の番になった」変化を
+// 検知するために使う（undefinedは「まだ観測していない」＝初回は通知しない）。
+let lastSeenMyTurn;
+// タブを切り替えていても気づけるよう、自分の番の間だけタブタイトルを変える。
+// 元のタイトルを保存しておき、自分の番でなくなったら戻す。
+const ORIGINAL_PAGE_TITLE = document.title;
 // playerId -> そのプレイヤーの前回描画時点でのitem.used。全員分の「アイテムを
 // 今まさに使った」変化を検知するために使う（undefinedは「まだ観測していない」）。
 const lastSeenItemUsed = {};
@@ -1496,8 +1502,13 @@ function renderRoom(room) {
   updateCandidateMap(isCandidateMasked ? candidate : focusPlayer?.lastRevealed || null);
   updateTargetProgress(room, focusPlayer, target, focusPlayerId);
 
-  els.hitButton.disabled = !canTakeTurn(room, currentPlayerId);
-  els.standButton.disabled = !canTakeTurn(room, currentPlayerId);
+  const myTurn = canTakeTurn(room, currentPlayerId);
+  els.hitButton.disabled = !myTurn;
+  els.standButton.disabled = !myTurn;
+  els.hitButton.classList.toggle("my-turn-glow", myTurn);
+  els.standButton.classList.toggle("my-turn-glow", myTurn);
+  detectMyTurnChange(myTurn);
+  updateMyTurnPageTitle(myTurn);
 
   renderHistory(focusPlayer, focusLabel);
   renderItemPanel(room, me);
@@ -1970,7 +1981,7 @@ function buildItemAnnouncementText(casterName, lastAction) {
 // キューに積んで1つずつ順番に表示する。
 const itemAnnouncementQueue = [];
 let itemAnnouncementBusy = false;
-const ITEM_ANNOUNCEMENT_VARIANTS = ["acquired", "home"];
+const ITEM_ANNOUNCEMENT_VARIANTS = ["acquired", "home", "turn"];
 
 function triggerItemAnnouncement(text, variant = "use") {
   if (!els.itemAnnouncement || !els.itemAnnouncementText) return;
@@ -2524,6 +2535,24 @@ function getNextTurnIndex(room, actedPlayerId) {
     if (canPlay(nextPlayer)) return nextIndex;
   }
   return actedIndex;
+}
+
+// 自分の番でない→自分の番になった、という変化の瞬間だけ通知する
+// （初回描画や、番のまま再描画され続ける間は鳴らさない）。
+function detectMyTurnChange(myTurn) {
+  if (lastSeenMyTurn === undefined) {
+    lastSeenMyTurn = myTurn;
+    return;
+  }
+  if (myTurn && !lastSeenMyTurn) {
+    triggerItemAnnouncement("🎯 あなたの番です！", "turn");
+  }
+  lastSeenMyTurn = myTurn;
+}
+
+// 他のタブを見ていても気づけるよう、自分の番の間だけタブタイトルを変える。
+function updateMyTurnPageTitle(myTurn) {
+  document.title = myTurn ? `🔵 あなたの番です - ${ORIGINAL_PAGE_TITLE}` : ORIGINAL_PAGE_TITLE;
 }
 
 function canTakeTurn(room, playerId) {
