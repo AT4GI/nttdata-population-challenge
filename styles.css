@@ -145,6 +145,27 @@ select:focus {
   margin-bottom: 20px;
 }
 
+/* NTT DATA採用サイトの「ロゴマーク＋社名」の並びを参考にしたブランド表示。
+   実際のロゴ（渦巻きマーク）は商標なので使わず、トランプのスペードを
+   モチーフにしたオリジナルのマークにしている。 */
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-mark {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, var(--gold-bright), var(--gold-dark));
+  color: #0f172a;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
 body.in-room .title-area {
   display: none;
 }
