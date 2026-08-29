@@ -166,10 +166,13 @@ const ITEM_CATALOG = [
   {
     id: "card-swap",
     label: "カード交換",
-    description: "表示中の候補市区町村を1回だけ引き直します。",
+    description: "表示中の候補市区町村を1回だけ引き直します。ターンは消費しません。",
     rarity: "ノーマル",
     weight: 20,
-    requiresTarget: false
+    requiresTarget: false,
+    // ターンを消費すると「引き直した新しい候補に自分でHIT/STANDできない」
+    // 実質スキップカードになってしまうため、偵察と同じくその場で完結させる。
+    instant: true
   },
   {
     id: "target-boost-5pct",
@@ -719,10 +722,11 @@ async function createCpuRoom(selectedTarget = null) {
     const cpuPlayerIds = cpuProfiles.map((_, index) => `cpu_${index + 1}`);
     const playerOrder = [currentPlayerId, ...cpuPlayerIds];
     const itemMode = els.cpuItemModeCheckbox.checked;
+    const hideTarget = els.cpuHideTargetCheckbox.checked;
     const players = {
       [currentPlayerId]: makePlayer(getCpuPlayerName(), "active", {
         type: "human",
-        item: itemMode ? assignRandomItem() : null
+        item: itemMode ? assignRandomItem({ excludeTargetBoost: hideTarget }) : null
       })
     };
 
@@ -854,15 +858,17 @@ async function startGame() {
     if (!room || room.hostPlayerId !== currentPlayerId) return;
 
     const players = room.players || {};
-    const playerOrder = getPlayerOrder({ ...room, players });
-    if (playerOrder.length < MIN_PLAYERS) {
+    const joinOrder = getPlayerOrder({ ...room, players });
+    if (joinOrder.length < MIN_PLAYERS) {
       els.myStatus.textContent = `${MIN_PLAYERS}人以上そろうと開始できます。`;
       return;
     }
-    if (!playerOrder.every((playerId) => players[playerId]?.ready)) {
+    if (!joinOrder.every((playerId) => players[playerId]?.ready)) {
       els.myStatus.textContent = "全員が「準備OK」を押すと開始できます。";
       return;
     }
+    // 対戦順は部屋に入った順ではなく、開始のたびにランダムに決める。
+    const playerOrder = shuffleArray(joinOrder);
 
     const allowedPrefectures = room.homePrefectureMode
       ? [...new Set(Object.values(players).map((p) => p.homePrefecture).filter(Boolean))]
@@ -881,7 +887,7 @@ async function startGame() {
     for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
       if (room.itemMode && players[playerId]?.type === "human") {
-        updates[`players/${playerId}/item`] = assignRandomItem();
+        updates[`players/${playerId}/item`] = assignRandomItem({ excludeTargetBoost: room.hideTarget });
       }
     }
     updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(room.drawn || {}, getRoomTarget(room).value, allowedPrefectures);
@@ -1004,7 +1010,8 @@ async function rematchRoom() {
     if (!room || room.status !== "finished" || room.hostPlayerId !== currentPlayerId) return;
 
     const target = getRoomTarget(room);
-    const playerOrder = getPlayerOrder(room);
+    // 再戦のたびに対戦順を新しくランダム化する。
+    const playerOrder = shuffleArray(getPlayerOrder(room));
     const firstCandidate = pickCandidate({}, target.value, room.allowedPrefectures);
     const updates = {
       status: "playing",
@@ -1031,7 +1038,7 @@ async function rematchRoom() {
         lastAction: null,
         nextHitMultiplier: null,
         scoutRevealedCandidateId: null,
-        item: room.itemMode && player?.type === "human" ? assignRandomItem() : null,
+        item: room.itemMode && player?.type === "human" ? assignRandomItem({ excludeTargetBoost: room.hideTarget }) : null,
         candidate: index === 0 ? firstCandidate : null
       }));
     });
@@ -1740,6 +1747,10 @@ if (room.status !== "waiting") {
   });
 }
 
+  // 「上から並んでいるだけ」だと分かりづらいため、現在の順位を数字バッジで
+  // 明示する。BUSTした人は順位争いから外れるのでバッジは出さない。
+  let rankCounter = 0;
+
   for (const playerId of displayPlayerIds) {
     const player = players[playerId];
     if (!player) continue;
@@ -1751,6 +1762,23 @@ if (room.status !== "waiting") {
     if (shouldFlashItemEffect(playerId, player.lastAction)) item.classList.add("item-effect-flash");
     setPlayerColorClass(item, room, playerId);
 
+    const head = document.createElement("div");
+    head.className = "player-row-head";
+
+    if (room.status !== "waiting") {
+      const isBust = player.status === "bust";
+      const rankBadge = document.createElement("span");
+      if (isBust) {
+        rankBadge.className = "player-rank-badge bust";
+        rankBadge.textContent = "×";
+      } else {
+        rankCounter += 1;
+        rankBadge.className = `player-rank-badge${rankCounter === 1 ? " rank-1" : ""}`;
+        rankBadge.textContent = `${rankCounter}`;
+      }
+      head.append(rankBadge);
+    }
+
     const title = document.createElement("strong");
     const playerBadges = [];
     if (playerId === currentPlayerId) playerBadges.push("あなた");
@@ -1759,18 +1787,22 @@ if (room.status !== "waiting") {
     if (player.item && !player.item.used) playerBadges.push("ITEM");
     if (room.status === "waiting") playerBadges.push(player.ready ? "OK" : "未確認");
     title.textContent = `${player.name || "参加者"}${playerBadges.length > 0 ? `（${playerBadges.join(" / ")}）` : ""}`;
+    head.append(title);
+
+    // 伏せモードでは、自分以外の現在人口が見えるとTARGETが逆算できてしまうため隠す。
+    const maskNumbers = isTargetHidden(room) && playerId !== currentPlayerId;
 
     const meta = document.createElement("span");
     meta.textContent =
-      `${formatNumber(player.total || 0)}人 / ` +
+      `${maskNumbers ? "？？？" : formatNumber(player.total || 0)}人 / ` +
       `${statusLabels[player.status] || "待機中"} / ` +
       `HIT ${formatNumber(player.hitCount || 0)}回`;
 
     const action = document.createElement("span");
     action.className = "last-action";
-    action.textContent = buildLastActionText(player);
+    action.textContent = buildLastActionText(player, maskNumbers);
 
-    item.append(title, meta, action);
+    item.append(head, meta, action);
     els.playersList.append(item);
   }
 }
@@ -2060,8 +2092,11 @@ function updateCandidateMap(candidate) {
 function updateTargetProgress(room, player, target, playerId) {
   if (!els.targetProgress) return;
   const isPlaying = room.status === "playing";
-  els.targetProgress.classList.toggle("hidden", !isPlaying);
-  if (!isPlaying) {
+  // 伏せモードでは、バーの伸び具合そのものがTARGETへの近さを教えてしまうため
+  // バー自体を出さない（数字だけ隠しても、バーの長さで分かってしまうため）。
+  const shouldShow = isPlaying && !isTargetHidden(room);
+  els.targetProgress.classList.toggle("hidden", !shouldShow);
+  if (!shouldShow) {
     lastProgressPlayerId = "";
     return;
   }
@@ -2076,7 +2111,7 @@ function updateTargetProgress(room, player, target, playerId) {
 
   setPlayerColorClass(els.targetProgress, room, playerId);
   els.targetProgressFill.style.width = `${percent}%`;
-  els.targetProgressLabel.textContent = isTargetHidden(room) ? "？" : `${Math.round(percent)}%`;
+  els.targetProgressLabel.textContent = `${Math.round(percent)}%`;
   els.targetProgress.classList.toggle("near", percent >= 85 && player?.status !== "bust");
   els.targetProgress.classList.toggle("over", player?.status === "bust");
 
@@ -2260,7 +2295,9 @@ function updateSoundToggleButton() {
   els.soundToggleButton.setAttribute("aria-pressed", String(!soundMuted));
 }
 
-function buildLastActionText(player) {
+// maskNumbers: 伏せモードで他プレイヤーの行を表示するときにtrueにする。
+// 人口の数字が見えてしまうとTARGETが逆算できてしまうため、数字だけ隠す。
+function buildLastActionText(player, maskNumbers) {
   const action = player.lastAction;
   if (!action) {
     return player.status === "active" ? "まだ選択していません。" : "開始前";
@@ -2268,6 +2305,9 @@ function buildLastActionText(player) {
   if (action.type === "stand") return "直前：STAND";
   if (action.type === "hit") {
     const resultLabel = action.status === "bust" ? "BUST" : action.status === "just" ? "JUST" : "HIT";
+    if (maskNumbers) {
+      return `直前：${resultLabel} ${action.prefecture} ${action.municipality}`;
+    }
     const multiplierNote = action.multiplier ? `（×${action.multiplier} 適用後+${formatNumber(action.appliedPopulation)}人）` : "";
     return `直前：${resultLabel} ${action.prefecture} ${action.municipality} +${formatNumber(action.population)}人${multiplierNote}`;
   }
@@ -2277,7 +2317,8 @@ function buildLastActionText(player) {
       : `直前：アイテム『${action.itemLabel}』を使用`;
   }
   if (action.type === "item-received") {
-    return `直前：${action.casterName}の『${action.itemLabel}』を受けた${action.detail ? `（${action.detail}）` : ""}`;
+    const detail = !maskNumbers && action.detail ? `（${action.detail}）` : "";
+    return `直前：${action.casterName}の『${action.itemLabel}』を受けた${detail}`;
   }
   return "";
 }
@@ -2499,6 +2540,16 @@ function getCurrentTurnPlayerId(room) {
   return playerOrder[room.turnIndex] || "";
 }
 
+// Fisher-Yatesで対戦順をシャッフルする（部屋に入った順のままにしない）。
+function shuffleArray(array) {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 function getStartedPlayerIds(room) {
   if (Array.isArray(room.startedPlayerIds) && room.startedPlayerIds.length > 0) return room.startedPlayerIds;
   if (Array.isArray(room.playerOrder) && room.playerOrder.length > 0) return room.playerOrder;
@@ -2574,14 +2625,19 @@ async function confirmGameStart() {
   });
 }
 
-function assignRandomItem() {
-  const totalWeight = ITEM_CATALOG.reduce((sum, item) => sum + item.weight, 0);
+// 伏せモードでは「目標ブースト」を使われるとTARGETの実数がバレてしまうため、
+// 抽選プールから除外できるようにしている。
+function assignRandomItem(options = {}) {
+  const pool = options.excludeTargetBoost
+    ? ITEM_CATALOG.filter((item) => item.id !== "target-boost-5pct")
+    : ITEM_CATALOG;
+  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
   let threshold = Math.random() * totalWeight;
-  for (const item of ITEM_CATALOG) {
+  for (const item of pool) {
     threshold -= item.weight;
     if (threshold <= 0) return { id: item.id, used: false };
   }
-  return { id: ITEM_CATALOG[ITEM_CATALOG.length - 1].id, used: false };
+  return { id: pool[pool.length - 1].id, used: false };
 }
 
 function getItemDefinition(itemId) {
@@ -2874,6 +2930,10 @@ function renderGameStartConfirmationList(room, playerIds) {
 
   els.gameStartIntroConfirmationList.replaceChildren();
 
+  // 準備確認の対象は人間だけだが、対戦順の番号はCPUも含めた本来の順で出す
+  // （途中にCPUが挟まっていても「1番手」「3番手」のように正しい番号になる）。
+  const fullOrder = getStartedPlayerIds(room);
+
   for (const playerId of playerIds) {
     const player = room.players?.[playerId];
     if (!player) continue;
@@ -2882,9 +2942,11 @@ function renderGameStartConfirmationList(room, playerIds) {
     const row = document.createElement("div");
     row.className = `game-start-confirmation-player ${confirmed ? "confirmed" : "waiting"}`;
 
+    const turnIndex = fullOrder.indexOf(playerId);
     const name = document.createElement("span");
     name.className = "game-start-confirmation-name";
-    name.textContent = `${player.name || "参加者"}${playerId === currentPlayerId ? "（あなた）" : ""}`;
+    const turnLabel = turnIndex >= 0 ? `${turnIndex + 1}番手：` : "";
+    name.textContent = `${turnLabel}${player.name || "参加者"}${playerId === currentPlayerId ? "（あなた）" : ""}`;
 
     const status = document.createElement("span");
     status.className = "game-start-confirmation-state";
