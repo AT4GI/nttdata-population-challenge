@@ -2022,6 +2022,31 @@ label input {
   background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(16, 27, 20, 0.85));
   padding: 14px;
   margin-top: 16px;
+  /* 常時ほんのり光らせて、他の枠と紛れずアイテムの存在に気づけるようにする。 */
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.22);
+}
+
+/* 獲得直後だけ、パネルの位置そのものを指し示すように強く数回光らせる。 */
+.item-panel.item-panel-flash {
+  animation: itemPanelFlash 0.85s ease-in-out 3;
+}
+
+@keyframes itemPanelFlash {
+  0%,
+  100% {
+    box-shadow: 0 0 14px rgba(212, 175, 55, 0.22);
+    border-color: var(--gold);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(212, 175, 55, 0.8), 0 0 0 3px rgba(212, 175, 55, 0.45);
+    border-color: var(--gold-bright);
+  }
+}
+
+#itemPanelLabel {
+  color: var(--gold-bright);
+  font-weight: 800;
+  font-size: 0.82rem;
 }
 
 .item-name {
@@ -2493,6 +2518,22 @@ body.bust-shake .app-shell {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* アイテムを「手に入れた」通知は、使用時の紫トーストと見分けられるよう金色にする。 */
+.item-announcement.acquired .item-announcement-text {
+  color: #241a03;
+  background: linear-gradient(135deg, rgba(242, 210, 122, 0.96), rgba(180, 129, 20, 0.94));
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.65), 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* 出身地一致の通知は、紫/金と区別できるよう水色にする。 */
+.item-announcement.home .item-announcement-text {
+  color: #06222f;
+  background: linear-gradient(135deg, rgba(125, 211, 252, 0.96), rgba(2, 132, 199, 0.94));
+  border-color: #7dd3fc;
+  box-shadow: 0 0 30px rgba(56, 189, 248, 0.55), 0 10px 26px rgba(0, 0, 0, 0.45);
 }
 
 .item-announcement.show {

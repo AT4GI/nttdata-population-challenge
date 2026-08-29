@@ -398,6 +398,12 @@ const lastSeenActionSignature = {};
 // 直前の描画で観測済みだったコメントidの集合。nullは「まだ観測していない」
 // （部屋に入った直後の初回描画で、既存の全コメントをふわっと通知しないため）。
 let lastSeenCommentIds = null;
+// 自分が最後に「獲得しました」を通知したアイテムのid。nullなら未所持/使用済み。
+// こちらは（アイテムの存在に気づきにくいという課題があるため）コメント等と違い、
+// 初回描画（ゲーム開始直後や再読み込み直後）でもあえて通知する。
+let lastAnnouncedItemId = null;
+// 最後に「出身地です」を通知した候補市区町村のid。同じ候補の間は再通知しない。
+let lastSeenHomeMatchCandidateId = null;
 let audioCtx = null;
 let bgmGain = null;
 let bgmScheduler = null;
@@ -1418,7 +1424,9 @@ function renderRoom(room) {
     ? candidate.prefecture
     : focusPlayer?.lastRevealed?.prefecture || null;
   const shownName = isCandidateMasked ? candidate.name : focusPlayer?.lastRevealed?.name || null;
+  const shownCandidateId = isCandidateMasked ? candidate.id : focusPlayer?.lastRevealed?.id || null;
   updateCandidateHomeNote(players, shownPrefecture);
+  detectHomeMatchAnnounce(players, shownPrefecture, shownCandidateId);
   updateCandidateOfficeNote(shownPrefecture, shownName);
   updateCandidateCard(revealCategory, isCandidateMasked);
   updateCandidateMap(isCandidateMasked ? candidate : focusPlayer?.lastRevealed || null);
@@ -1439,10 +1447,34 @@ function renderRoom(room) {
   scheduleCpuTurn(room);
 }
 
+// ゲーム開始時点で既にアイテムを持っている場合（アイテムモードの初期配布など）も
+// 見逃されやすいため、他の通知と違って初回描画でもあえて通知する。
+function detectItemAcquired(item) {
+  if (!item || item.used) {
+    lastAnnouncedItemId = null;
+    return;
+  }
+  if (lastAnnouncedItemId === item.id) return;
+  lastAnnouncedItemId = item.id;
+  const itemDef = getItemDefinition(item.id);
+  if (!itemDef) return;
+  triggerItemAnnouncement(`🎁 アイテム『${itemDef.label}』を手に入れた！`, "acquired");
+  flashItemPanel();
+}
+
+// アイテムパネル自体を一瞬強く光らせて、「ここにアイテムがある」ことに気づかせる。
+function flashItemPanel() {
+  if (!els.itemPanel) return;
+  els.itemPanel.classList.remove("item-panel-flash");
+  void els.itemPanel.offsetWidth;
+  els.itemPanel.classList.add("item-panel-flash");
+}
+
 function renderItemPanel(room, me) {
   if (!els.itemPanel) return;
 
   const item = me?.item;
+  detectItemAcquired(item);
   const itemDef = item ? getItemDefinition(item.id) : null;
   // itemModeがOFFでも、出身地ボーナスなどでアイテムを持っていれば使えるようにする。
   const shouldShow = Boolean(itemDef && !item.used);
@@ -1800,6 +1832,17 @@ function updateCandidateHomeNote(players, prefecture) {
   els.candidateHomeNote.classList.remove("hidden");
 }
 
+// カード上の控えめな一言だけだと見逃しやすいため、新しい候補（同じ候補の間は1回だけ）が
+// 出身地と一致したタイミングでも画面上部のトーストで大きく知らせる。
+function detectHomeMatchAnnounce(players, prefecture, candidateId) {
+  if (!candidateId) return;
+  const matchedNames = findHomePrefectureMatchNames(players, prefecture);
+  if (matchedNames.length === 0) return;
+  if (lastSeenHomeMatchCandidateId === candidateId) return;
+  lastSeenHomeMatchCandidateId = candidateId;
+  triggerItemAnnouncement(`🏠 ${matchedNames.join("、")}の出身地です！`, "home");
+}
+
 // 今カードに表示中の市区町村がNTTデータグループの拠点所在地と一致していたら、
 // カード上に控えめな一言を添える（主張しすぎないよう、社名は列挙しない）。
 function findNttDataOffice(prefecture, name) {
@@ -1833,16 +1876,35 @@ function buildItemAnnouncementText(casterName, lastAction) {
   return `✨ ${casterName}が「${itemLabel}」を使用！`;
 }
 
-// アイテム使用の通知を画面上部にトースト表示する。
-function triggerItemAnnouncement(text) {
+// アイテム使用/獲得/出身地一致の通知を画面上部にトースト表示する。
+// 同じタイミングで複数の通知が発生しても、後勝ちで上書きされて消えてしまわないよう
+// キューに積んで1つずつ順番に表示する。
+const itemAnnouncementQueue = [];
+let itemAnnouncementBusy = false;
+const ITEM_ANNOUNCEMENT_VARIANTS = ["acquired", "home"];
+
+function triggerItemAnnouncement(text, variant = "use") {
   if (!els.itemAnnouncement || !els.itemAnnouncementText) return;
-  els.itemAnnouncement.classList.remove("show");
+  itemAnnouncementQueue.push({ text, variant });
+  if (!itemAnnouncementBusy) processItemAnnouncementQueue();
+}
+
+function processItemAnnouncementQueue() {
+  const next = itemAnnouncementQueue.shift();
+  if (!next) {
+    itemAnnouncementBusy = false;
+    return;
+  }
+  itemAnnouncementBusy = true;
+  els.itemAnnouncement.classList.remove("show", ...ITEM_ANNOUNCEMENT_VARIANTS);
   void els.itemAnnouncement.offsetWidth;
-  els.itemAnnouncementText.textContent = text;
+  els.itemAnnouncementText.textContent = next.text;
+  if (ITEM_ANNOUNCEMENT_VARIANTS.includes(next.variant)) els.itemAnnouncement.classList.add(next.variant);
   els.itemAnnouncement.classList.add("show");
   playSfx("tick");
   window.setTimeout(() => {
     els.itemAnnouncement.classList.remove("show");
+    window.setTimeout(processItemAnnouncementQueue, 250);
   }, 3200);
 }
 
