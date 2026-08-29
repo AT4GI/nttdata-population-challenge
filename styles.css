@@ -137,12 +137,35 @@ select:focus {
   padding: 32px 0;
 }
 
+/* NTT DATA採用サイトのナビゲーションバーを参考にした帯。実サイトのように
+   ページ内リンクは無いため、ブランド表示だけを乗せたシンプルな帯にしている。 */
 .title-area {
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: center;
   gap: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding: 12px 24px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(10, 18, 30, 0.75), rgba(10, 18, 30, 0.5));
+  border: 1px solid var(--line-soft);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.title-area h1 {
+  font-size: clamp(1.25rem, 2.6vw, 1.55rem);
+}
+
+.title-area .brand-mark {
+  width: 36px;
+  height: 36px;
+}
+
+.title-area .brand-mark svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* NTT DATA採用サイトの「ロゴマーク＋社名」の並びを参考にしたブランド表示。
@@ -2799,18 +2822,14 @@ main,
   border-color: rgba(125, 211, 252, 0.5) !important;
 }
 
-/* タイトルやパネル内の区切りに余計な黒い面を作らない */
-.title-area,
+/* パネル内の区切りに余計な黒い面を作らない（タイトル部分はナビゲーション
+   バー風の背景をあえて持たせるため、ここでは対象から外している）。 */
 .howto-mock,
 .history-block,
 .battle-comments {
   background: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-.title-area {
-  border: 0 !important;
 }
 
 .howto-mock {
