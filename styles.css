@@ -255,7 +255,7 @@ h1 {
 
 .setup-choice-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -2979,7 +2979,6 @@ body.bust-shake .app-shell {
   }
 
   .field-grid,
-  .setup-choice-grid,
   .game-grid {
     grid-template-columns: 1fr;
   }
