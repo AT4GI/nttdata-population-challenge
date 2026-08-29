@@ -2633,6 +2633,75 @@ body.bust-shake .app-shell {
   }
 }
 
+/* 手番が切り替わった瞬間、画面中央に大きく「◯◯のターンです」と表示する。
+   HIT!/STAND!のような単語演出(action-banner)と違い、文章なので円形の帯に収める。 */
+.turn-announce-banner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0;
+  max-width: min(92vw, 560px);
+}
+
+.turn-announce-banner.show {
+  animation: turnAnnounceFade 1.8s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes turnAnnounceFade {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.turn-announce-banner-text {
+  display: block;
+  padding: 16px 32px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: linear-gradient(135deg, rgba(2, 19, 34, 0.94), rgba(2, 55, 90, 0.94));
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.3rem, 4vw, 2.1rem);
+  letter-spacing: 0.03em;
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.55), 0 20px 44px rgba(0, 0, 0, 0.5);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.turn-announce-banner.show .turn-announce-banner-text {
+  animation: turnAnnounceText 1.8s cubic-bezier(0.2, 1.4, 0.3, 1) both;
+}
+
+@keyframes turnAnnounceText {
+  0% {
+    transform: scale(0.7);
+  }
+  15% {
+    transform: scale(1.05);
+  }
+  25% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .item-announcement {
   position: fixed;
   top: 18px;

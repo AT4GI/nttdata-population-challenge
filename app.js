@@ -331,6 +331,8 @@ const els = {
   burstFlash: document.querySelector("#burstFlash"),
   actionBanner: document.querySelector("#actionBanner"),
   actionBannerText: document.querySelector("#actionBannerText"),
+  turnAnnounceBanner: document.querySelector("#turnAnnounceBanner"),
+  turnAnnounceBannerText: document.querySelector("#turnAnnounceBannerText"),
   itemAnnouncement: document.querySelector("#itemAnnouncement"),
   itemAnnouncementText: document.querySelector("#itemAnnouncementText"),
   commentPopupLayer: document.querySelector("#commentPopupLayer"),
@@ -405,6 +407,9 @@ let lastProgressPlayerId = "";
 // 自分の番かどうかの前回描画時点での状態。「今まさに自分の番になった」変化を
 // 検知するために使う（undefinedは「まだ観測していない」＝初回は通知しない）。
 let lastSeenMyTurn;
+// 直前に描画した時点での手番プレイヤーID。「手番が別の人に移った」変化を検知して
+// 画面中央に大きく知らせるために使う（undefinedは「まだ観測していない」＝初回は出さない）。
+let lastSeenTurnPlayerId;
 // タブを切り替えていても気づけるよう、自分の番の間だけタブタイトルを変える。
 // 元のタイトルを保存しておき、自分の番でなくなったら戻す。
 const ORIGINAL_PAGE_TITLE = document.title;
@@ -1428,6 +1433,7 @@ function renderRoom(room) {
   const isHost = room.hostPlayerId === currentPlayerId;
   const turnPlayerId = getCurrentTurnPlayerId(room);
   const turnPlayer = players[turnPlayerId];
+  detectTurnAnnounce(room, turnPlayerId, turnPlayer);
   const target = getRoomTarget(room);
   const isMyTurn = canTakeTurn(room, currentPlayerId);
   const isPlaying = room.status === "playing";
@@ -2594,6 +2600,42 @@ function detectMyTurnChange(myTurn) {
 // 他のタブを見ていても気づけるよう、自分の番の間だけタブタイトルを変える。
 function updateMyTurnPageTitle(myTurn) {
   document.title = myTurn ? `🔵 あなたの番です - ${ORIGINAL_PAGE_TITLE}` : ORIGINAL_PAGE_TITLE;
+}
+
+// 手番が別のプレイヤーに切り替わった瞬間だけ、画面中央に大きく「◯◯さんのターンです」
+// と表示する（自分の番だけを知らせるトーストより目立つ、全員向けの演出）。
+function detectTurnAnnounce(room, turnPlayerId, turnPlayer) {
+  const isPlaying = room.status === "playing" && areGameStartConfirmationsComplete(room);
+  if (!isPlaying) {
+    // 対局中でない（開始前・開始確認中・終了後）ときはリセットし、次の対局開始時に
+    // 誤って「前回の続き」として通知しないようにする。
+    lastSeenTurnPlayerId = undefined;
+    return;
+  }
+  // turnAdvancing中（結果確認中）は次の手番がまだ確定していないので、
+  // trackerを変更せず様子見する（ここでリセットすると手番交代の瞬間を見逃す）。
+  if (room.turnAdvancing || !turnPlayerId) return;
+
+  if (lastSeenTurnPlayerId === undefined) {
+    lastSeenTurnPlayerId = turnPlayerId;
+    return;
+  }
+  if (turnPlayerId !== lastSeenTurnPlayerId) {
+    const name = turnPlayerId === currentPlayerId ? "あなた" : turnPlayer?.name || "参加者";
+    triggerTurnAnnounce(`${name}のターンです`);
+  }
+  lastSeenTurnPlayerId = turnPlayerId;
+}
+
+function triggerTurnAnnounce(text) {
+  if (!els.turnAnnounceBanner || !els.turnAnnounceBannerText) return;
+  els.turnAnnounceBanner.classList.remove("show");
+  void els.turnAnnounceBanner.offsetWidth;
+  els.turnAnnounceBannerText.textContent = text;
+  els.turnAnnounceBanner.classList.add("show");
+  window.setTimeout(() => {
+    els.turnAnnounceBanner.classList.remove("show");
+  }, 1800);
 }
 
 function canTakeTurn(room, playerId) {
