@@ -1864,11 +1864,28 @@ if (room.status !== "waiting") {
     head.append(title);
 
     // 伏せモードでは、自分以外の現在人口が見えるとTARGETが逆算できてしまうため隠す。
-    const maskNumbers = isTargetHidden(room) && playerId !== currentPlayerId;
+    const hideTarget = isTargetHidden(room);
+    const maskNumbers = hideTarget && playerId !== currentPlayerId;
+
+    // 「順位が伝わりにくい」という指摘を受けて、現在人口を大きく独立表示し、
+    // TARGETとの差（＝順位を決めている基準そのもの）も分かるようにする。
+    // TARGETの数字自体を隠す伏せモードでは、差を出すとTARGETが逆算できて
+    // しまうため、自分の分も含めて一切表示しない。
+    const total = document.createElement("div");
+    total.className = "player-row-total num-digital";
+    total.textContent = maskNumbers ? "？？？人" : `${formatNumber(player.total || 0)}人`;
+
+    let diffText = "";
+    if (!hideTarget && !maskNumbers && room.status !== "waiting") {
+      const diff = Math.abs(target - (player.total || 0));
+      diffText = (player.total || 0) > target
+        ? `${formatNumber(diff)}人オーバー / `
+        : `残り${formatNumber(diff)}人 / `;
+    }
 
     const meta = document.createElement("span");
     meta.textContent =
-      `${maskNumbers ? "？？？" : formatNumber(player.total || 0)}人 / ` +
+      `${diffText}` +
       `${statusLabels[player.status] || "待機中"} / ` +
       `HIT ${formatNumber(player.hitCount || 0)}回`;
 
@@ -1876,7 +1893,7 @@ if (room.status !== "waiting") {
     action.className = "last-action";
     action.textContent = buildLastActionText(player, maskNumbers);
 
-    item.append(head, meta, action);
+    item.append(head, total, meta, action);
     els.playersList.append(item);
   }
 }
