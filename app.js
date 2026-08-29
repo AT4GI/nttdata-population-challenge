@@ -265,6 +265,7 @@ const els = {
   howToPlayView: document.querySelector("#howToPlayView"),
   createRoomForm: document.querySelector("#createRoomForm"),
   joinRoomForm: document.querySelector("#joinRoomForm"),
+  joinHomePrefectureView: document.querySelector("#joinHomePrefectureView"),
   cpuRoomForm: document.querySelector("#cpuRoomForm"),
   selectPvpModeButton: document.querySelector("#selectPvpModeButton"),
   selectHowToButton: document.querySelector("#selectHowToButton"),
@@ -299,6 +300,9 @@ const els = {
   cpuHideTargetCheckbox: document.querySelector("#cpuHideTargetCheckbox"),
   createItemModeCheckbox: document.querySelector("#createItemModeCheckbox"),
   cpuItemModeCheckbox: document.querySelector("#cpuItemModeCheckbox"),
+  createHomePrefectureLockCheckbox: document.querySelector("#createHomePrefectureLockCheckbox"),
+  confirmJoinHomePrefectureButton: document.querySelector("#confirmJoinHomePrefectureButton"),
+  backFromJoinHomePrefectureButton: document.querySelector("#backFromJoinHomePrefectureButton"),
   targetRoulette: document.querySelector("#targetRoulette"),
   rouletteWindow: document.querySelector("#rouletteWindow"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
@@ -378,6 +382,9 @@ let db = null;
 let appReady = false;
 let currentRoomId = "";
 let currentPlayerId = sessionStorage.getItem("populationBlackjackPlayerId") || crypto.randomUUID();
+// 出身地しばりモードの部屋に参加しようとしたとき、都道府県選択画面に移る間だけ
+// 表示名/部屋IDを保持しておく（選択完了後にjoinを実行する）。
+let pendingJoin = null;
 let unsubscribeRoom = null;
 let cpuActionTimer = null;
 let cpuActionKey = "";
@@ -440,6 +447,14 @@ els.backFromJoinButton.addEventListener("click", () => showSetupMode("pvp"));
 els.backFromCpuButton.addEventListener("click", () => showSetupMode("home"));
 els.createRoomButton.addEventListener("click", createRoom);
 els.joinRoomButton.addEventListener("click", joinRoom);
+els.confirmJoinHomePrefectureButton.addEventListener("click", confirmJoinHomePrefecture);
+els.backFromJoinHomePrefectureButton.addEventListener("click", () => {
+  pendingJoin = null;
+  showSetupMode("join");
+});
+els.createHomePrefectureLockCheckbox.addEventListener("change", () => {
+  els.createHomePrefectureSelect.disabled = !els.createHomePrefectureLockCheckbox.checked;
+});
 els.startCpuRoomButton.addEventListener("click", startCpuRoom);
 els.startGameButton.addEventListener("click", startGame);
 els.readyButton.addEventListener("click", toggleReady);
@@ -628,6 +643,11 @@ async function initializeFirebase() {
 async function createRoom() {
   if (!appReady) return;
 
+  if (els.createHomePrefectureLockCheckbox.checked && !els.createHomePrefectureSelect.value) {
+    setSetupMessage("出身地しばりモードでは、出身都道府県を選択してください。");
+    return;
+  }
+
   if (els.createTargetSelect.value === "random") {
     disableSetup(true);
     const target = await runTargetRoulette();
@@ -643,7 +663,11 @@ async function createRoomWithTarget(target) {
   await runSetupAction(async () => {
     const roomId = makeRoomId();
     const playerName = getPlayerName(els.playerNameInput, "Player 1");
-    const player = makePlayer(playerName, "waiting", { type: "human", homePrefecture: els.createHomePrefectureSelect.value || null });
+    const homePrefectureMode = els.createHomePrefectureLockCheckbox.checked;
+    const player = makePlayer(playerName, "waiting", {
+      type: "human",
+      homePrefecture: homePrefectureMode ? els.createHomePrefectureSelect.value : null
+    });
 
     await set(ref(db, `rooms/${roomId}`), {
       roomId,
@@ -651,6 +675,7 @@ async function createRoomWithTarget(target) {
       ...makeRoomTargetPayload(target),
       hideTarget: els.createHideTargetCheckbox.checked,
       itemMode: els.createItemModeCheckbox.checked,
+      homePrefectureMode,
       status: "waiting",
       maxPlayers: MAX_PLAYERS,
       turnIndex: null,
@@ -770,7 +795,36 @@ async function joinRoom() {
     }
 
     const defaultName = `Player ${Math.min(playerIds.length + 1, MAX_PLAYERS)}`;
-    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(getPlayerName(els.joinPlayerNameInput, defaultName), "waiting", { type: "human", homePrefecture: els.joinHomePrefectureSelect.value || null }));
+    const playerName = getPlayerName(els.joinPlayerNameInput, defaultName);
+
+    if (!players[currentPlayerId] && room.homePrefectureMode) {
+      pendingJoin = { roomId, playerName };
+      showSetupMode("joinHome");
+      return;
+    }
+
+    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(playerName, "waiting", { type: "human" }));
+    enterRoom(roomId);
+  });
+}
+
+async function confirmJoinHomePrefecture() {
+  if (!appReady) return;
+  if (!pendingJoin) {
+    showSetupMode("join");
+    return;
+  }
+
+  const homePrefecture = els.joinHomePrefectureSelect.value;
+  if (!homePrefecture) {
+    setSetupMessage("出身都道府県を選択してください。");
+    return;
+  }
+
+  await runSetupAction(async () => {
+    const { roomId, playerName } = pendingJoin;
+    await update(ref(db, `rooms/${roomId}/players/${currentPlayerId}`), makePlayer(playerName, "waiting", { type: "human", homePrefecture }));
+    pendingJoin = null;
     enterRoom(roomId);
   });
 }
@@ -810,6 +864,10 @@ async function startGame() {
       return;
     }
 
+    const allowedPrefectures = room.homePrefectureMode
+      ? [...new Set(Object.values(players).map((p) => p.homePrefecture).filter(Boolean))]
+      : null;
+
     const updates = {
       status: "playing",
       startConfirmationRequired: true,
@@ -819,13 +877,14 @@ async function startGame() {
       playerOrder,
       startedPlayerIds: playerOrder
     };
+    if (allowedPrefectures) updates.allowedPrefectures = allowedPrefectures;
     for (const playerId of playerOrder) {
       updates[`players/${playerId}/status`] = "active";
       if (room.itemMode && players[playerId]?.type === "human") {
         updates[`players/${playerId}/item`] = assignRandomItem();
       }
     }
-    updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(room.drawn || {}, getRoomTarget(room).value);
+    updates[`players/${playerOrder[0]}/candidate`] = pickCandidate(room.drawn || {}, getRoomTarget(room).value, allowedPrefectures);
 
     await update(ref(db, `rooms/${currentRoomId}`), updates);
   });
@@ -946,7 +1005,7 @@ async function rematchRoom() {
 
     const target = getRoomTarget(room);
     const playerOrder = getPlayerOrder(room);
-    const firstCandidate = pickCandidate({}, target.value);
+    const firstCandidate = pickCandidate({}, target.value, room.allowedPrefectures);
     const updates = {
       status: "playing",
       startConfirmationRequired: true,
@@ -1071,7 +1130,7 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
 
   switch (itemDef.id) {
     case "card-swap": {
-      updates[`players/${playerId}/candidate`] = pickCandidate(room.drawn || {}, target);
+      updates[`players/${playerId}/candidate`] = pickCandidate(room.drawn || {}, target, room.allowedPrefectures);
       break;
     }
     case "scout": {
@@ -1231,7 +1290,7 @@ function getPostEffectDelay(action, status) {
 
 function buildHitPayload(room, player) {
   const roomTarget = getRoomTarget(room);
-  const candidate = player.candidate || pickCandidate(room.drawn || {}, roomTarget.value);
+  const candidate = player.candidate || pickCandidate(room.drawn || {}, roomTarget.value, room.allowedPrefectures);
   const multiplier = player.nextHitMultiplier || 1;
   const appliedPopulation = Math.round(candidate.population * multiplier);
   const nextTotal = (player.total || 0) + appliedPopulation;
@@ -1275,12 +1334,6 @@ function buildHitPayload(room, player) {
   payload.candidate = null;
   if (status !== "active") {
     payload.finishedAt = serverTimestamp();
-  }
-
-  // 自分の出身都道府県の市区町村を引き当てたら、アイテムモードのON/OFFに
-  // 関わらずサプライズでアイテムを1個だけ獲得できる（すでに持っていれば何もしない）。
-  if (!player.item && player.homePrefecture && player.homePrefecture === candidate.prefecture) {
-    payload.item = assignRandomItem();
   }
 
   return payload;
@@ -1425,8 +1478,12 @@ function renderRoom(room) {
     : focusPlayer?.lastRevealed?.prefecture || null;
   const shownName = isCandidateMasked ? candidate.name : focusPlayer?.lastRevealed?.name || null;
   const shownCandidateId = isCandidateMasked ? candidate.id : focusPlayer?.lastRevealed?.id || null;
-  updateCandidateHomeNote(players, shownPrefecture);
-  detectHomeMatchAnnounce(players, shownPrefecture, shownCandidateId);
+  // 出身地しばりモードでは全カードが誰かの出身地と一致するのが当たり前になり、
+  // 一致演出そのものが意味を持たなくなるため出さない。
+  if (!room.homePrefectureMode) {
+    updateCandidateHomeNote(players, shownPrefecture);
+    detectHomeMatchAnnounce(players, shownPrefecture, shownCandidateId);
+  }
   updateCandidateOfficeNote(shownPrefecture, shownName);
   updateCandidateCard(revealCategory, isCandidateMasked);
   updateCandidateMap(isCandidateMasked ? candidate : focusPlayer?.lastRevealed || null);
@@ -2282,7 +2339,7 @@ function decideCpuAction(room, cpuPlayer) {
 function getIdealCpuAction(room, cpuPlayer) {
   const target = getRoomTarget(room).value;
   const currentTotal = cpuPlayer.total || 0;
-  const candidate = cpuPlayer.candidate || pickCandidate(room.drawn || {}, target);
+  const candidate = cpuPlayer.candidate || pickCandidate(room.drawn || {}, target, room.allowedPrefectures);
   const nextTotal = currentTotal + candidate.population;
   const currentDiff = Math.abs(target - currentTotal);
   const nextDiff = Math.abs(target - nextTotal);
@@ -2405,7 +2462,7 @@ function buildRoomProgressUpdates(room, actedPlayerId) {
   const nextPlayer = room.players?.[nextPlayerId];
   if (nextPlayer && canPlay(nextPlayer) && !nextPlayer.candidate) {
     const target = getRoomTarget(room);
-    updates[`players/${nextPlayerId}/candidate`] = pickCandidate(room.drawn || {}, target.value);
+    updates[`players/${nextPlayerId}/candidate`] = pickCandidate(room.drawn || {}, target.value, room.allowedPrefectures);
   }
 
   return updates;
@@ -2537,10 +2594,23 @@ function getItemDescription(itemDef, targetValue) {
   return typeof itemDef.describe === "function" ? itemDef.describe(targetValue) : itemDef.description;
 }
 
-function pickCandidate(drawn, targetValue) {
-  const available = MUNICIPALITIES.filter((item) => !drawn[item.id]);
-  const pool = available.length > 0 ? available : MUNICIPALITIES;
-  return pickWeightedCandidate(pool, targetValue);
+// allowedPrefecturesを指定すると、その都道府県の市区町村だけから引く（出身地しばりモード用）。
+// 絞り込んだプールを使い切ったら、drawnを尊重したまま全国データにフォールバックする。
+function pickCandidate(drawn, targetValue, allowedPrefectures) {
+  const restrictedPool = Array.isArray(allowedPrefectures) && allowedPrefectures.length > 0
+    ? MUNICIPALITIES.filter((item) => allowedPrefectures.includes(item.prefecture))
+    : null;
+  const basePool = restrictedPool && restrictedPool.length > 0 ? restrictedPool : MUNICIPALITIES;
+
+  const available = basePool.filter((item) => !drawn[item.id]);
+  if (available.length > 0) return pickWeightedCandidate(available, targetValue);
+
+  if (restrictedPool) {
+    const nationwideAvailable = MUNICIPALITIES.filter((item) => !drawn[item.id]);
+    if (nationwideAvailable.length > 0) return pickWeightedCandidate(nationwideAvailable, targetValue);
+  }
+
+  return pickWeightedCandidate(MUNICIPALITIES, targetValue);
 }
 
 function pickWeightedCandidate(pool, targetValue) {
@@ -2558,9 +2628,16 @@ function pickWeightedCandidate(pool, targetValue) {
     return middlePool[Math.floor(Math.random() * middlePool.length)];
   }
 
-  const tiers = buildDrawTiers(underScalePool.length > 0 ? underScalePool : pool, target);
-  const tier = tiers[Math.floor(Math.random() * tiers.length)];
-  return tier.candidates[Math.floor(Math.random() * tier.candidates.length)];
+  if (underScalePool.length > 0) {
+    const tiers = buildDrawTiers(underScalePool, target);
+    const tier = tiers[Math.floor(Math.random() * tiers.length)];
+    if (tier.candidates.length > 0) {
+      return tier.candidates[Math.floor(Math.random() * tier.candidates.length)];
+    }
+  }
+  // 段階分けで候補が得られなかった場合（プールが小さく、該当する人口帯がたまたま
+  // 空だった場合など）は、poolから直接ランダムに選ぶ（undefinedを返さないための保険）。
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // TARGET÷DRAW_REFERENCE_TURNSを本物のトランプの1〜10点のように10段階へ均等に
@@ -2840,6 +2917,18 @@ function renderGameStartIntroRule(room, target) {
     document.createElement("br"),
     "これを超えないように、HITかSTANDを選んでいきましょう。"
   );
+
+  if (room.homePrefectureMode && Array.isArray(room.allowedPrefectures) && room.allowedPrefectures.length > 0) {
+    const poolCount = MUNICIPALITIES.filter((item) => room.allowedPrefectures.includes(item.prefecture)).length;
+    const poolSpan = document.createElement("strong");
+    poolSpan.textContent = `${room.allowedPrefectures.join("・")}（${formatNumber(poolCount)}件）`;
+    els.gameStartIntroRule.append(
+      document.createElement("br"),
+      "出身地しばりモード：",
+      poolSpan,
+      "の市区町村だけが出ます。"
+    );
+  }
 }
 
 function hideGameStartIntro(immediate) {
@@ -2970,6 +3059,7 @@ function disableSetup(disabled) {
   els.selectCpuModeButton.disabled = disabled;
   els.createRoomButton.disabled = disabled;
   els.joinRoomButton.disabled = disabled;
+  els.confirmJoinHomePrefectureButton.disabled = disabled;
   els.startCpuRoomButton.disabled = disabled;
 }
 
@@ -3015,12 +3105,14 @@ function showSetupMode(mode) {
   els.howToPlayView.classList.toggle("hidden", mode !== "howto");
   els.createRoomForm.classList.toggle("hidden", mode !== "create");
   els.joinRoomForm.classList.toggle("hidden", mode !== "join");
+  els.joinHomePrefectureView.classList.toggle("hidden", mode !== "joinHome");
   els.cpuRoomForm.classList.toggle("hidden", mode !== "cpu");
   setSetupMessage("");
 
   if (mode === "howto") resetHowtoSlides();
   if (mode === "create") els.playerNameInput.focus();
   if (mode === "join") els.joinPlayerNameInput.focus();
+  if (mode === "joinHome") els.joinHomePrefectureSelect.focus();
   if (mode === "cpu") els.cpuPlayerNameInput.focus();
 }
 

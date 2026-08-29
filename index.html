@@ -55,8 +55,8 @@
             <input id="playerNameInput" type="text" maxlength="20" placeholder="Player">
           </label>
           <label class="stacked-field">
-            出身都道府県（任意）
-            <select id="createHomePrefectureSelect"></select>
+            出身都道府県
+            <select id="createHomePrefectureSelect" disabled></select>
           </label>
           <label class="stacked-field">
             TARGET
@@ -78,6 +78,14 @@
               <small>参加者それぞれに1個ずつランダムでアイテムが配られ、自分の番に1回だけ使えます</small>
             </span>
           </label>
+          <label class="mode-toggle">
+            <input id="createHomePrefectureLockCheckbox" type="checkbox" class="mode-toggle-input">
+            <span class="mode-toggle-track" aria-hidden="true"><span class="mode-toggle-thumb"></span></span>
+            <span class="mode-toggle-text">
+              <strong>出身地しばりモード</strong>
+              <small>参加者全員の出身都道府県の入力が必須になり、その都道府県の市区町村だけが出題されます</small>
+            </span>
+          </label>
           <div class="button-row">
             <button id="createRoomButton" type="button">部屋を作る</button>
             <button id="backFromCreateButton" type="button" class="secondary">戻る</button>
@@ -94,10 +102,6 @@
             表示名
             <input id="joinPlayerNameInput" type="text" maxlength="20" placeholder="Player">
           </label>
-          <label class="stacked-field">
-            出身都道府県（任意）
-            <select id="joinHomePrefectureSelect"></select>
-          </label>
           <label>
             部屋ID
             <input id="roomIdInput" type="text" maxlength="8" placeholder="ABC123">
@@ -105,6 +109,18 @@
           <div class="button-row">
             <button id="joinRoomButton" type="button">参加する</button>
             <button id="backFromJoinButton" type="button" class="secondary">戻る</button>
+          </div>
+        </div>
+
+        <div id="joinHomePrefectureView" class="setup-form hidden">
+          <p class="message">この部屋は「出身地しばりモード」です。参加するには出身の都道府県を選んでください。</p>
+          <label class="stacked-field">
+            出身都道府県
+            <select id="joinHomePrefectureSelect"></select>
+          </label>
+          <div class="button-row">
+            <button id="confirmJoinHomePrefectureButton" type="button">参加する</button>
+            <button id="backFromJoinHomePrefectureButton" type="button" class="secondary">戻る</button>
           </div>
         </div>
 
