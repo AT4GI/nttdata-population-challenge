@@ -94,6 +94,18 @@ button.secondary:hover:not(:disabled) {
   border-color: var(--gold);
 }
 
+/* 準備OKボタンは、通常の金色アクションボタンと混同しないよう
+   押した後だけ専用の緑色にして、ON/OFFの状態を見た目で区別できるようにする。 */
+button.ready-confirmed {
+  background: linear-gradient(180deg, #4ade80, #16a34a);
+  border-color: #16a34a;
+  color: #052e12;
+}
+
+button.ready-confirmed:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
@@ -1747,6 +1759,10 @@ label input {
   animation: cardFlip 0.9s cubic-bezier(0.4, 0.1, 0.2, 1);
 }
 
+.game-grid.action-hit .play-panel {
+  animation: hitFlash 0.6s ease;
+}
+
 .game-grid.action-stand .play-panel {
   animation: standFlash 0.7s ease;
 }
@@ -1797,6 +1813,21 @@ label input {
   100% {
     transform: rotateX(0deg);
     filter: brightness(1);
+  }
+}
+
+@keyframes hitFlash {
+  0% {
+    box-shadow: 0 20px 44px var(--shadow);
+  }
+
+  35% {
+    border-color: var(--gold-bright);
+    box-shadow: 0 0 0 1px var(--gold-bright), 0 0 32px rgba(56, 189, 248, 0.45), 0 20px 44px var(--shadow);
+  }
+
+  100% {
+    box-shadow: 0 20px 44px var(--shadow);
   }
 }
 
@@ -2181,6 +2212,32 @@ label input {
 .item-target-row:hover {
   border-color: var(--gold);
   background: var(--primary-soft);
+}
+
+/* ターンを消費するアイテムを誤って使ってしまわないよう挟む確認UI。 */
+.item-use-confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.item-use-confirm-text {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.item-use-confirm-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.item-use-confirm-actions button {
+  flex: 1 1 auto;
 }
 
 .history-block {

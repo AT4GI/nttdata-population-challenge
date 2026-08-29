@@ -360,6 +360,10 @@ const els = {
   itemTargetPicker: document.querySelector("#itemTargetPicker"),
   itemTargetList: document.querySelector("#itemTargetList"),
   cancelItemTargetButton: document.querySelector("#cancelItemTargetButton"),
+  itemUseConfirm: document.querySelector("#itemUseConfirm"),
+  itemUseConfirmText: document.querySelector("#itemUseConfirmText"),
+  confirmItemUseButton: document.querySelector("#confirmItemUseButton"),
+  cancelItemUseButton: document.querySelector("#cancelItemUseButton"),
   battleCommentsList: document.querySelector("#battleCommentsList"),
   battleCommentInput: document.querySelector("#battleCommentInput"),
   battleCommentSendButton: document.querySelector("#battleCommentSendButton"),
@@ -477,8 +481,10 @@ els.useItemButton.addEventListener("click", () => {
   if (!itemDef) return;
   if (itemDef.requiresTarget) {
     els.itemTargetPicker.classList.remove("hidden");
-  } else {
+  } else if (itemDef.instant) {
     useItem(null);
+  } else {
+    openItemUseConfirm(itemDef, null);
   }
 });
 els.cancelItemTargetButton.addEventListener("click", () => {
@@ -487,9 +493,20 @@ els.cancelItemTargetButton.addEventListener("click", () => {
 els.itemTargetList.addEventListener("click", (event) => {
   const row = event.target.closest(".item-target-row");
   if (!row) return;
+  const itemDef = getItemDefinition(els.useItemButton.dataset.itemId);
   els.itemTargetPicker.classList.add("hidden");
-  useItem(row.dataset.playerId);
+  if (itemDef && itemDef.instant) {
+    useItem(row.dataset.playerId);
+  } else {
+    openItemUseConfirm(itemDef, row.dataset.playerId);
+  }
 });
+els.confirmItemUseButton.addEventListener("click", () => {
+  const targetPlayerId = pendingItemUseTargetId;
+  closeItemUseConfirm();
+  useItem(targetPlayerId);
+});
+els.cancelItemUseButton.addEventListener("click", closeItemUseConfirm);
 els.rematchButton.addEventListener("click", rematchRoom);
 els.leaveRoomButton.addEventListener("click", () => window.location.reload());
 els.shareResultButton.addEventListener("click", copyShareLink);
@@ -995,6 +1012,23 @@ async function stand() {
   }
 }
 
+// 使うとターンが終わってしまうアイテムは、誤操作で機会を失わないよう
+// 実行前に一度確認を挟む（ターンを消費しない即時アイテムには出さない）。
+let pendingItemUseTargetId = null;
+
+function openItemUseConfirm(itemDef, targetPlayerId) {
+  if (!itemDef || !els.itemUseConfirm) return;
+  pendingItemUseTargetId = targetPlayerId;
+  els.itemUseConfirmText.textContent =
+    `「${itemDef.label}」を使って自分のターンを終了しますか？`;
+  els.itemUseConfirm.classList.remove("hidden");
+}
+
+function closeItemUseConfirm() {
+  pendingItemUseTargetId = null;
+  if (els.itemUseConfirm) els.itemUseConfirm.classList.add("hidden");
+}
+
 async function useItem(targetPlayerId) {
   if (actionPending) return;
   actionPending = true;
@@ -1436,8 +1470,10 @@ function renderRoom(room) {
 
   els.readyButton.classList.toggle("hidden", !isWaiting);
   if (isWaiting && me) {
-    els.readyButton.textContent = me.ready ? "準備OK済み（取り消す）" : "準備OK";
+    els.readyButton.textContent = me.ready ? "✅ 準備OK済み（取り消す）" : "準備OK";
     els.readyButton.classList.toggle("secondary", !me.ready);
+    // 通常の金色ボタンと見分けがつくよう、押した後だけ専用の緑色にする。
+    els.readyButton.classList.toggle("ready-confirmed", me.ready);
   }
 
   els.readyStatusText.textContent = !isWaiting
@@ -1557,6 +1593,7 @@ function renderItemPanel(room, me) {
   els.itemPanel.classList.toggle("hidden", !shouldShow);
   if (!shouldShow) {
     els.itemTargetPicker.classList.add("hidden");
+    closeItemUseConfirm();
     return;
   }
 
@@ -1566,7 +1603,10 @@ function renderItemPanel(room, me) {
   els.useItemButton.disabled = !isMyTurn;
   els.useItemButton.dataset.itemId = itemDef.id;
 
-  if (!isMyTurn) els.itemTargetPicker.classList.add("hidden");
+  if (!isMyTurn) {
+    els.itemTargetPicker.classList.add("hidden");
+    closeItemUseConfirm();
+  }
 }
 
 function renderItemTargetOptions(players, playerIds) {
@@ -1785,7 +1825,8 @@ if (room.status !== "waiting") {
       } else {
         rankCounter += 1;
         rankBadge.className = `player-rank-badge${rankCounter === 1 ? " rank-1" : ""}`;
-        rankBadge.textContent = `${rankCounter}`;
+        // 「①」のような数字だけだと引く順番(対戦順)と誤解されるため、「位」を付けて明示する。
+        rankBadge.textContent = `${rankCounter}位`;
       }
       head.append(rankBadge);
     }
