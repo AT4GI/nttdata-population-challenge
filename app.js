@@ -196,10 +196,12 @@ const ITEM_CATALOG = [
   {
     id: "force-plus-10k",
     label: "強制加算1万",
-    description: "指定した相手の現在人口に1万人を強制的に加算します。TARGETを超えるとBUSTします。",
+    description: "指定した相手（自分も選べます）の現在人口に1万人を強制的に加算します。TARGETを超えるとBUSTします。",
     rarity: "ノーマル",
     weight: 10,
-    requiresTarget: true
+    requiresTarget: true,
+    // JUSTを狙う一手としても使えるよう、自分自身も対象に選べるようにする。
+    allowSelfTarget: true
   },
   {
     id: "steal-10pct",
@@ -229,10 +231,12 @@ const ITEM_CATALOG = [
   {
     id: "force-plus-50k",
     label: "強制加算5万",
-    description: "指定した相手の現在人口に5万人を強制的に加算します。TARGETを超えるとBUSTします。",
+    description: "指定した相手（自分も選べます）の現在人口に5万人を強制的に加算します。TARGETを超えるとBUSTします。",
     rarity: "レア",
     weight: 6,
-    requiresTarget: true
+    requiresTarget: true,
+    // JUSTを狙う一手としても使えるよう、自分自身も対象に選べるようにする。
+    allowSelfTarget: true
   },
   {
     id: "halve-next",
@@ -1188,7 +1192,8 @@ function buildItemEffectUpdates(room, playerId, targetPlayerId) {
   if (!itemDef) return null;
 
   const targetPlayer = targetPlayerId ? room.players?.[targetPlayerId] : null;
-  if (itemDef.requiresTarget && (!targetPlayerId || !targetPlayer || targetPlayerId === playerId)) return null;
+  const selfTargeted = targetPlayerId === playerId;
+  if (itemDef.requiresTarget && (!targetPlayerId || !targetPlayer || (selfTargeted && !itemDef.allowSelfTarget))) return null;
 
   const target = getRoomTarget(room).value;
   const updates = {};
@@ -1335,7 +1340,7 @@ function setItemLastAction(updates, playerId, targetPlayerId, targetPlayer, item
     type: "item",
     itemId: itemDef.id,
     itemLabel: itemDef.label,
-    targetName: targetPlayer.name || "参加者"
+    targetName: targetPlayerId === playerId ? "自分" : targetPlayer.name || "参加者"
   };
   return { casterId: playerId, targetId: targetPlayerId };
 }
@@ -1570,7 +1575,7 @@ function renderRoom(room) {
 
   renderHistory(focusPlayer, focusLabel);
   renderItemPanel(room, me);
-  renderItemTargetOptions(players, playerIds);
+  renderItemTargetOptions(players, playerIds, me);
   renderPlayersList(room, players, playerIds);
   renderBattleComments(room);
   detectNewComments(room);
@@ -1631,12 +1636,17 @@ function renderItemPanel(room, me) {
   }
 }
 
-function renderItemTargetOptions(players, playerIds) {
+function renderItemTargetOptions(players, playerIds, me) {
   if (!els.itemTargetList) return;
   els.itemTargetList.innerHTML = "";
 
+  // 強制加算1万/5万のように、JUST狙いの一手として自分自身にも使えるアイテムでは
+  // 自分自身も対象の一人として選べるようにする。
+  const itemDef = me?.item ? getItemDefinition(me.item.id) : null;
+  const allowSelf = Boolean(itemDef?.allowSelfTarget);
+
   for (const playerId of playerIds) {
-    if (playerId === currentPlayerId) continue;
+    if (playerId === currentPlayerId && !allowSelf) continue;
     const player = players[playerId];
     if (!player) continue;
 
@@ -1644,7 +1654,8 @@ function renderItemTargetOptions(players, playerIds) {
     row.type = "button";
     row.className = "item-target-row";
     row.dataset.playerId = playerId;
-    row.textContent = `${player.name || "参加者"}（${formatNumber(player.total || 0)}人 / ${statusLabels[player.status] || "待機中"}）`;
+    const name = playerId === currentPlayerId ? "自分" : player.name || "参加者";
+    row.textContent = `${name}（${formatNumber(player.total || 0)}人 / ${statusLabels[player.status] || "待機中"}）`;
     els.itemTargetList.append(row);
   }
 }
