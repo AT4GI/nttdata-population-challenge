@@ -953,11 +953,11 @@ label input {
 }
 
 .item-guide-group-title.rarity-super-rare {
-  color: #c084fc;
+  color: #b347ff;
 }
 
 .item-guide-group-title.rarity-ultra-rare {
-  color: #ef5da8;
+  color: #ff2f92;
 }
 
 /* 同じレア度のカードは横一列に並べ、入りきらない分は横スクロールにする
@@ -997,6 +997,81 @@ label input {
   color: #7c8a7d;
   font-size: 0.72rem;
   line-height: 1.4;
+}
+
+/* 遊び方のアイテム一覧も、所持アイテムカードと同じレア度別の配色にする。
+   枠線だけだと分かりづらいという指摘を受けて、背景もはっきり色分けする。 */
+.item-guide-card.rarity-normal {
+  border-color: var(--muted);
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.32), rgba(16, 27, 20, 0.55));
+}
+
+.item-guide-card.rarity-rare {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.42), rgba(16, 27, 20, 0.55));
+}
+
+/* スーパーレア/ウルトラレアは、単色を暗い背景に薄めるとくすんで見えるため、
+   彩度の高い2色グラデーションにしてレアカードらしい華やかさを出す。 */
+.item-guide-card.rarity-super-rare {
+  border-color: #b347ff;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.62), rgba(217, 70, 239, 0.42));
+}
+
+.item-guide-card.rarity-ultra-rare {
+  border-color: #ff2f92;
+  background: linear-gradient(135deg, rgba(255, 47, 146, 0.68), rgba(251, 191, 36, 0.38));
+}
+
+/* ウルトラレアだけ、所持カード・アイテム一覧の両方でキラキラ光らせて特別感を出す。 */
+.item-panel.rarity-ultra-rare,
+.item-guide-card.rarity-ultra-rare {
+  position: relative;
+  overflow: hidden;
+  animation: ultraRareGlow 2.4s ease-in-out infinite;
+}
+
+.item-panel.rarity-ultra-rare::after,
+.item-guide-card.rarity-ultra-rare::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 40%, rgba(255, 255, 255, 0.4) 50%, transparent 60%);
+  background-size: 250% 250%;
+  animation: ultraRareShine 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ultraRareGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 14px rgba(255, 47, 146, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(255, 47, 146, 0.7), 0 0 0 2px rgba(251, 191, 36, 0.4);
+  }
+}
+
+@keyframes ultraRareShine {
+  0% {
+    background-position: 200% 200%;
+  }
+  100% {
+    background-position: -50% -50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item-panel.rarity-ultra-rare,
+  .item-guide-card.rarity-ultra-rare {
+    animation: none;
+  }
+
+  .item-panel.rarity-ultra-rare::after,
+  .item-guide-card.rarity-ultra-rare::after {
+    animation: none;
+    display: none;
+  }
 }
 
 .game-grid {
@@ -2208,6 +2283,31 @@ label input {
   margin-top: 16px;
   /* 常時ほんのり光らせて、他の枠と紛れずアイテムの存在に気づけるようにする。 */
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+}
+
+/* 所持アイテムカードの枠色を、アイテム一覧画面と同じレア度別の配色にする。 */
+.item-panel.rarity-normal {
+  border-color: var(--muted);
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.32), rgba(16, 27, 20, 0.55));
+  box-shadow: 0 0 14px rgba(148, 163, 184, 0.2);
+}
+
+.item-panel.rarity-rare {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.42), rgba(16, 27, 20, 0.55));
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+}
+
+.item-panel.rarity-super-rare {
+  border-color: #b347ff;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.62), rgba(217, 70, 239, 0.42));
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.4);
+}
+
+.item-panel.rarity-ultra-rare {
+  border-color: #ff2f92;
+  background: linear-gradient(135deg, rgba(255, 47, 146, 0.68), rgba(251, 191, 36, 0.38));
+  /* box-shadowはultraRareGlowアニメーション側で常時アニメーションさせる。 */
 }
 
 /* 獲得直後だけ、パネルの位置そのものを指し示すように強く数回光らせる。 */

@@ -1630,6 +1630,10 @@ function renderItemPanel(room, me) {
   els.useItemButton.disabled = !isMyTurn;
   els.useItemButton.dataset.itemId = itemDef.id;
 
+  // レア度に応じてカードの枠色を変える（アイテム一覧画面と同じ配色）。
+  els.itemPanel.classList.remove(...Object.values(ITEM_RARITY_CLASSES));
+  els.itemPanel.classList.add(ITEM_RARITY_CLASSES[itemDef.rarity] || "rarity-normal");
+
   if (!isMyTurn) {
     els.itemTargetPicker.classList.add("hidden");
     closeItemUseConfirm();
@@ -2904,7 +2908,8 @@ function populateHomePrefectureSelects() {
 
 function buildItemGuideCard(itemDef) {
   const card = document.createElement("div");
-  card.className = "item-guide-card";
+  // 所持アイテムカードと同じレア度別配色を、遊び方のアイテム一覧にも適用する。
+  card.className = `item-guide-card ${ITEM_RARITY_CLASSES[itemDef.rarity] || "rarity-normal"}`;
 
   const name = document.createElement("strong");
   name.textContent = itemDef.label;
