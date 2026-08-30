@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "npm run test:smoke",
     "test:smoke": "node --experimental-loader ./scripts/firebase-stub-loader.mjs scripts/boot-smoke-test.mjs"
   },
   "devDependencies": {
